@@ -28,6 +28,8 @@ MODULE utils
   PUBLIC :: numcpus
   PUBLIC :: invmat
   PUBLIC :: inversemat
+  PUBLIC :: dsyevd_driver
+  PUBLIC :: dsyevx_driver
   PUBLIC :: dspevy
   PUBLIC :: zgthr
   PUBLIC :: zgthr_no_omp
@@ -323,6 +325,134 @@ CONTAINS
     RETURN
   END SUBROUTINE inversemat
   ! ==================================================================
+  SUBROUTINE dsyevd_driver(iopt,a,w,n)
+    ! ==--------------------------------------------------------------==
+    ! == DIAGONALIZATION ROUTINE: FOLLOW THE ESSL CONVENTION          ==
+    ! == DIVIDE AND CONQUER UNPACKED MEMORY INTENSE VARIANT OF DSPEVY ==
+    ! ==--------------------------------------------------------------==
+    ! Author: Tobias Kloeffel, Erlangen
+    ! Date March 2019
+
+    INTEGER,INTENT(IN)                       :: iopt, n
+    REAL(real_8),INTENT(INOUT)               :: w(:), a(:,:)
+    !local
+    INTEGER                                  :: il_work(1), il_iwork, dummy_int(1)
+    REAL(real_8), ALLOCATABLE                :: work(:)
+    INTEGER, ALLOCATABLE                     :: iwork(:)
+    REAL(real_8)                             :: dummy_real(1)
+    CHARACTER(1)                             :: jobz, uplo
+    CHARACTER(*),PARAMETER                   :: procedureN='dsyevd_driver'
+    INTEGER                                  :: info, ierr
+    IF(iopt.EQ.0)THEN
+       jobz='N'
+       uplo='L'
+    ELSEIF(iopt.EQ.1)THEN
+       jobz='V'
+       uplo='L'
+    ELSEIF(iopt.EQ.20)THEN
+       jobz='N'
+       uplo='U'
+    ELSEIF(iopt.EQ.21)THEN
+       jobz='V'
+       uplo='U'
+    END IF
+    !workspace query
+    il_work(1)=-1
+    il_iwork=-1
+    CALL dsyevd(jobz,uplo,n,a,n,w,dummy_real,il_work(1),dummy_int,il_iwork,info)
+    il_work(1)=INT(dummy_real(1))
+    il_iwork=dummy_int(1)
+    ALLOCATE(work(il_work(1)),STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+         __LINE__,__FILE__)
+    ALLOCATE(iwork(il_iwork),STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+         __LINE__,__FILE__)
+    !actual calculation
+    CALL dsyevd(jobz,uplo,n,a,n,w,work,il_work(1),iwork,il_iwork,info)
+    IF (info.NE.0) CALL stopgm(procedureN,'FAILED TO DIAGONALIZE',&
+         __LINE__,__FILE__)
+    DEALLOCATE(work,STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+         __LINE__,__FILE__)
+    DEALLOCATE(iwork,STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+         __LINE__,__FILE__)
+  END SUBROUTINE dsyevd_driver
+  ! ==================================================================
+  SUBROUTINE dsyevx_driver(iopt,a,z,w,n,il,iu,abstol)
+    ! ==--------------------------------------------------------------==
+    ! == DIAGONALIZATION ROUTINE: FOLLOW THE ESSL CONVENTION          ==
+    ! == UNPACKED MEMORY INTENSE VARIANT OF DSPEVY, PARALLELIZATION   ==
+    ! == POSSIBLE SELECTING DIFFERENT EIGEVECTOR INDIZES ON EACH PROC ==
+    ! ==--------------------------------------------------------------==
+    ! Author: Tobias Kloeffel, Erlangen
+    ! Date March 2019
+
+    INTEGER,INTENT(IN)                       :: iopt, n, il, iu
+    REAL(real_8),INTENT(IN)                  :: abstol
+    REAL(real_8),INTENT(INOUT)               :: w(:), a(:,:), z(:,:)
+    !local
+    INTEGER                                  :: il_work(1), il_iwork, il_ifail, m
+    REAL(real_8), ALLOCATABLE                :: work(:)
+    INTEGER, ALLOCATABLE                     :: iwork(:), ifail(:)
+    REAL(real_8)                             :: dummy_real(1)
+    CHARACTER(1)                             :: jobz, uplo, range
+    CHARACTER(*),PARAMETER                   :: procedureN='dsyevr_driver'
+    INTEGER                                  :: info, ierr
+    IF(iopt.EQ.0)THEN
+       jobz='N'
+       uplo='L'
+       range='I'
+       IF(il.EQ.1.AND.iu.EQ.n)range='A'
+    ELSEIF(iopt.EQ.1)THEN
+       jobz='V'
+       uplo='L'
+       range='I'
+       IF(il.EQ.1.AND.iu.EQ.n)range='A'
+    ELSEIF(iopt.EQ.20)THEN
+       jobz='N'
+       uplo='U'
+       range='I'
+       IF(il.EQ.1.AND.iu.EQ.n)range='A'
+    ELSEIF(iopt.EQ.21)THEN
+       jobz='V'
+       uplo='U'
+       range='I'
+       IF(il.EQ.1.AND.iu.EQ.n)range='A'
+    END IF
+    il_ifail=n
+    il_iwork=5*n
+    ALLOCATE(ifail(il_ifail),STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+         __LINE__,__FILE__)
+    ALLOCATE(iwork(il_iwork),STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+         __LINE__,__FILE__)
+    !workspace query
+    il_work(1)=-1
+    CALL dsyevx(jobz,range,uplo,n,a,n,1.0_real_8,1.0_real_8,il,iu,-1_real_8,m,w,&
+         z,n,dummy_real,il_work(1),iwork,ifail,info)
+    il_work(1)=INT(dummy_real(1))
+    ALLOCATE(work(il_work(1)),STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+         __LINE__,__FILE__)
+    !actual calculation
+    CALL dsyevx(jobz,range,uplo,n,a,n,1.0_real_8,1.0_real_8,il,iu,-1_real_8,m,w,&
+         z,n,work,il_work(1),iwork,ifail,info)
+    IF (info.NE.0) CALL stopgm(procedureN,'FAILED TO DIAGONALIZE',&
+         __LINE__,__FILE__)
+    DEALLOCATE(work,STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+         __LINE__,__FILE__)
+    DEALLOCATE(iwork,STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+         __LINE__,__FILE__)
+    DEALLOCATE(ifail,STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+         __LINE__,__FILE__)
+  END SUBROUTINE dsyevx_driver
+    ! ==--------------------------------------------------------------==
   SUBROUTINE dspevy(iopt,ap,w,z,ldz,n,aux,naux)
     ! ==--------------------------------------------------------------==
     ! == DIAGONALIZATION ROUTINE: FOLLOW THE ESSL CONVENTION          ==
