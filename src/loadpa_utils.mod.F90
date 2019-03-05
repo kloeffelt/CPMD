@@ -24,12 +24,13 @@ MODULE loadpa_utils
                                              mp_sync
   USE parac,                           ONLY: parai,&
                                              paral
+  USE part_1d,                         ONLY: part_1d_get_blk_bounds
   USE prmem_utils,                     ONLY: prmem
   USE sort_utils,                      ONLY: sort2
   USE sphe,                            ONLY: gcutwmax
   USE system,                          ONLY: &
-       fpar, iatpe, iatpt, ipept, mapgp, natpe, ncpw, nkpt, norbpe, parap, &
-       parm, spar
+       fpar, iatpe, iatpe_cp, iatpt, ipept, ipept_cp, natpe_cp,  &
+       mapgp, natpe, ncpw, nkpt, norbpe, parap, parm, spar
   USE timer,                           ONLY: tihalt,&
                                              tiset
   USE zeroing_utils,                   ONLY: zeroing
@@ -53,7 +54,8 @@ CONTAINS
 
     INTEGER :: i, i0, ia, iat, icpu, ierr, ig, ihrays, ii, img, in1, in2, &
       in3, iorb, ip, ipp, ir, is, isub, isub2, isub3, isub4, ixrays, izpl, j, &
-      j1, j2, jmax, jmin, k, kmax, kmin, mspace, nh1, nh2, nh3, nthreads
+      j1, j2, jmax, jmin, k, kmax, kmin, mspace, nh1, nh2, nh3, nthreads,&
+      first, last
     INTEGER, ALLOCATABLE                     :: ihray(:,:), ixray(:,:), &
                                                 mgpa(:,:)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: thread_buff
@@ -84,6 +86,12 @@ CONTAINS
     ALLOCATE(iatpe(ions1%nat),STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
          __LINE__,__FILE__)
+    ALLOCATE(iatpe_cp(ions1%nat,0:parai%cp_nogrp-1),STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+         __LINE__,__FILE__)
+    ALLOCATE(ipept_cp(2,0:parai%nproc-1,0:parai%cp_nogrp-1),STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+         __LINE__,__FILE__)
     CALL mp_sync(parai%allgrp)
     ! ==--------------------------------------------------------------==
     ! DISTRIBUTE ATOMS
@@ -110,6 +118,29 @@ CONTAINS
        ENDDO
     ENDDO
     natpe=ipept(2,parai%mepos)-ipept(1,parai%mepos)+1
+
+    DO i=0,parai%nproc-1
+       do j=0,parai%cp_nogrp-1
+          CALL part_1d_get_blk_bounds((ipept(2,i)-ipept(1,i)+1),j,parai%cp_nogrp,first,last)
+          ipept_cp(1,i,j)=ipept(1,i)+first-1
+          ipept_cp(2,i,j)=ipept(1,i)+last-1
+       end do
+    ENDDO
+
+    iatpe_cp=-1 !mepos .ge. 0
+
+    DO i=0,parai%nproc-1
+       do k=0,parai%cp_nogrp-1
+          DO j=ipept_cp(1,i,k),ipept_cp(2,i,k)
+             iatpe_cp(j,k)=i
+          end do
+       ENDDO
+    ENDDO
+
+    natpe_cp=&
+         ipept_cp(2,parai%mepos,parai%cp_inter_me)&
+         -ipept_cp(1,parai%mepos,parai%cp_inter_me)+1
+
     ! ==--------------------------------------------------------------==
     ! DISTRIBUTE ORBITALS
     ! ==--------------------------------------------------------------==

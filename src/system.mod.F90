@@ -251,10 +251,10 @@ MODULE system
   ! == IATPT(2,NAT)                                                 ==
   ! == IATPE(NAT)                                                   ==
   ! ==--------------------------------------------------------------==
-  INTEGER, SAVE, PUBLIC :: natpe = HUGE(0),norbpe = HUGE(0)
-  INTEGER, ALLOCATABLE, DIMENSION(:,:), SAVE, PUBLIC :: ipept !(2,0:maxcpu)
+  INTEGER, SAVE, PUBLIC :: natpe = HUGE(0),norbpe = HUGE(0),natpe_cp = HUGE(0)
+  INTEGER, ALLOCATABLE, SAVE, PUBLIC :: ipept(:,:),ipept_cp(:,:,:) !(2,0:maxcpu)
   INTEGER, ALLOCATABLE, SAVE, PUBLIC :: iatpt(:,:)
-  INTEGER, ALLOCATABLE, SAVE, PUBLIC :: iatpe(:)
+  INTEGER, ALLOCATABLE, SAVE, PUBLIC :: iatpe(:), iatpe_cp(:,:)
   ! ==================================================================
   ! == A LOT OF ITEMS IN THE COMMON BLOCKS IS NEEDED FOR PARALLEL   ==
   ! ==================================================================
