@@ -14,8 +14,7 @@ MODULE ksmat_utils
                                              ions1
   USE kinds,                           ONLY: real_8
   USE kpts,                            ONLY: tkpts
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm,&
-                                             rnlsm
+  USE rnlsm_utils,                     ONLY: rnlsm
   USE spin,                            ONLY: lspin2
   USE system,                          ONLY: cntl,&
                                              nkpt
@@ -97,13 +96,11 @@ CONTAINS
     INTEGER                                  :: lksmat
     CHARACTER(len=30)                        :: tag
 
-    INTEGER                                  :: il_auxc, il_ddia, lfnonloc, &
-                                                lrnlsm
+    INTEGER                                  :: il_auxc, il_ddia, lfnonloc
 
-    CALL give_scr_rnlsm(lrnlsm,tag,atwp%nattot,.FALSE.)
     CALL give_scr_fnonloc(il_auxc,il_ddia,atwp%numaormax)
     lfnonloc = il_auxc + il_ddia
-    lksmat=MAX(lfnonloc,lrnlsm)
+    lksmat=lfnonloc
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE give_scr_ksmat

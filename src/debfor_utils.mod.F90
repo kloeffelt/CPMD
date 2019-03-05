@@ -47,8 +47,7 @@ MODULE debfor_utils
                                              rhoo
   USE pslo,                            ONLY: pslo_com
   USE rhoofr_utils,                    ONLY: give_scr_rhoofr
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm,&
-                                             rnlsm
+  USE rnlsm_utils,                     ONLY: rnlsm
   USE ropt,                            ONLY: infi,&
                                              infw,&
                                              iteropt,&
@@ -457,13 +456,12 @@ CONTAINS
 
     INTEGER                                  :: lcalc_alm, lcopot, lforces, &
                                                 linitrun, lortho, lrhoofr, &
-                                                lrnlsm, lsymmat, ltddft, &
+                                                lsymmat, ltddft, &
                                                 lupdate, nstate
 
     nstate=crge%n
     lcopot=0
     lortho=0
-    lrnlsm=0
     lrhoofr=0
     lcalc_alm=0
     lforces=0
@@ -475,7 +473,6 @@ CONTAINS
     ENDIF
     IF (cntl%tddft) CALL give_scr_lr_tddft(ltddft,.TRUE.,tag)
     IF (cntl%tdiag) THEN
-       IF (pslo_com%tivan) CALL give_scr_rnlsm(lrnlsm,tag,nstate,.FALSE.)
        CALL give_scr_rhoofr(lrhoofr,tag)
        IF (fint1%ttrot) CALL give_scr_calc_alm(lcalc_alm,tag)
        CALL give_scr_updrho(lupdate,tag,nstate,.TRUE.,cntl%tpres)
@@ -487,7 +484,7 @@ CONTAINS
     IF (.NOT.(symmi%indpg.EQ.0.OR.symmi%nrot.EQ.1))&
          CALL give_scr_symmat(lsymmat,tag)
     ldebfor=MAX(9*ions1%nat*ions1%nat+9*ions1%nat,&
-         linitrun,lcopot,lortho,lrnlsm,lrhoofr,lcalc_alm,&
+         linitrun,lcopot,lortho,lrhoofr,lcalc_alm,&
          lupdate,lforces,lsymmat,ltddft)
     ! ==--------------------------------------------------------------==
     RETURN

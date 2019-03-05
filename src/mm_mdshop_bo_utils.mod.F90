@@ -114,7 +114,6 @@ MODULE mm_mdshop_bo_utils
   USE rk4ov_utils,                     ONLY: rk4ov_new,&
                                              rk4ov_old
   USE rmas,                            ONLY: rmass
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm
   USE ropt,                            ONLY: infi,&
                                              iteropt,&
                                              ropt_mod
@@ -1320,17 +1319,15 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
 
     INTEGER :: lcalc_alm, lcopot, lforces_diag, lmoverho, lpropcal, lrhoofr, &
-      lrhopri, lrinitwf, lrnlsm, ltddft, nstate
+      lrhopri, lrinitwf, ltddft, nstate
 
     nstate=crge%n
-    lrnlsm=0
     lcalc_alm=0
     lcopot=0
     lrhopri=0
     lmoverho=0
     ltddft=0
     CALL give_scr_rinitwf(lrinitwf,tag,nstate)
-    IF (pslo_com%tivan) CALL give_scr_rnlsm(lrnlsm,tag,nstate,.FALSE.)
     CALL give_scr_rhoofr(lrhoofr,tag)
     IF (fint1%ttrot) CALL give_scr_calc_alm(lcalc_alm,tag)
     CALL give_scr_forces_diag(lforces_diag,tag,nstate,.TRUE.)
@@ -1339,7 +1336,7 @@ CONTAINS
     CALL give_scr_propcal(lpropcal,tag,nstate)
     IF (tmovr) CALL give_scr_moverho(lmoverho,tag)
     IF (cntl%tddft) CALL give_scr_lr_tddft(ltddft,.TRUE.,tag)
-    lmmmdshopbo=MAX(lrinitwf,lrnlsm,lrhoofr,lforces_diag,ltddft,&
+    lmmmdshopbo=MAX(lrinitwf,lrhoofr,lforces_diag,ltddft,&
          lcopot,lcalc_alm,lrhopri,lpropcal,lmoverho)
     IF (cntl%tqmmm) lmmmdshopbo=MAX(lmmmdshopbo,fpar%kr1*fpar%kr2s*fpar%kr3s)
     IF (cntl%tqmmm) lmmmdshopbo=MAX(lmmmdshopbo,maxsys%nax*maxsys%nsx*3)

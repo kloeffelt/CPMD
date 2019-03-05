@@ -66,9 +66,7 @@ MODULE cplngs_utils
                                              rhoofr
   USE rnlsm1_utils,                    ONLY: rnlsm1
   USE rnlsm2_utils,                    ONLY: rnlsm2
-  USE rnlsm_2d_utils,                  ONLY: give_scr_rnlsm_2d,&
-                                             rnlsm_2d
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm
+  USE rnlsm_2d_utils,                  ONLY: rnlsm_2d
   USE ropt,                            ONLY: iteropt,&
                                              ropt_mod
   USE sfac,                            ONLY: ddfnl,&
@@ -1485,8 +1483,8 @@ CONTAINS
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'give_scr_cplsub'
 
-    INTEGER :: lforcedr, lget_eind, LNL_RES, LOPT_LR, lrhoofr, lrnlsm, &
-      LRNLSM_2D, lsymvec, LV1OFRHO1, NSTATE
+    INTEGER :: lforcedr, lget_eind, LNL_RES, LOPT_LR, lrhoofr, &
+      lsymvec, LV1OFRHO1, NSTATE
 
 ! ==--------------------------------------------------------------==
 
@@ -1498,12 +1496,10 @@ CONTAINS
             __LINE__,__FILE__)
        !vw this is buggus     call give_scr_forcedr (lforcedr,tag,nstate,.false.)
        lforcedr = 0!vw need to set that to something
-       CALL give_scr_rnlsm (lrnlsm, tag, nstate, .TRUE.)
        CALL give_scr_symvec (lsymvec, tag)
-       lcplsub = MAX (lforcedr, lrnlsm, lsymvec)
+       lcplsub = MAX (lforcedr, lsymvec)
        CALL give_scr_rhoofr (lrhoofr, tag)
        CALL give_scr_v1ofrho1 (lv1ofrho1,tag)
-       CALL give_scr_rnlsm_2d (lrnlsm_2d, tag, nstate)
        CALL give_scr_nl_res (lnl_res, nstate, tag)
        CALL give_scr_opt_lr (lopt_lr, "PHONON", tag)
        IF (talldof) THEN
@@ -1511,7 +1507,7 @@ CONTAINS
        ELSE
           CALL give_scr_get_eind (lget_eind, tag)
        ENDIF
-       lcplsub = MAX (lcplsub, lrhoofr, lrnlsm_2d, lnl_res, lopt_lr,&
+       lcplsub = MAX (lcplsub, lrhoofr, lnl_res, lopt_lr,&
             LGET_EIND, LV1OFRHO1)
     ENDIF
     ! ==--------------------------------------------------------------==

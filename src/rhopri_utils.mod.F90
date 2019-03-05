@@ -33,8 +33,7 @@ MODULE rhopri_utils
   USE rhoofr_c_utils,                  ONLY: rhoofr_c
   USE rhoofr_utils,                    ONLY: give_scr_rhoofr,&
                                              rhoofr
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm,&
-                                             rnlsm
+  USE rnlsm_utils,                     ONLY: rnlsm
   USE ropt,                            ONLY: iteropt
   USE spin,                            ONLY: clsd,&
                                              spin_mod
@@ -522,9 +521,8 @@ CONTAINS
     INTEGER                                  :: nstate
 
     INTEGER :: il_auxc, il_ddia, il_gam, il_qphi = 0, il_smat, lelf = 0, &
-      lnorho = 0, lrhoofr = 0, lrnlsm = 0
+      lnorho = 0, lrhoofr = 0
 
-    CALL give_scr_rnlsm(lrnlsm,tag,nstate,.FALSE.)
     CALL give_scr_rhoofr(lrhoofr,tag)
     IF (cntl%tepot) THEN
        ! VTEMP(2*NHG),EIVPS(2*NHG),EIROP(2*NHG)
@@ -540,8 +538,8 @@ CONTAINS
          il_smat,il_ddia,tag,nstate,.FALSE.)
     IF (elfcb%telf) CALL give_scr_elf(lelf,tag,nstate)
     IF (elfcb%telf.AND.cntl%tlsd) CALL give_scr_lsd_elf(lelf,tag,nstate)
-    lrhopri=MAX(lrnlsm,lrhoofr,lrhopri,lelf,lnorho)
-    tag='MAX(LRNLSM,LRHOOFR,LRHOPRI...)'
+    lrhopri=MAX(lrhoofr,lrhopri,lelf,lnorho)
+    tag='MAX(LRHOOFR,LRHOPRI...)'
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE give_scr_rhopri

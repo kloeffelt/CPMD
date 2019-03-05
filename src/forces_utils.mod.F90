@@ -7,7 +7,6 @@ MODULE forces_utils
   USE opeigr_utils,                    ONLY: give_scr_opeigr
   USE parac,                           ONLY: parai
   USE pslo,                            ONLY: pslo_com
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm
   USE ropt,                            ONLY: ropt_mod
   USE rscpot_utils,                    ONLY: give_scr_rscpot
   USE spin,                            ONLY: lspin2
@@ -31,12 +30,10 @@ CONTAINS
     LOGICAL                                  :: lproj, tfor
 
     INTEGER :: il_amat, il_auxc, il_ddia, il_fsc, il_gam, il_psiab, il_scr, &
-      il_scrdip, lrnlsm, lrscpot, lsymvec, nstx
+      il_scrdip, lrscpot, lsymvec, nstx
 
     lsymvec=0
-    lrnlsm=0
     lrscpot=0
-    CALL give_scr_rnlsm(lrnlsm,tag,nstate,tfor)
     IF (tfor) THEN
        CALL give_scr_symvec(lsymvec,tag)
     ENDIF
@@ -66,7 +63,7 @@ CONTAINS
     IF (lspin2%tlse) il_psiab=2*maxfft
     il_scr=il_gam+il_auxc+il_ddia+il_fsc+il_psiab+il_scrdip+100
     il_scr=il_scr+il_amat
-    lforces = MAX(lrnlsm,lrscpot,lsymvec,il_scr)
+    lforces = MAX(lrscpot,lsymvec,il_scr)
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE give_scr_forces

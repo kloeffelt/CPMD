@@ -34,7 +34,6 @@ MODULE rnlsm1_utils
   PRIVATE
 
   PUBLIC :: rnlsm1
-  PUBLIC :: give_scr_rnlsm1
 
 CONTAINS
 
@@ -191,30 +190,6 @@ CONTAINS
     ! ==--------------------------------------------------------------==
 
   END SUBROUTINE rnlsm1
-  ! ==================================================================
-  SUBROUTINE give_scr_rnlsm1(lrnlsm1,tag,nstate)
-    ! ==--------------------------------------------------------------==
-    INTEGER                                  :: lrnlsm1
-    CHARACTER(len=30)                        :: tag
-    INTEGER                                  :: nstate
-
-    INTEGER                                  :: lsumfnl
-
-    IF (nlm.EQ.0) THEN
-       lrnlsm1=0
-    ELSE
-       IF (cntl%tfdist) THEN
-          lrnlsm1=2*nkpt%ngwk*mmdim%naxq+2
-          tag   ='2*NGWK*NAXq+2'
-       ELSE
-          CALL give_scr_sumfnl(lsumfnl,tag,nstate)
-          lrnlsm1=MAX(2*nkpt%ngwk*mmdim%naxq,lsumfnl)
-          tag   ='MAX(2*NGWK*NAXq,LSUMFNL)'
-       ENDIF
-    ENDIF
-    ! ==--------------------------------------------------------------==
-    RETURN
-  END SUBROUTINE give_scr_rnlsm1
   ! ==================================================================
 
 END MODULE rnlsm1_utils

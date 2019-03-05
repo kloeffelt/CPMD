@@ -30,8 +30,7 @@ MODULE lsd_elf_utils
   USE rhoofr_c_utils,                  ONLY: rhoofr_c
   USE rhoofr_utils,                    ONLY: give_scr_rhoofr,&
                                              rhoofr
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm,&
-                                             rnlsm
+  USE rnlsm_utils,                     ONLY: rnlsm
   USE spin,                            ONLY: spin_mod
   USE system,                          ONLY: cntl,&
                                              fpar,&
@@ -456,13 +455,12 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
     INTEGER                                  :: nstate
 
-    INTEGER                                  :: lrhoofr, lrnlsm
+    INTEGER                                  :: lrhoofr
 
     lelf=2*ncpw%nhg
-    CALL give_scr_rnlsm(lrnlsm,tag,nstate,.FALSE.)
     CALL give_scr_rhoofr(lrhoofr,tag)
-    lelf=MAX(lelf,lrnlsm,lrhoofr)
-    tag='MAX(LELF,LRNLSM,LRHOOFR)'
+    lelf=MAX(lelf,lrhoofr)
+    tag='MAX(LELF,LRHOOFR)'
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE give_scr_lsd_elf

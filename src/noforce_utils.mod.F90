@@ -30,8 +30,7 @@ MODULE noforce_utils
   USE reigs_utils,                     ONLY: reigs
   USE rgs_utils,                       ONLY: uinv
   USE rnlfl_utils,                     ONLY: rnlfl
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm,&
-                                             rnlsm
+  USE rnlsm_utils,                     ONLY: rnlsm
   USE ropt,                            ONLY: ropt_mod
   USE rotate_utils,                    ONLY: rotate,&
                                              rottr
@@ -268,7 +267,7 @@ CONTAINS
     INTEGER                                  :: nstate
     LOGICAL                                  :: tfor
 
-    INTEGER                                  :: lrnlsm, lrscpot
+    INTEGER                                  :: lrscpot
 
     il_smat=0
     IF (pslo_com%tivan) THEN
@@ -283,10 +282,9 @@ CONTAINS
     il_auxc=MAX(il_auxc,nstate*nstate)
     il_smat=MAX(il_smat,nstate*nstate)
     il_ddia=MAX(il_ddia,2*maxsys%nax*nstate)
-    CALL give_scr_rnlsm(lrnlsm,tag,nstate,tfor)
     CALL give_scr_rscpot(lrscpot,tag,ropt_mod%calste)
     lnoforce=il_gam+il_auxc+il_smat+il_ddia+100
-    lnoforce=MAX(lnoforce,lrnlsm,lrscpot)
+    lnoforce=MAX(lnoforce,lrscpot)
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE give_scr_noforce

@@ -23,8 +23,7 @@ MODULE ksmat_dist_utils
                                              mp_sync
   USE parac,                           ONLY: parai
   USE prng_utils,                      ONLY: repprngu_vec
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm,&
-                                             rnlsm
+  USE rnlsm_utils,                     ONLY: rnlsm
   USE spin,                            ONLY: lspin2,&
                                              spin_mod
   USE system,                          ONLY: cnti,&
@@ -652,13 +651,11 @@ CONTAINS
     INTEGER                                  :: lksmat
     CHARACTER(len=30)                        :: tag
 
-    INTEGER                                  :: il_auxc, il_ddia, lfnonloc, &
-                                                lrnlsm
+    INTEGER                                  :: il_auxc, il_ddia, lfnonloc
 
-    CALL give_scr_rnlsm(lrnlsm,tag,atwp%nattot,.FALSE.)
     CALL give_scr_fnonloc(il_auxc,il_ddia,atwp%numaormax)
     lfnonloc = il_auxc + il_ddia
-    lksmat=MAX(lfnonloc,lrnlsm)
+    lksmat=lfnonloc
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE give_scr_dist_ksmat

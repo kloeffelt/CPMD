@@ -7,8 +7,7 @@ MODULE h0psi1_p_utils
   USE response_pmod,                   ONLY: dmbi,&
                                              response1,&
                                              vofrho0
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm,&
-                                             rnlsm
+  USE rnlsm_utils,                     ONLY: rnlsm
   USE spin,                            ONLY: clsd
   USE system,                          ONLY: cntl,&
                                              ncpw,&
@@ -71,18 +70,17 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
     INTEGER                                  :: nstate
 
-    INTEGER                                  :: l_auxc, l_ddia, l_rnlsm, &
+    INTEGER                                  :: l_auxc, l_ddia, &
                                                 lv0psi1
     LOGICAL                                  :: tfor
 
     tfor = (response1%phonon .OR. response1%tlanphon .OR. response1%teigens .OR.\
     cntl%tinr .OR. response1%tvoa)
 
-    CALL give_scr_rnlsm(l_rnlsm,tag,nstate,tfor)
     CALL give_scr_fnonloc(l_auxc,l_ddia,nstate)
     lv0psi1 = 2*maxfft
 
-    l_h0psi1 = MAX(l_rnlsm,l_auxc+l_ddia,lv0psi1)
+    l_h0psi1 = MAX(l_auxc+l_ddia,lv0psi1)
     RETURN
   END SUBROUTINE give_scr_h0psi1
   ! ==================================================================

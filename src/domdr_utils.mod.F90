@@ -22,7 +22,7 @@ USE nlps,                           ONLY: nghtol,&
 USE  parac,                         ONLY: paral,&
                                           parai
 USE pslo,                           ONLY: pslo_com
-USE rnlsm_utils,                    ONLY: give_scr_rnlsm,rnlsm
+USE rnlsm_utils,                    ONLY: rnlsm
 USE sfac,                           ONLY: dfnl,&
                                           eigr,&
                                           ei1,ei2,ei3,eigrb,&

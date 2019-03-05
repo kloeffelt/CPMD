@@ -6,7 +6,6 @@ MODULE pcgrad_utils
   USE mm_input,                        ONLY: lqmmm
   USE ortho_utils,                     ONLY: give_scr_ortho
   USE rhoofr_utils,                    ONLY: give_scr_rhoofr
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm
   USE rscpot_utils,                    ONLY: give_scr_rscpot
   USE system,                          ONLY: cntl,&
                                              fpar,&
@@ -70,18 +69,16 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
     INTEGER                                  :: nstate
 
-    INTEGER                                  :: lortho, lrnlsm, lrscpot
+    INTEGER                                  :: lortho, lrscpot
 
     IF (cntl%nonort.AND.(.NOT.cntl%quenchb)) THEN
        lortho=0
-       lrnlsm=0
        lrscpot=0
     ELSE
        CALL give_scr_ortho(lortho,tag,nstate)
-       CALL give_scr_rnlsm(lrnlsm,tag,nstate,.FALSE.)
        CALL give_scr_rscpot(lrscpot,tag,.FALSE.)
     ENDIF
-    lxetot=MAX(lortho,lrnlsm,lrscpot)
+    lxetot=MAX(lortho,lrscpot)
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE give_scr_xetot

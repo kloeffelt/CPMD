@@ -21,8 +21,7 @@ MODULE matrix_p_utils
   USE response_pmod,                   ONLY: &
        ddfnl_ddk, ddtwnl_ddk, dfnl_dk, dtwnl_dk, fnl00, h0_11, h1_00, h1_10, &
        h2_00, vofrho0
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm,&
-                                             rnlsm
+  USE rnlsm_utils,                     ONLY: rnlsm
   USE sfac,                            ONLY: eigr,&
                                              fnl
   USE sgpp,                            ONLY: sgpp1,&
@@ -540,13 +539,12 @@ CONTAINS
     CHARACTER(len=*)                         :: tag
     INTEGER                                  :: nstate
 
-    INTEGER                                  :: l_auxc, l_ddia, l_rnlsm, lmat
+    INTEGER                                  :: l_auxc, l_ddia, lmat
 
-    CALL give_scr_rnlsm(l_rnlsm,tag,nstate,.FALSE.)
     CALL give_scr_fnonloc(l_auxc,l_ddia,nstate)
     lmat = 2*nstate*(nstate+1)
 
-    lmatrix_p = MAX(l_rnlsm,l_auxc+l_ddia,lmat)
+    lmatrix_p = MAX(l_auxc+l_ddia,lmat)
     RETURN
   END SUBROUTINE give_scr_matrix_p
   ! ==================================================================

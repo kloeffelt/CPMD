@@ -33,8 +33,7 @@ MODULE pert_kpoint_p_utils
   USE rhoofr_utils,                    ONLY: give_scr_rhoofr
   USE rnl_dk_p_utils,                  ONLY: give_scr_rnl_dk_p,&
                                              rnl_dk_p
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm,&
-                                             rnlsm
+  USE rnlsm_utils,                     ONLY: rnlsm
   USE ropt,                            ONLY: ropt_mod
   USE rscpot_utils,                    ONLY: give_scr_rscpot
   USE rwfopt_p_utils,                  ONLY: rwfopt_p
@@ -546,7 +545,7 @@ CONTAINS
     INTEGER                                  :: nstate
 
     INTEGER :: lforce1, lks_ener_p, lmatrix_p, lnrl_dk_p, lputwnl, lrho, &
-      lrhoofr, lrnlsm, lrscpot, lupdrho_p, n2
+      lrhoofr, lrscpot, lupdrho_p, n2
 
 ! ==--------------------------------------------------------------==
 
@@ -556,7 +555,6 @@ CONTAINS
     lpert_kpoint_p=nstate
     ropt_mod%calste=.FALSE.
     n2 = nstate*nstate
-    CALL give_scr_rnlsm(lrnlsm,tag,nstate,.TRUE.)
     CALL give_scr_rhoofr(lrho,tag)
     CALL give_scr_rscpot(lrscpot,tag,ropt_mod%calste)
     CALL give_scr_rhoofr_p(lrhoofr,tag)
@@ -569,7 +567,7 @@ CONTAINS
     lrho=lrho+2*ncpw%nhg
     lrhoofr=lrhoofr+2*ncpw%nhg
     lforce1=2*ncpw%ngw*nstate
-    lpert_kpoint_p=MAX(lrho,lrscpot,lrnlsm,lrhoofr,&
+    lpert_kpoint_p=MAX(lrho,lrscpot,lrhoofr,&
          lpert_kpoint_p,lforce1,lnrl_dk_p,lupdrho_p,&
          lputwnl,lmatrix_p,lks_ener_p)
     ! ==--------------------------------------------------------------==

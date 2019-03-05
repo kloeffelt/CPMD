@@ -31,7 +31,6 @@ MODULE rnlsm2_utils
   PRIVATE
 
   PUBLIC :: rnlsm2
-  PUBLIC :: give_scr_rnlsm2
 
 CONTAINS
 
@@ -298,24 +297,6 @@ CONTAINS
     RETURN
   END SUBROUTINE RNLSM2
   ! ==================================================================
-  SUBROUTINE GIVE_SCR_RNLSM2(LRNLSM2,TAG,NSTATE)
-    ! ==--------------------------------------------------------------==
-    INTEGER                                  :: LRNLSM2
-    CHARACTER(LEN=30)                        :: TAG
-    INTEGER                                  :: NSTATE
-
-! ==--------------------------------------------------------------==
-
-    IF(NLM.EQ.0) THEN
-       LRNLSM2=0
-    ELSE
-       LRNLSM2=2*nkpt%ngwk*mmdim%naxq*3+IMAGP*mmdim%naxq*NSTATE*3
-       TAG=   '2*NGWK*NAXq*3+IMAGP*NAXq*...'
-    ENDIF
-    ! ==--------------------------------------------------------------==
-    RETURN
-  END SUBROUTINE GIVE_SCR_RNLSM2
-  ! ==================================================================
 #else 
   ! ==================================================================
   SUBROUTINE RNLSM2(C0,NSTATE,IKPT,IKIND)
@@ -480,22 +461,6 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE RNLSM2
-  ! ==================================================================
-  SUBROUTINE GIVE_SCR_RNLSM2(LRNLSM2,TAG,NSTATE)
-    ! ==--------------------------------------------------------------==
-    INTEGER                                  :: LRNLSM2
-    CHARACTER(LEN=30)                        :: TAG
-    INTEGER                                  :: NSTATE
-
-    IF(NLM.EQ.0) THEN
-       LRNLSM2=0
-    ELSE
-       LRNLSM2=2*nkpt%ngwk*mmdim%naxq+IMAGP*mmdim%naxq*NSTATE
-       TAG=   '2*NGWK*NAXq+IMAGP*NAXq*NSTATE'
-    ENDIF
-    ! ==--------------------------------------------------------------==
-    RETURN
-  END SUBROUTINE GIVE_SCR_RNLSM2
   ! ==================================================================
 #endif 
 

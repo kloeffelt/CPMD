@@ -14,8 +14,7 @@ MODULE davidson_utils
   USE parac,                           ONLY: parai,&
                                              paral
   USE pslo,                            ONLY: pslo_com
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm,&
-                                             rnlsm
+  USE rnlsm_utils,                     ONLY: rnlsm
   USE soft,                            ONLY: soft_com
   USE sort_utils,                      ONLY: sort2
   USE spsi_utils,                      ONLY: give_scr_spsi,&
@@ -484,7 +483,7 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
     INTEGER                                  :: ndiag, nadd
 
-    INTEGER                                  :: ldspevy, lhpsi, lrnlsm, &
+    INTEGER                                  :: ldspevy, lhpsi, &
                                                 lscr2, lspsi
 
     lscr2 =  ndiag+        & ! INDEX
@@ -492,13 +491,8 @@ CONTAINS
          nadd*nadd            ! UDAV
     CALL give_scr_hpsi(lhpsi,tag,ndiag)
     ldspevy=3*ndiag
-    IF (pslo_com%tivan) THEN
-       CALL give_scr_rnlsm(lrnlsm,tag,ndiag,.FALSE.)
-    ELSE
-       lrnlsm=0
-    ENDIF
     CALL give_scr_spsi(lspsi,tag)
-    ldavidson=lscr2+MAX(lhpsi,ldspevy,lrnlsm,lspsi)+200
+    ldavidson=lscr2+MAX(lhpsi,ldspevy,lspsi)+200
     tag='LSCR+MAX(HPSI,DIAG,RNLSM,SPSI)'
     ! ==--------------------------------------------------------------==
     RETURN

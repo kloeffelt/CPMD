@@ -47,8 +47,7 @@ MODULE atomwf_utils
   USE reshaper,                        ONLY: reshape_inplace
   USE rgs_utils,                       ONLY: rgs,&
                                              rgs_c
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm,&
-                                             rnlsm
+  USE rnlsm_utils,                     ONLY: rnlsm
   USE sfac,                            ONLY: fnl
   USE sphe,                            ONLY: tsphere
   USE spin,                            ONLY: clsd,&
@@ -540,7 +539,7 @@ CONTAINS
     INTEGER                                  :: nstate
 
     INTEGER                                  :: latrho, lcopot, lksmat, &
-                                                lrnlsm, lvofrho, &
+                                                lvofrho, &
                                                 ngso, nleft
     LOGICAL                                  :: tlsd2, tlse2
 
@@ -550,7 +549,6 @@ CONTAINS
     lspin2%tlse=.FALSE.
     lcopot=0
     lksmat=0
-    lrnlsm=0
     ! 
     CALL give_scr_atrho(latrho,tag)
     ! COPOT
@@ -563,9 +561,6 @@ CONTAINS
        CALL give_scr_dist_ksmat(lksmat,tag)
     ELSE
        CALL give_scr_ksmat(lksmat,tag)
-    ENDIF
-    IF (pslo_com%tivan) THEN
-       CALL give_scr_rnlsm(lrnlsm,tag,nstate,.FALSE.)
     ENDIF
     IF (cntl%tdmal) THEN
        latomwf=imagp*atwp%nattot +           & ! OBSOLETE: XMATAT or ZMATAT
@@ -582,7 +577,7 @@ CONTAINS
        ngso=MAX(nleft**2,nleft*atwp%nattot)+nleft
        latomwf=MAX(latomwf,ngso)
     ENDIF
-    latomwf=MAX(latrho,latomwf,lcopot,lvofrho,lrnlsm,lksmat)
+    latomwf=MAX(latrho,latomwf,lcopot,lvofrho,lksmat)
     ! 
     cntl%tlsd=tlsd2
     lspin2%tlse=tlse2

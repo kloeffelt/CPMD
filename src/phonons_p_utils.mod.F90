@@ -31,8 +31,7 @@ MODULE phonons_p_utils
   USE rhoofr_utils,                    ONLY: give_scr_rhoofr
   USE rmas,                            ONLY: rmass
   USE rnlsm_p_utils,                   ONLY: rnlsm3
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm,&
-                                             rnlsm
+  USE rnlsm_utils,                     ONLY: rnlsm
   USE ropt,                            ONLY: ropt_mod
   USE rscpot_utils,                    ONLY: give_scr_rscpot
   USE rwfopt_p_utils,                  ONLY: rwfopt_p
@@ -645,13 +644,12 @@ CONTAINS
     INTEGER                                  :: nstate
 
     INTEGER                                  :: lforce1, lrho, lrhoofr, &
-                                                lrnlsm, lrscpot
+                                                lrscpot
 
 ! ==--------------------------------------------------------------==
 
     lphonon=nstate
     ropt_mod%calste=.FALSE.
-    CALL give_scr_rnlsm(lrnlsm,tag,nstate,.TRUE.)
     CALL give_scr_rhoofr(lrho,tag)
     CALL give_scr_rscpot(lrscpot,tag,ropt_mod%calste)
     CALL give_scr_rhoofr_p(lrhoofr,tag)
@@ -659,7 +657,7 @@ CONTAINS
     lrho=lrho+2*ncpw%nhg*clsd%nlsd
     lrhoofr=lrhoofr+2*ncpw%nhg*clsd%nlsd
     lforce1=lforce1
-    lphonon=MAX(lrho,lrscpot,lrnlsm,lrhoofr,lphonon,lforce1)
+    lphonon=MAX(lrho,lrscpot,lrhoofr,lphonon,lforce1)
     lphonon=lphonon+nstate*ncpw%ngw*2
     ! ==--------------------------------------------------------------==
     RETURN

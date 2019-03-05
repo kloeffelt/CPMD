@@ -38,8 +38,7 @@ MODULE stress_utils
   USE pslo,                            ONLY: pslo_com
   USE putbet_utils,                    ONLY: putbet
   USE ragg,                            ONLY: raggio
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm,&
-                                             rnlsm
+  USE rnlsm_utils,                     ONLY: rnlsm
   USE ropt,                            ONLY: iteropt
   USE sfac,                            ONLY: fnl
   USE sgpp,                            ONLY: sgpp1,&
@@ -630,7 +629,6 @@ CONTAINS
     INTEGER                                  :: lstress
     CHARACTER(len=30)                        :: tag
 
-    INTEGER                                  :: lrnlsm
 
 ! Variables
 ! ==--------------------------------------------------------------==
@@ -640,10 +638,6 @@ CONTAINS
          maxsys%nax*(parap%nst12(parai%mepos,2)-parap%nst12(parai%mepos,2)+1)
     ! DRHOV
     IF (pslo_com%tivan) lstress=MAX(lstress,4*ncpw%nhg)
-    IF (tkpts%tkblock) THEN
-       CALL give_scr_rnlsm(lrnlsm,tag,crge%n,.FALSE.)
-       lstress=MAX(lstress,lrnlsm)
-    ENDIF
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE give_scr_stress

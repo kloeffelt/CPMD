@@ -46,7 +46,7 @@ USE qspl,                           ONLY: ggng,&
                                           nsplpo
 USE readsr_utils,                   ONLY: xstring
 USE recpnew_utils,                  ONLY: ckgrid,tgrid
-USE rnlsm_utils,                    ONLY: give_scr_rnlsm,rnlsm
+USE rnlsm_utils,                    ONLY: rnlsm
 USE ropt,                           ONLY: iteropt
 USE sfac,                           ONLY: dfnl,&
                                           eigr,&
@@ -277,7 +277,7 @@ USE zeroing_utils,                  ONLY: zeroing
       CHARACTER(len=30)             ::   TAG
       CHARACTER(*), PARAMETER       ::   procedureN = 'occmat'
     
-      INTEGER    ISUB,L_RNLSM,L_ORTHO,NOMAX,L_OCCMAT,ISPIN,ISTATE,&
+      INTEGER    ISUB,L_ORTHO,NOMAX,L_OCCMAT,ISPIN,ISTATE,&
                 IUATM,M1,M2,M10,M20,M0,MOFF,MM1,MM2
 !
       REAL(real_8)                  ::   FFI,FQQ(2)
@@ -298,10 +298,8 @@ USE zeroing_utils,                  ONLY: zeroing
 !
 !  Scratch for orthogonalization of C0
       L_ORTHO=1
-      L_RNLSM=1
       CALL GIVE_SCR_ORTHO(L_ORTHO,TAG,NOMAX)
-      CALL GIVE_SCR_RNLSM(L_RNLSM,TAG,NOMAX,.FALSE.)
-      L_OCCMAT=MAX(L_ORTHO,L_RNLSM)
+      L_OCCMAT=L_ORTHO
 !
       allocate(myc0(ncpw%ngw,nstate),STAT=ierr)
       IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
@@ -1148,15 +1146,13 @@ USE zeroing_utils,                  ONLY: zeroing
     CHARACTER(*), PARAMETER     ::  procedureN = 'give_scr_hubbardu'
     CHARACTER(len=30)           ::  TAG
 
-    INTEGER                     ::  L_ORTHO,L_RNLSM,L_SPSI,NOMAX
+    INTEGER                     ::  L_ORTHO,L_SPSI,NOMAX
 !  ==--------------------------------------------------------------==
   IF(cntl%thubb)THEN 
     NOMAX=MAX(hubbu%nuproj,NSTATE)
     CALL GIVE_SCR_ORTHO(L_ORTHO,TAG,NOMAX)
-    CALL GIVE_SCR_RNLSM(L_RNLSM,TAG,NOMAX,.FALSE.)
     CALL GIVE_SCR_SPSI(L_SPSI,TAG)
     L_DFTU=MAX(1,L_ORTHO)
-    L_DFTU=MAX(L_DFTU,L_RNLSM)
     L_DFTU=MAX(L_DFTU,L_SPSI)
   ELSE
     L_DFTU=0

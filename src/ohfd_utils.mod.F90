@@ -34,8 +34,7 @@ MODULE ohfd_utils
   USE rhoofr_utils,                    ONLY: give_scr_rhoofr,&
                                              rhoofr
   USE rinitwf_utils,                   ONLY: give_scr_rinitwf
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm,&
-                                             rnlsm
+  USE rnlsm_utils,                     ONLY: rnlsm
   USE ropt,                            ONLY: iteropt,&
                                              ropt_mod
   USE setirec_utils,                   ONLY: read_irec,&
@@ -361,19 +360,17 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
 
     INTEGER                                  :: lcanon, lcopot, lforces_diag, &
-                                                lrhoofr, lrinitwf, lrnlsm, &
+                                                lrhoofr, lrinitwf, &
                                                 nstate
 
     nstate=crge%n
-    lrnlsm=0
     lcopot=0
     CALL give_scr_rinitwf(lrinitwf,tag,nstate)
-    IF (pslo_com%tivan) CALL give_scr_rnlsm(lrnlsm,tag,nstate,.FALSE.)
     CALL give_scr_rhoofr(lrhoofr,tag)
     CALL give_scr_forces_diag(lforces_diag,tag,nstate,.TRUE.)
     CALL give_scr_canon(lcanon,tag,nstate)
     IF (corel%tinlc) CALL give_scr_copot(lcopot,tag)
-    lohfd=MAX(lrinitwf,lrnlsm,lrhoofr,lforces_diag,lcopot,lcanon)
+    lohfd=MAX(lrinitwf,lrhoofr,lforces_diag,lcopot,lcanon)
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE give_scr_ohfd

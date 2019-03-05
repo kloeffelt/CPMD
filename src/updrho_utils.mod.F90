@@ -70,8 +70,7 @@ MODULE updrho_utils
                                              rhoofr
   USE rnlfor_utils,                    ONLY: rnlfor
   USE rnlrh_utils,                     ONLY: rnlrh
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm,&
-                                             rnlsm
+  USE rnlsm_utils,                     ONLY: rnlsm
   USE ropt,                            ONLY: iteropt,&
                                              ropt_mod
   USE rpiiint_utils,                   ONLY: rpiiint
@@ -765,16 +764,14 @@ CONTAINS
 
     INTEGER                                  :: lbogol, lhpsi, lmixing, &
                                                 lptheory, lrhofix, lrhoofr, &
-                                                lrnlsm, lscrdiag, lstress, &
+                                                lscrdiag, lstress, &
                                                 lsymvec, lvofrho
 
     lscrdiag=0
     CALL give_scr_vofrho(lvofrho,tag)
     IF (tfor) THEN
-       CALL give_scr_rnlsm(lrnlsm,tag,nstate,tfor)
        CALL give_scr_symvec(lsymvec,tag)
     ELSE
-       lrnlsm=0
        lsymvec=0
     ENDIF
     IF (tstress) THEN
@@ -802,7 +799,6 @@ CONTAINS
     ELSEIF (cntl%diis.OR.cntl%pcg) THEN
        CALL give_scr_kforces(lrhofix,tag,nstate,.TRUE.,tfor)
     ENDIF
-    IF (pslo_com%tivan) CALL give_scr_rnlsm(lrnlsm,tag,nstate,.FALSE.)
     CALL give_scr_rhoofr(lrhoofr,tag)
     lhpsi=0
     IF (fint1%tbogo) THEN
@@ -813,7 +809,7 @@ CONTAINS
     ENDIF
     CALL give_scr_ptheory(lptheory,tag,nstate)
     CALL give_scr_mixing(lmixing,tag)
-    lupdrho=MAX(lvofrho,lrnlsm,lsymvec,lstress,lrhofix,&
+    lupdrho=MAX(lvofrho,lsymvec,lstress,lrhofix,&
          lscrdiag,lrhoofr,lbogol,lhpsi,lptheory,lmixing)
     ! ==--------------------------------------------------------------==
     RETURN

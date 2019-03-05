@@ -65,10 +65,8 @@ MODULE sdlinres_utils
   USE rhoofr_utils,                    ONLY: give_scr_rhoofr,&
                                              rhoofr
   USE rmas,                            ONLY: rmass
-  USE rnlsm_2d_utils,                  ONLY: give_scr_rnlsm_2d,&
-                                             rnlsm_2d
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm,&
-                                             rnlsm
+  USE rnlsm_2d_utils,                  ONLY: rnlsm_2d
+  USE rnlsm_utils,                     ONLY: rnlsm
   USE ropt,                            ONLY: infw,&
                                              iteropt,&
                                              ropt_mod
@@ -761,7 +759,7 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
 
     INTEGER :: lcanon, lcopot, lfnonloc_p, lforces, linitrun, lnl_res, &
-      lopt_lr, lortho, lrhoofr, lrnlsm, lrnlsm_2d, lsymmat, lupdate, nstate
+      lopt_lr, lortho, lrhoofr, lsymmat, lupdate, nstate
 
     nstate=crge%n
     linitrun=0
@@ -772,8 +770,6 @@ CONTAINS
     lcanon=0
     lsymmat=0
     lrhoofr=0
-    lrnlsm=0
-    lrnlsm_2d=0
     lopt_lr=0
     lfnonloc_p=0
     ! 
@@ -786,13 +782,11 @@ CONTAINS
     CALL give_scr_symmat(lsymmat,tag)
     CALL give_scr_rhoofr(lrhoofr,tag)
     CALL give_scr_nl_res(lnl_res,nstate,tag)
-    CALL give_scr_rnlsm(lrnlsm,tag,nstate,.TRUE.)
-    CALL give_scr_rnlsm_2d(lrnlsm_2d,tag,nstate)
     CALL give_scr_opt_lr(lopt_lr,"PHONON",tag)
     ! 
     lsecder=MAX(9*ions1%nat*ions1%nat+9*ions1%nat,linitrun,lforces,lcopot,&
-         lortho,lupdate,lcanon,lsymmat,lnl_res,lrhoofr,lrnlsm,&
-         lrnlsm_2d,lopt_lr,lfnonloc_p)
+         lortho,lupdate,lcanon,lsymmat,lnl_res,lrhoofr,&
+         lopt_lr,lfnonloc_p)
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE give_scr_sdlinres

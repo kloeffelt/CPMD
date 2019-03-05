@@ -116,7 +116,6 @@ MODULE mm_mddiag_utils
   USE rinvel_utils,                    ONLY: rinvel,&
                                              rvscal
   USE rmas,                            ONLY: rmass
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm
   USE ropt,                            ONLY: infi,&
                                              iteropt,&
                                              ropt_mod
@@ -1264,14 +1263,13 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
 
     INTEGER :: lcalc_alm, lcopot, lforces_diag, linitrun, lmoverho, lmtd, &
-      lpropcal, lrhoofr, lrhopri, lrinitwf, lrnlsm, ltddft, nstate
+      lpropcal, lrhoofr, lrhopri, lrinitwf, ltddft, nstate
 
 ! Variables
 ! real(8) :: ALM(*),AFNL(*),BILN(*)
 ! ==--------------------------------------------------------------==
 
     nstate=crge%n
-    lrnlsm=0
     lcalc_alm=0
     lcopot=0
     lrhopri=0
@@ -1280,7 +1278,6 @@ CONTAINS
     linitrun=0
     CALL give_scr_initrun(linitrun,tag)
     CALL give_scr_rinitwf(lrinitwf,tag,nstate)
-    IF (pslo_com%tivan) CALL give_scr_rnlsm(lrnlsm,tag,nstate,.FALSE.)
     CALL give_scr_rhoofr(lrhoofr,tag)
     IF (fint1%ttrot) CALL give_scr_calc_alm(lcalc_alm,tag)
     CALL give_scr_forces_diag(lforces_diag,tag,nstate,.TRUE.)
@@ -1290,7 +1287,7 @@ CONTAINS
     IF (tmovr) CALL give_scr_moverho(lmoverho,tag)
     IF (cntl%tddft) CALL give_scr_lr_tddft(ltddft,.TRUE.,tag)
     CALL give_scr_meta_extlagr(lmtd,tag)
-    lmddiag=MAX(lrinitwf,lrnlsm,lrhoofr,lforces_diag,ltddft,linitrun,&
+    lmddiag=MAX(lrinitwf,lrhoofr,lforces_diag,ltddft,linitrun,&
          lcopot,lcalc_alm,lrhopri,lpropcal,lmoverho,lmtd)
     IF (cntl%tqmmm) lmddiag=MAX(lmddiag,fpar%kr1*fpar%kr2s*fpar%kr3s)
     IF (cntl%tqmmm) lmddiag=MAX(lmddiag,maxsys%nax*maxsys%nsx*3)

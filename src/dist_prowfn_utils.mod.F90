@@ -42,8 +42,7 @@ MODULE dist_prowfn_utils
                                              prop3
   USE prowfn_utils,                    ONLY: mklabel
   USE pslo,                            ONLY: pslo_com
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm,&
-                                             rnlsm
+  USE rnlsm_utils,                     ONLY: rnlsm
   USE setbasis_utils,                  ONLY: loadc
   USE sfac,                            ONLY: fnl,&
                                              fnl2
@@ -1495,16 +1494,14 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
     INTEGER                                  :: norbx
 
-    INTEGER                                  :: is, lcmaos, lrnlsm, lsatch, &
+    INTEGER                                  :: is, lcmaos, lsatch, &
                                                 lwfnrho, nstate, &
                                                 numin
 
     nstate=crge%n
-    lrnlsm=0
     lcmaos=0
     lsatch=0
     lwfnrho=0
-    IF (pslo_com%tivan) CALL give_scr_rnlsm(lrnlsm,tag,atwp%nattot,.FALSE.)
     IF (prop1%dpan) THEN
        CALL stopgm('DIST_PROWFN','DISTRIBUTED DAVIDSON NOT IMPLEMENTED',& 
             __LINE__,__FILE__)
@@ -1520,7 +1517,7 @@ CONTAINS
     lprowfn=MAX(2*atwp%nattot+4*atwp%nattot,&
          atwp%nattot*prop2%numorb,&
          atwp%nattot*norbx,&
-         lrnlsm,lcmaos,lsatch,lwfnrho)
+         lcmaos,lsatch,lwfnrho)
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE give_scr_dist_prowfn

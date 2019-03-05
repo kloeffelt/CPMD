@@ -37,8 +37,7 @@ MODULE prowfn_utils
                                              prop2,&
                                              prop3
   USE pslo,                            ONLY: pslo_com
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm,&
-                                             rnlsm
+  USE rnlsm_utils,                     ONLY: rnlsm
   USE setbasis_utils,                  ONLY: loadc
   USE sfac,                            ONLY: fnl,&
                                              fnl2
@@ -924,16 +923,14 @@ CONTAINS
     INTEGER                                  :: lprowfn
     CHARACTER(len=30)                        :: tag
 
-    INTEGER                                  :: is, lcmaos, lrnlsm, lsatch, &
+    INTEGER                                  :: is, lcmaos, lsatch, &
                                                 lwfnrho, nstate, &
                                                 numin
 
     nstate=crge%n
-    lrnlsm=0
     lcmaos=0
     lsatch=0
     lwfnrho=0
-    IF (pslo_com%tivan) CALL give_scr_rnlsm(lrnlsm,tag,atwp%nattot,.FALSE.)
     IF (prop1%dpan) THEN
        ! Davidson Population Analysis
        numin=0
@@ -946,7 +943,7 @@ CONTAINS
     ! PROWFN
     lprowfn=MAX(2*atwp%nattot*atwp%nattot+4*atwp%nattot,&
          atwp%nattot*prop2%numorb,&
-         lrnlsm,lcmaos,lsatch,lwfnrho)
+         lcmaos,lsatch,lwfnrho)
     ! ==--------------------------------------------------------------==
   END SUBROUTINE give_scr_prowfn
   ! ==================================================================

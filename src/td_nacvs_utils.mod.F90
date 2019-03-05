@@ -74,10 +74,8 @@ MODULE td_nacvs_utils
   USE rmas,                            ONLY: rmass
   USE rnlsm1_utils,                    ONLY: rnlsm1
   USE rnlsm2_utils,                    ONLY: rnlsm2
-  USE rnlsm_2d_utils,                  ONLY: give_scr_rnlsm_2d,&
-                                             rnlsm_2d
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm,&
-                                             rnlsm
+  USE rnlsm_2d_utils,                  ONLY: rnlsm_2d
+  USE rnlsm_utils,                     ONLY: rnlsm
   USE ropt,                            ONLY: iteropt,&
                                              ropt_mod
   USE sfac,                            ONLY: ddfnl,&
@@ -258,8 +256,8 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
 
     INTEGER :: lcplsub, lddxc_1d, lddxc_2d, ldfnl, ldone, leirop, leivps, &
-      lforcedr, lget_eind, LH1NL, LNL_RES, LOPT_LR, LRHOE, lrhoofr, lrnlsm, &
-      LRNLSM_2D, lsymvec, LV1OFRHO1, LVECT, NSTATE
+      lforcedr, lget_eind, LH1NL, LNL_RES, LOPT_LR, LRHOE, lrhoofr,  &
+      lsymvec, LV1OFRHO1, LVECT, NSTATE
 
 ! NHG
 ! N
@@ -291,16 +289,14 @@ CONTAINS
     ! 
     nstate=crge%n
     CALL give_scr_forcedr (lforcedr,tag,nstate,.FALSE.,.FALSE.)
-    CALL give_scr_rnlsm(lrnlsm,tag,nstate,.TRUE.)
     CALL give_scr_symvec(lsymvec,tag)
-    lcplsub=MAX(lforcedr,lrnlsm,lsymvec)
+    lcplsub=MAX(lforcedr,lsymvec)
     CALL give_scr_rhoofr(lrhoofr,tag)
     CALL give_scr_v1ofrho1(lv1ofrho1,tag)
-    CALL give_scr_rnlsm_2d(lrnlsm_2d,tag,nstate)
     CALL give_scr_nl_res(lnl_res,nstate,tag)
     CALL give_scr_opt_lr(lopt_lr,"PHONON",tag)
     CALL give_scr_get_eind(lget_eind,tag)
-    lcplsub=MAX(lcplsub,lrhoofr,lrnlsm_2d,lnl_res,lopt_lr,&
+    lcplsub=MAX(lcplsub,lrhoofr,lnl_res,lopt_lr,&
          LGET_EIND,LV1OFRHO1)
 
     lcplngs=lcplngs+lcplsub+100

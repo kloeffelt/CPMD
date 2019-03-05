@@ -50,7 +50,6 @@ MODULE do_perturbation_p_utils
   USE rhoofr_utils,                    ONLY: give_scr_rhoofr,&
                                              rhoofr
   USE rhopri_utils,                    ONLY: rhopri
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm
   USE ropt,                            ONLY: iteropt,&
                                              ropt_mod
   USE rscpot_utils,                    ONLY: give_scr_rscpot
@@ -506,7 +505,7 @@ CONTAINS
     INTEGER                                  :: nstate
 
     INTEGER :: l_forcedr, l_opeigr, l_updwf_p, lepr, lforce1, linteraction, &
-      lnmr, lpert_kpoint_p, lrho, lrhoofr, lrnlsm, lrscpot
+      lnmr, lpert_kpoint_p, lrho, lrhoofr, lrscpot
 
 ! ==--------------------------------------------------------------==
 
@@ -515,7 +514,6 @@ CONTAINS
     CALL give_scr_nmr(lnmr,tag)
     CALL give_scr_epr(lepr,tag)
     CALL give_scr_interaction(linteraction,tag,nstate)
-    CALL give_scr_rnlsm(lrnlsm,tag,nstate,.TRUE.)
     CALL give_scr_rhoofr(lrho,tag)
     CALL give_scr_rscpot(lrscpot,tag,ropt_mod%calste)
     CALL give_scr_rhoofr_p(lrhoofr,tag)
@@ -525,7 +523,7 @@ CONTAINS
     CALL give_scr_updwf_p(l_updwf_p,tag,nstate)
     CALL give_scr_pert_kpoint_p(lpert_kpoint_p,tag,nstate)
 
-    l_max = MAX(linteraction,lrho,lrscpot,lrnlsm,lrhoofr,l_max,&
+    l_max = MAX(linteraction,lrho,lrscpot,lrhoofr,l_max,&
          lforce1,lnmr,l_forcedr,l_opeigr,l_updwf_p,lepr,&
          lpert_kpoint_p)
     ! ==--------------------------------------------------------------==

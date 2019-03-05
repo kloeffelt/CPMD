@@ -108,8 +108,7 @@ MODULE proppt_utils
   USE rhoofr_c_utils,                  ONLY: rhoofr_c
   USE rhoofr_utils,                    ONLY: give_scr_rhoofr,&
                                              rhoofr
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm,&
-                                             rnlsm
+  USE rnlsm_utils,                     ONLY: rnlsm
   USE ropt,                            ONLY: iteropt
   USE rscpot_utils,                    ONLY: rscpot
   USE rv30_utils,                      ONLY: zhrwf
@@ -1360,15 +1359,10 @@ CONTAINS
     INTEGER                                  :: lespc
     CHARACTER(len=30)                        :: tag
 
-    INTEGER                                  :: il_qphi, lrnlsm
+    INTEGER                                  :: il_qphi
 
     CALL give_qphi(il_qphi)
-    IF (pslo_com%tivan) THEN
-       CALL give_scr_rnlsm(lrnlsm,tag,crge%n,.FALSE.)
-    ELSE
-       lrnlsm=0
-    ENDIF
-    lespc=MAX(2*ncpw%nhg+il_qphi,lrnlsm)
+    lespc=2*ncpw%nhg+il_qphi
     tag='2*NHG+IL_QPHI'
     ! ==--------------------------------------------------------------==
     RETURN
@@ -1379,15 +1373,10 @@ CONTAINS
     INTEGER                                  :: lavgp
     CHARACTER(len=30)                        :: tag
 
-    INTEGER                                  :: il_qphi, lrnlsm
+    INTEGER                                  :: il_qphi
 
     CALL give_qphi(il_qphi)
-    IF (pslo_com%tivan) THEN
-       CALL give_scr_rnlsm(lrnlsm,tag,crge%n,.FALSE.)
-    ELSE
-       lrnlsm=0
-    ENDIF
-    lavgp=MAX(2*ncpw%nhg+il_qphi,lrnlsm)
+    lavgp=2*ncpw%nhg+il_qphi
     tag='2*NHG+IL_QPHI'
     ! ==--------------------------------------------------------------==
     RETURN

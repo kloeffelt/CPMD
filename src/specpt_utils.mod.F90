@@ -92,7 +92,6 @@ MODULE specpt_utils
                                              rhoofr
   USE rhopri_utils,                    ONLY: give_scr_rhopri,&
                                              rhopri
-  USE rnlsm_utils,                     ONLY: give_scr_rnlsm
   USE ropt,                            ONLY: infw,&
                                              iteropt,&
                                              ropt_mod
@@ -1397,7 +1396,7 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
 
     INTEGER :: l_diag, lcanon, lforces, linitrun, llocal, llr_diag, lortho, &
-      lrhoofr, lrhopri, lrnlsm, ltd_force, lupdwf, nstate
+      lrhoofr, lrhopri, ltd_force, lupdwf, nstate
 
     nstate=crge%n
     CALL give_scr_initrun(linitrun,tag)
@@ -1405,7 +1404,6 @@ CONTAINS
     CALL give_scr_rhoofr(lrhoofr,tag)
     CALL give_scr_forcedr(lforces,tag,nstate,.FALSE.,.FALSE.)
     CALL give_scr_canon(lcanon,tag,nstate)
-    CALL give_scr_rnlsm(lrnlsm,tag,nstate,.FALSE.)
     CALL give_scr_lr_diag(llr_diag,tag)
     nstate=crge%n+MAX(td01%ns_tri,td01%ns_sin,td01%ns_mix)
     IF (cntl%tlanc) THEN
@@ -1435,7 +1433,7 @@ CONTAINS
        CALL give_scr_td_force(ltd_force,nstate,tag)
     ENDIF
     ! 
-    lspectra=MAX(linitrun,lupdwf,lrhoofr,lforces,lcanon,lrnlsm,&
+    lspectra=MAX(linitrun,lupdwf,lrhoofr,lforces,lcanon,&
          llr_diag,l_diag,lortho,llocal,lrhopri,ltd_force)
     ! ==--------------------------------------------------------------==
     RETURN
