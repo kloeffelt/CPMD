@@ -31,8 +31,7 @@ MODULE rhopri_utils
   USE readsr_utils,                    ONLY: xstring
   USE response_pmod,                   ONLY: response1
   USE rhoofr_c_utils,                  ONLY: rhoofr_c
-  USE rhoofr_utils,                    ONLY: give_scr_rhoofr,&
-                                             rhoofr
+  USE rhoofr_utils,                    ONLY: rhoofr
   USE rnlsm_utils,                     ONLY: rnlsm
   USE ropt,                            ONLY: iteropt
   USE spin,                            ONLY: clsd,&
@@ -521,9 +520,8 @@ CONTAINS
     INTEGER                                  :: nstate
 
     INTEGER :: il_auxc, il_ddia, il_gam, il_qphi = 0, il_smat, lelf = 0, &
-      lnorho = 0, lrhoofr = 0
+      lnorho = 0
 
-    CALL give_scr_rhoofr(lrhoofr,tag)
     IF (cntl%tepot) THEN
        ! VTEMP(2*NHG),EIVPS(2*NHG),EIROP(2*NHG)
        lrhopri=6*ncpw%nhg
@@ -538,8 +536,8 @@ CONTAINS
          il_smat,il_ddia,tag,nstate,.FALSE.)
     IF (elfcb%telf) CALL give_scr_elf(lelf,tag,nstate)
     IF (elfcb%telf.AND.cntl%tlsd) CALL give_scr_lsd_elf(lelf,tag,nstate)
-    lrhopri=MAX(lrhoofr,lrhopri,lelf,lnorho)
-    tag='MAX(LRHOOFR,LRHOPRI...)'
+    lrhopri=MAX(lrhopri,lelf,lnorho)
+    tag='MAX(LRHOPRI...)'
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE give_scr_rhopri

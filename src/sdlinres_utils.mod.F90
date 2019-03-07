@@ -62,8 +62,7 @@ MODULE sdlinres_utils
   USE poin,                            ONLY: potr,&
                                              rhoo
   USE rho1ofr_utils,                   ONLY: rho1ofr
-  USE rhoofr_utils,                    ONLY: give_scr_rhoofr,&
-                                             rhoofr
+  USE rhoofr_utils,                    ONLY: rhoofr
   USE rmas,                            ONLY: rmass
   USE rnlsm_2d_utils,                  ONLY: rnlsm_2d
   USE rnlsm_utils,                     ONLY: rnlsm
@@ -759,7 +758,7 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
 
     INTEGER :: lcanon, lcopot, lfnonloc_p, lforces, linitrun, lnl_res, &
-      lopt_lr, lortho, lrhoofr, lsymmat, lupdate, nstate
+      lopt_lr, lortho, lsymmat, lupdate, nstate
 
     nstate=crge%n
     linitrun=0
@@ -769,7 +768,6 @@ CONTAINS
     lupdate=0
     lcanon=0
     lsymmat=0
-    lrhoofr=0
     lopt_lr=0
     lfnonloc_p=0
     ! 
@@ -780,12 +778,11 @@ CONTAINS
     CALL give_scr_updwf(lupdate,tag,nstate,.FALSE.)
     CALL give_scr_canon(lcanon,tag,nstate)
     CALL give_scr_symmat(lsymmat,tag)
-    CALL give_scr_rhoofr(lrhoofr,tag)
     CALL give_scr_nl_res(lnl_res,nstate,tag)
     CALL give_scr_opt_lr(lopt_lr,"PHONON",tag)
     ! 
     lsecder=MAX(9*ions1%nat*ions1%nat+9*ions1%nat,linitrun,lforces,lcopot,&
-         lortho,lupdate,lcanon,lsymmat,lnl_res,lrhoofr,&
+         lortho,lupdate,lcanon,lsymmat,lnl_res,&
          lopt_lr,lfnonloc_p)
     ! ==--------------------------------------------------------------==
     RETURN

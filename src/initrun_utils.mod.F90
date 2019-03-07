@@ -8,7 +8,6 @@ MODULE initrun_utils
   USE nlcc,                            ONLY: corel
   USE ortho_utils,                     ONLY: give_scr_ortho
   USE pslo,                            ONLY: pslo_com
-  USE rhoofr_utils,                    ONLY: give_scr_rhoofr
   USE rinitwf_utils,                   ONLY: give_scr_rinitwf
   USE store_types,                     ONLY: restart1
   USE system,                          ONLY: cntl
@@ -32,7 +31,7 @@ CONTAINS
 
     INTEGER                                  :: isub, lainitwf, lcalc_alm, &
                                                 lcopot, lnewcell, lortho, &
-                                                lrhoofr, lrinitwf, &
+                                                lrinitwf, &
                                                 nstate
 
     CALL tiset(procedureN,isub)
@@ -40,7 +39,6 @@ CONTAINS
     lnewcell=0
     lcopot=0
     lortho=0
-    lrhoofr=0
     lcalc_alm=0
     lainitwf=0
     linitrun=0
@@ -54,10 +52,9 @@ CONTAINS
        lortho=MAX(lortho,lainitwf)
     ENDIF
     IF (cntl%tdiag) THEN
-       CALL give_scr_rhoofr(lrhoofr,tag)
        IF (fint1%ttrot) CALL give_scr_calc_alm(lcalc_alm,tag)
     ENDIF
-    linitrun=MAX(lrinitwf,lnewcell,lcopot,lortho,lrhoofr,&
+    linitrun=MAX(lrinitwf,lnewcell,lcopot,lortho,&
          lcalc_alm)
     CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==

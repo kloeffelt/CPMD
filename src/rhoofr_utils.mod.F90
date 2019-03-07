@@ -113,7 +113,6 @@ MODULE rhoofr_utils
   PRIVATE
 
   PUBLIC :: rhoofr
-  PUBLIC :: give_scr_rhoofr
   !public :: movepsih
 
 CONTAINS
@@ -643,29 +642,6 @@ CONTAINS
     RETURN
   END SUBROUTINE rhoofr
 
-  ! ==================================================================
-  SUBROUTINE give_scr_rhoofr(lrhoofr,tag)
-    ! ==--------------------------------------------------------------==
-    INTEGER                                  :: lrhoofr
-    CHARACTER(len=30)                        :: tag
-
-    INTEGER                                  :: ldg, lmoverho, lrhov, lsymrho
-
-    ldg=0
-    IF (tdgcomm%tdg) ldg=2*ncpw%nhg*clsd%nlsd+100
-    lmoverho=0
-    IF (pslo_com%tivan) THEN ! RHOOFR and RHOOFR_C
-       CALL give_scr_rhov(lrhov,tag)
-       lrhoofr=MAX(ions1%nat,lrhov)! AUGCHG
-    ELSE
-       lrhoofr=0
-    ENDIF
-    CALL give_scr_symrho(lsymrho,tag)
-    IF (ropt_mod%modens) CALL give_scr_moverho(lmoverho,tag)
-    lrhoofr=MAX(lrhoofr,lsymrho,lmoverho)
-    ! ==--------------------------------------------------------------==
-    RETURN
-  END SUBROUTINE give_scr_rhoofr
   ! ==================================================================
   SUBROUTINE movepsih(a,itask)
     COMPLEX(real_8)                          :: a(:)

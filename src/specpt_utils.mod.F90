@@ -88,8 +88,7 @@ MODULE specpt_utils
   USE readsr_utils,                    ONLY: xstring
   USE reshaper,                        ONLY: reshape_inplace
   USE rho1pri_utils,                   ONLY: rho1pri
-  USE rhoofr_utils,                    ONLY: give_scr_rhoofr,&
-                                             rhoofr
+  USE rhoofr_utils,                    ONLY: rhoofr
   USE rhopri_utils,                    ONLY: give_scr_rhopri,&
                                              rhopri
   USE ropt,                            ONLY: infw,&
@@ -1396,12 +1395,11 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
 
     INTEGER :: l_diag, lcanon, lforces, linitrun, llocal, llr_diag, lortho, &
-      lrhoofr, lrhopri, ltd_force, lupdwf, nstate
+      lrhopri, ltd_force, lupdwf, nstate
 
     nstate=crge%n
     CALL give_scr_initrun(linitrun,tag)
     CALL give_scr_updwf(lupdwf,tag,nstate,.FALSE.)
-    CALL give_scr_rhoofr(lrhoofr,tag)
     CALL give_scr_forcedr(lforces,tag,nstate,.FALSE.,.FALSE.)
     CALL give_scr_canon(lcanon,tag,nstate)
     CALL give_scr_lr_diag(llr_diag,tag)
@@ -1433,7 +1431,7 @@ CONTAINS
        CALL give_scr_td_force(ltd_force,nstate,tag)
     ENDIF
     ! 
-    lspectra=MAX(linitrun,lupdwf,lrhoofr,lforces,lcanon,&
+    lspectra=MAX(linitrun,lupdwf,lforces,lcanon,&
          llr_diag,l_diag,lortho,llocal,lrhopri,ltd_force)
     ! ==--------------------------------------------------------------==
     RETURN

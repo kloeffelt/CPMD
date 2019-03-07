@@ -28,8 +28,7 @@ MODULE elf_utils
   USE pslo,                            ONLY: pslo_com
   USE readsr_utils,                    ONLY: xstring
   USE rhoofr_c_utils,                  ONLY: rhoofr_c
-  USE rhoofr_utils,                    ONLY: give_scr_rhoofr,&
-                                             rhoofr
+  USE rhoofr_utils,                    ONLY: rhoofr
   USE rnlsm_utils,                     ONLY: rnlsm
   USE spin,                            ONLY: clsd
   USE system,                          ONLY: cntl,&
@@ -287,16 +286,13 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
     INTEGER                                  :: nstate
 
-    INTEGER                                  :: lrhoofr
 
 ! Variables
 ! ==--------------------------------------------------------------==
 ! VTEMP(2*NHG)
 
     lelf=2*ncpw%nhg
-    CALL give_scr_rhoofr(lrhoofr,tag)
-    lelf=MAX(lelf,lrhoofr)
-    tag='MAX(LELF,LRHOOFR)'
+    tag='LELF'
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE give_scr_elf

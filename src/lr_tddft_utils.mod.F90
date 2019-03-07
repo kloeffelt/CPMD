@@ -41,8 +41,7 @@ MODULE lr_tddft_utils
                                              ptau,&
                                              rhoo,&
                                              rtau
-  USE rhoofr_utils,                    ONLY: give_scr_rhoofr,&
-                                             rhoofr
+  USE rhoofr_utils,                    ONLY: rhoofr
   USE ropt,                            ONLY: infi
   USE sh_tddft_utils,                  ONLY: &
        adjustphase, adjustphase_lr, ecoupl, getsigma, lz_trans, &
@@ -610,12 +609,11 @@ CONTAINS
 
     INTEGER                                  :: l_diag, l_for, lcanon, &
                                                 lforces, llocal, llr_diag, &
-                                                lortho, lrhoofr, &
+                                                lortho, &
                                                 nstate
 
     l_diag=0
     nstate=crge%n
-    CALL give_scr_rhoofr(lrhoofr,tag)
     CALL give_scr_forcedr(lforces,tag,nstate,.FALSE.,tfor)
     CALL give_scr_canon(lcanon,tag,nstate)
     CALL give_scr_lr_diag(llr_diag,tag)
@@ -635,7 +633,7 @@ CONTAINS
        llocal=MAX(llocal,ncpw%nhg)
     ENDIF
     ! 
-    lspectra=MAX(lrhoofr,lforces,lcanon,&
+    lspectra=MAX(lforces,lcanon,&
          llr_diag,l_diag,lortho,llocal,l_for)
     ! ==--------------------------------------------------------------==
   END SUBROUTINE give_scr_lr_tddft

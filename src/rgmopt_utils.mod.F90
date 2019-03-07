@@ -1605,7 +1605,7 @@ SUBROUTINE give_scr_rgmopt(lrgmopt,tag)
   USE updwf_utils, ONLY : give_scr_updwf, updwf
   USE ortho_utils, ONLY : ortho,give_scr_ortho
   USE rhopri_utils, ONLY : rhopri ,give_scr_rhopri
-  USE rhoofr_utils, ONLY : give_scr_rhoofr,rhoofr
+  USE rhoofr_utils, ONLY : rhoofr
   USE initrun_utils, ONLY : give_scr_initrun
   USE rnlsm_utils, ONLY : rnlsm
   USE forcedr_utils, ONLY : give_scr_forcedr
@@ -1615,13 +1615,12 @@ SUBROUTINE give_scr_rgmopt(lrgmopt,tag)
 
   INTEGER :: lcalc_alm, lcopot, ldeort, ldipd, lforces, lforces_diag, &
       linitrun, lmoverho, lnewcell, lortho, lposupa, lprepv, lrbfgs, lrgdiis, &
-      lrhoofr, lrhopri, lrinr, lrlbfgs, lrortv, lrprfo, lrrfo, &
+      lrhopri, lrinr, lrlbfgs, lrortv, lrprfo, lrrfo, &
       lsdion, ltddft, lupdwf, nstate
 
   nstate=crge%n
   lcopot=0
   lortho=0
-  lrhoofr=0
   lcalc_alm=0
   lforces_diag=0
   lforces=0
@@ -1650,7 +1649,6 @@ SUBROUTINE give_scr_rgmopt(lrgmopt,tag)
      CALL give_scr_ortho(lortho,tag,nstate)
   ENDIF
   IF (cntl%tdiag) THEN
-     CALL give_scr_rhoofr(lrhoofr,tag)
      IF (fint1%ttrot) THEN
         CALL give_scr_calc_alm(lcalc_alm,tag)
      ENDIF
@@ -1718,7 +1716,7 @@ SUBROUTINE give_scr_rgmopt(lrgmopt,tag)
   ELSE
      ldipd=0
   ENDIF
-  lrgmopt=MAX(linitrun,lcopot,lortho,lrhoofr,&
+  lrgmopt=MAX(linitrun,lcopot,lortho,&
        lcalc_alm,lforces_diag,lforces,&
        lsdion,lrgdiis,lrbfgs,lrrfo,lrinr,lrlbfgs,lrprfo,&
        lnewcell,ldeort,lupdwf,lprepv,lposupa,lrortv,&

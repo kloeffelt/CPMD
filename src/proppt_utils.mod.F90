@@ -106,8 +106,7 @@ MODULE proppt_utils
   USE readsr_utils,                    ONLY: xstring
   USE rho1ofr_utils,                   ONLY: rhoabofr
   USE rhoofr_c_utils,                  ONLY: rhoofr_c
-  USE rhoofr_utils,                    ONLY: give_scr_rhoofr,&
-                                             rhoofr
+  USE rhoofr_utils,                    ONLY: rhoofr
   USE rnlsm_utils,                     ONLY: rnlsm
   USE ropt,                            ONLY: iteropt
   USE rscpot_utils,                    ONLY: rscpot
@@ -164,7 +163,7 @@ CONTAINS
                                                 eirop(:), eivps(:), psi(:,:), &
                                                 qphi(:), sc0(:,:), vtemp(:)
     INTEGER :: i, ia, iat, ie, ierr, ig, il_psi_1d, il_psi_2d, il_qphi, &
-      il_rhoe_1d, il_rhoe_2d, ippc, ir, irec(100), isp, j, ji, lo, lr, lrho, &
+      il_rhoe_1d, il_rhoe_2d, ippc, ir, irec(100), isp, j, ji, lo, lr, &
       lscr, mlen, n_cubefiles, nc, nl, nnat, nstate, nxx
     INTEGER, ALLOCATABLE                     :: isel(:)
     LOGICAL                                  :: oldstatus, statusdummy, tinfo
@@ -835,9 +834,8 @@ CONTAINS
     IF (prop4%tcubefile_dens.OR.prop4%tcubefile_orb.OR.prop4%tcubefile_pot) THEN
        CALL rhoe_psi_size(il_rhoe_1d=il_rhoe_1d,il_rhoe_2d=il_rhoe_2d,&
             il_psi_1d=il_psi_1d,il_psi_2d=il_psi_2d)
-       CALL give_scr_rhoofr(lrho,tag)
        CALL give_scr_forces(lscr,tag,nstate,.TRUE.,.FALSE.)
-       lscr=MAX(il_rhoe_1d*il_rhoe_2d,2*maxfft,lrho,lscr)
+       lscr=MAX(il_rhoe_1d*il_rhoe_2d,2*maxfft,lscr)
        ALLOCATE(scr(lscr),STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
             __LINE__,__FILE__)

@@ -19,8 +19,7 @@ MODULE rscpot_utils
                                              paral
   USE prop,                            ONLY: prop5
   USE rhoofr_c_utils,                  ONLY: rhoofr_c
-  USE rhoofr_utils,                    ONLY: give_scr_rhoofr,&
-                                             rhoofr
+  USE rhoofr_utils,                    ONLY: rhoofr
   USE rnlfor_utils,                    ONLY: rnlfor
   USE rnlrh_utils,                     ONLY: rnlrh
   USE ropt,                            ONLY: iteropt
@@ -291,18 +290,17 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
     LOGICAL                                  :: tstress
 
-    INTEGER                                  :: lrhoofr, lstress, lvofrho
+    INTEGER                                  :: lstress, lvofrho
 
 ! ==--------------------------------------------------------------==
 
-    CALL give_scr_rhoofr(lrhoofr,tag)
     IF (tstress) THEN
        CALL give_scr_stress(lstress,tag)
     ELSE
        lstress=0
     ENDIF
     CALL give_scr_vofrho(lvofrho,tag)
-    lrscpot=MAX(lrhoofr,lstress,lvofrho)
+    lrscpot=MAX(lstress,lvofrho)
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE give_scr_rscpot

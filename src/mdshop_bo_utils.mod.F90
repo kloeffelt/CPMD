@@ -91,7 +91,6 @@ MODULE mdshop_bo_utils
   USE rattle_utils,                    ONLY: rattle
   USE resetac_utils,                   ONLY: resetac
   USE response_pmod,                   ONLY: dmbi
-  USE rhoofr_utils,                    ONLY: give_scr_rhoofr
   USE rhopri_utils,                    ONLY: give_scr_rhopri,&
                                              rhopri
   USE rinitwf_utils,                   ONLY: give_scr_rinitwf
@@ -1230,7 +1229,7 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
 
     INTEGER :: lcalc_alm, lcopot, lforces_diag, lmoverho, lpropcal, LQUENBO, &
-      lrhoofr, lrhopri, lrinitwf, ltddft, nstate
+      lrhopri, lrinitwf, ltddft, nstate
 
 ! Variables
 ! real(8) :: ALM(*),AFNL(*),BILN(*)
@@ -1243,7 +1242,6 @@ CONTAINS
     lmoverho=0
     ltddft=0
     CALL give_scr_rinitwf(lrinitwf,tag,nstate)
-    CALL give_scr_rhoofr(lrhoofr,tag)
     IF (fint1%ttrot) CALL give_scr_calc_alm(lcalc_alm,tag)
     CALL give_scr_forces_diag(lforces_diag,tag,nstate,.TRUE.)
     IF (corel%tinlc) CALL give_scr_copot(lcopot,tag)
@@ -1253,7 +1251,7 @@ CONTAINS
     IF (cntl%tddft) CALL give_scr_lr_tddft(ltddft,.TRUE.,tag)
     IF (cntl%quenchb) CALL give_scr_quenbo(lquenbo,tag)
 
-    lmdshopbo=MAX(lrinitwf,lrhoofr,lforces_diag,ltddft,&
+    lmdshopbo=MAX(lrinitwf,lforces_diag,ltddft,&
          lcopot,lcalc_alm,lrhopri,lpropcal,lmoverho)
     ! ==--------------------------------------------------------------==
     RETURN

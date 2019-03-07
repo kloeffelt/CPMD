@@ -62,8 +62,7 @@ MODULE cplngs_utils
   USE pslo,                            ONLY: pslo_com
   USE rho1ofr_utils,                   ONLY: rho1ofr,&
                                              rhoabofr
-  USE rhoofr_utils,                    ONLY: give_scr_rhoofr,&
-                                             rhoofr
+  USE rhoofr_utils,                    ONLY: rhoofr
   USE rnlsm1_utils,                    ONLY: rnlsm1
   USE rnlsm2_utils,                    ONLY: rnlsm2
   USE rnlsm_2d_utils,                  ONLY: rnlsm_2d
@@ -1483,7 +1482,7 @@ CONTAINS
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'give_scr_cplsub'
 
-    INTEGER :: lforcedr, lget_eind, LNL_RES, LOPT_LR, lrhoofr, &
+    INTEGER :: lforcedr, lget_eind, LNL_RES, LOPT_LR, &
       lsymvec, LV1OFRHO1, NSTATE
 
 ! ==--------------------------------------------------------------==
@@ -1498,7 +1497,6 @@ CONTAINS
        lforcedr = 0!vw need to set that to something
        CALL give_scr_symvec (lsymvec, tag)
        lcplsub = MAX (lforcedr, lsymvec)
-       CALL give_scr_rhoofr (lrhoofr, tag)
        CALL give_scr_v1ofrho1 (lv1ofrho1,tag)
        CALL give_scr_nl_res (lnl_res, nstate, tag)
        CALL give_scr_opt_lr (lopt_lr, "PHONON", tag)
@@ -1507,7 +1505,7 @@ CONTAINS
        ELSE
           CALL give_scr_get_eind (lget_eind, tag)
        ENDIF
-       lcplsub = MAX (lcplsub, lrhoofr, lnl_res, lopt_lr,&
+       lcplsub = MAX (lcplsub, lnl_res, lopt_lr,&
             LGET_EIND, LV1OFRHO1)
     ENDIF
     ! ==--------------------------------------------------------------==

@@ -66,8 +66,7 @@ MODULE updrho_utils
   USE pslo,                            ONLY: pslo_com
   USE ptheory_utils,                   ONLY: give_scr_ptheory
   USE rhoofr_c_utils,                  ONLY: rhoofr_c
-  USE rhoofr_utils,                    ONLY: give_scr_rhoofr,&
-                                             rhoofr
+  USE rhoofr_utils,                    ONLY: rhoofr
   USE rnlfor_utils,                    ONLY: rnlfor
   USE rnlrh_utils,                     ONLY: rnlrh
   USE rnlsm_utils,                     ONLY: rnlsm
@@ -763,7 +762,7 @@ CONTAINS
     LOGICAL                                  :: tfor, tstress
 
     INTEGER                                  :: lbogol, lhpsi, lmixing, &
-                                                lptheory, lrhofix, lrhoofr, &
+                                                lptheory, lrhofix, &
                                                 lscrdiag, lstress, &
                                                 lsymvec, lvofrho
 
@@ -799,7 +798,6 @@ CONTAINS
     ELSEIF (cntl%diis.OR.cntl%pcg) THEN
        CALL give_scr_kforces(lrhofix,tag,nstate,.TRUE.,tfor)
     ENDIF
-    CALL give_scr_rhoofr(lrhoofr,tag)
     lhpsi=0
     IF (fint1%tbogo) THEN
        CALL give_scr_bogol(lbogol,tag,nstate)
@@ -810,7 +808,7 @@ CONTAINS
     CALL give_scr_ptheory(lptheory,tag,nstate)
     CALL give_scr_mixing(lmixing,tag)
     lupdrho=MAX(lvofrho,lsymvec,lstress,lrhofix,&
-         lscrdiag,lrhoofr,lbogol,lhpsi,lptheory,lmixing)
+         lscrdiag,lbogol,lhpsi,lptheory,lmixing)
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE give_scr_updrho

@@ -76,8 +76,7 @@ MODULE egointer_utils
   USE purge_utils,                     ONLY: purge
   USE readsr_utils,                    ONLY: xstring
   USE rhoofr_c_utils,                  ONLY: rhoofr_c
-  USE rhoofr_utils,                    ONLY: give_scr_rhoofr,&
-                                             rhoofr
+  USE rhoofr_utils,                    ONLY: rhoofr
   USE rhopri_utils,                    ONLY: give_scr_rhopri
   USE rnlsm_utils,                     ONLY: rnlsm
   USE ropt,                            ONLY: infi,&
@@ -1470,22 +1469,20 @@ CONTAINS
     INTEGER                                  :: linterw
     CHARACTER(len=30)                        :: tag
 
-    INTEGER                                  :: lesp, lmulliken, lrhoofr, &
+    INTEGER                                  :: lesp, lmulliken, &
                                                 nstate
 
     nstate=crge%n
-    lrhoofr=0
     lesp=0
     lmulliken=0
     IF (cnti%icmet.EQ.2 .OR. cnti%icmet.EQ.3) THEN
-       CALL give_scr_rhoofr(lrhoofr,tag)
        CALL give_scr_espc(lesp,tag)
     ENDIF
     IF (cnti%icmet.EQ.1 .OR. cnti%icmet.EQ.4) THEN
        CALL give_scr_mulliken(lmulliken,tag,nstate)
     ELSEIF (cnti%icmet.EQ.2 .OR. cnti%icmet.EQ.3) THEN
     ENDIF
-    linterw=MAX(lrhoofr,lesp,lmulliken)
+    linterw=MAX(lesp,lmulliken)
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE give_scr_interface_write
@@ -1495,21 +1492,16 @@ CONTAINS
     INTEGER                                  :: lmyproppt
     CHARACTER(len=30)                        :: tag
 
-    INTEGER                                  :: lrhoofr, lrhopri, num
+    INTEGER                                  ::  lrhopri, num
 
     lrhopri=0
-    lrhoofr=0
     lmyproppt=0
     IF (prop1%ldip.OR.prop1%locd.OR.prop1%lext) THEN
        num=MAX(crge%n,prop2%numorb)
        CALL give_scr_rhopri(lrhopri,tag,num)
        ! EIVPS (2*NHG) EIROP (2*NHG)
        lmyproppt=4*ncpw%nhg
-       IF (prop1%ldip.OR.prop1%locd) THEN
-          CALL give_scr_rhoofr(lrhoofr,tag)
-       ENDIF
     ENDIF
-    lmyproppt=MAX(lmyproppt,lrhoofr)
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE give_scr_myproppt

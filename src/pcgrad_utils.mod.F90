@@ -5,7 +5,6 @@ MODULE pcgrad_utils
                                              mm_revert
   USE mm_input,                        ONLY: lqmmm
   USE ortho_utils,                     ONLY: give_scr_ortho
-  USE rhoofr_utils,                    ONLY: give_scr_rhoofr
   USE rscpot_utils,                    ONLY: give_scr_rscpot
   USE system,                          ONLY: cntl,&
                                              fpar,&
@@ -46,14 +45,13 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
     INTEGER                                  :: nstate
 
-    INTEGER                                  :: lforcedr, lrhoofr
+    INTEGER                                  :: lforcedr
 
 ! ==--------------------------------------------------------------==
 
     CALL give_scr_xetot(llinesr,tag,nstate)
     CALL give_scr_forcedr(lforcedr,tag,nstate,.TRUE.,.FALSE.)
-    CALL give_scr_rhoofr(lrhoofr,tag)
-    llinesr=MAX(llinesr,lforcedr,lrhoofr)
+    llinesr=MAX(llinesr,lforcedr)
     IF (lqmmm%qmmm)THEN
        llinesr=MAX(llinesr,fpar%kr1*fpar%kr2s*fpar%kr3s)
        llinesr=MAX(llinesr,maxsys%nax*maxsys%nsx*3)

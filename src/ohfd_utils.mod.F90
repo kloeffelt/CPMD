@@ -31,8 +31,7 @@ MODULE ohfd_utils
   USE phfac_utils,                     ONLY: phfac
   USE poin,                            ONLY: rhoo
   USE pslo,                            ONLY: pslo_com
-  USE rhoofr_utils,                    ONLY: give_scr_rhoofr,&
-                                             rhoofr
+  USE rhoofr_utils,                    ONLY: rhoofr
   USE rinitwf_utils,                   ONLY: give_scr_rinitwf
   USE rnlsm_utils,                     ONLY: rnlsm
   USE ropt,                            ONLY: iteropt,&
@@ -360,17 +359,16 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
 
     INTEGER                                  :: lcanon, lcopot, lforces_diag, &
-                                                lrhoofr, lrinitwf, &
+                                                lrinitwf, &
                                                 nstate
 
     nstate=crge%n
     lcopot=0
     CALL give_scr_rinitwf(lrinitwf,tag,nstate)
-    CALL give_scr_rhoofr(lrhoofr,tag)
     CALL give_scr_forces_diag(lforces_diag,tag,nstate,.TRUE.)
     CALL give_scr_canon(lcanon,tag,nstate)
     IF (corel%tinlc) CALL give_scr_copot(lcopot,tag)
-    lohfd=MAX(lrinitwf,lrhoofr,lforces_diag,lcopot,lcanon)
+    lohfd=MAX(lrinitwf,lforces_diag,lcopot,lcanon)
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE give_scr_ohfd

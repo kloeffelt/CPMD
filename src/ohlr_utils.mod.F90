@@ -67,8 +67,7 @@ MODULE ohlr_utils
   USE rho1ofr_utils,                   ONLY: rho1ofr,&
                                              rhoabofr,&
                                              rhosofr
-  USE rhoofr_utils,                    ONLY: give_scr_rhoofr,&
-                                             rhoofr
+  USE rhoofr_utils,                    ONLY: rhoofr
   USE rnlsm_utils,                     ONLY: rnlsm
   USE ropt,                            ONLY: iteropt,&
                                              ropt_mod
@@ -853,14 +852,13 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
 
     INTEGER                                  :: lcanon, lddipo, lforces, &
-                                                linitrun, lopt_lr, lrhoofr, &
+                                                linitrun, lopt_lr, &
                                                 lupdwf, lv1ofrho1, &
                                                 lvhk, nstate
 
     nstate=crge%n
     CALL give_scr_initrun(linitrun,tag)
     CALL give_scr_updwf(lupdwf,tag,nstate,.FALSE.)
-    CALL give_scr_rhoofr(lrhoofr,tag)
     CALL give_scr_forcedr(lforces,tag,nstate,.FALSE.,.FALSE.)
     CALL give_scr_canon(lcanon,tag,nstate)
     CALL give_scr_v1ofrho1(lv1ofrho1,tag)
@@ -873,7 +871,7 @@ CONTAINS
        lddipo=0
     ENDIF
     ! 
-    lohlr=MAX(linitrun,lupdwf,lrhoofr,lforces,lcanon,&
+    lohlr=MAX(linitrun,lupdwf,lforces,lcanon,&
          lv1ofrho1,lopt_lr,lddipo,lvhk)
     ! ==--------------------------------------------------------------==
     RETURN

@@ -143,7 +143,6 @@ MODULE md_driver
   USE readsr_utils,                    ONLY: xstring
   USE resetac_utils,                   ONLY: resetac
   USE response_pmod,                   ONLY: dmbi
-  USE rhoofr_utils,                    ONLY: give_scr_rhoofr
   USE rhopri_utils,                    ONLY: give_scr_rhopri,&
                                              rhopri
   USE rinitwf_utils,                   ONLY: give_scr_rinitwf
@@ -1828,7 +1827,7 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
 
     INTEGER :: lcalc_alm, lcopot, lddipo, lforces_diag, linitrun, lmoverho, &
-      lmtd, lpropcal, lrhoofr, lrhopri, lrinitwf, ltddft, nstate
+      lmtd, lpropcal, lrhopri, lrinitwf, ltddft, nstate
 
     nstate=crge%n
     lcalc_alm=0
@@ -1840,7 +1839,6 @@ CONTAINS
     lddipo=0
     CALL give_scr_initrun(linitrun,tag)
     CALL give_scr_rinitwf(lrinitwf,tag,nstate)
-    CALL give_scr_rhoofr(lrhoofr,tag)
     IF (fint1%ttrot) CALL give_scr_calc_alm(lcalc_alm,tag)
     IF (cntl%tmdeh) THEN
        CALL give_scr_forces_prop(lforces_diag,tag,nstate,.TRUE.)
@@ -1854,7 +1852,7 @@ CONTAINS
     IF (cntl%tddft) CALL give_scr_lr_tddft(ltddft,.TRUE.,tag)
     CALL give_scr_meta_extlagr(lmtd,tag)
     IF (vdwl%vdwd) CALL give_scr_ddipo(lddipo,tag)
-    lmddiag=MAX(lrinitwf,lrhoofr,lforces_diag,ltddft,linitrun,&
+    lmddiag=MAX(lrinitwf,lforces_diag,ltddft,linitrun,&
          lcopot,lcalc_alm,lrhopri,lpropcal,lmoverho,lmtd,&
          lddipo)
     ! ==--------------------------------------------------------------==
