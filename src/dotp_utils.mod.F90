@@ -1,3 +1,5 @@
+#include "cpmd_global.h"
+
 MODULE dotp_utils
 
   USE error_handling,                  ONLY: stopgm
@@ -16,6 +18,8 @@ MODULE dotp_utils
   PRIVATE
 
   PUBLIC :: dotp
+  PUBLIC :: dotp_c1_cp
+  PUBLIC :: dotp_c2_cp
 
   INTERFACE dotp
      MODULE PROCEDURE dotp_c
@@ -23,10 +27,10 @@ MODULE dotp_utils
 
 CONTAINS
 
-
+  ! ==================================================================
   FUNCTION dotp_c(n,a,b) RESULT(dotp)
     INTEGER, INTENT(IN)                      :: n
-    COMPLEX(real_8), INTENT(IN)              :: a(:), b(:)
+    COMPLEX(real_8), INTENT(IN) __CONTIGUOUS :: a(:), b(:)
     REAL(real_8)                             :: dotp
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'dotp_c'
@@ -34,7 +38,6 @@ CONTAINS
     REAL(real_8), EXTERNAL                   :: ddot
 
 ! ==--------------------------------------------------------------==
-
     dotp = 0._real_8
     IF (n.EQ.0) RETURN
 
@@ -45,21 +48,68 @@ CONTAINS
     IF (geq0) THEN
        dotp = REAL(a(1),KIND=real_8) * REAL(b(1),KIND=real_8)
     ELSE
-       dotp=2.0_real_8*( REAL(a(1),KIND=real_8)*REAL(b(1),KIND=real_8) + AIMAG(a(1))*AIMAG(b(1)))
+       dotp=2.0_real_8*( REAL(a(1),KIND=real_8)*REAL(b(1),KIND=real_8) + &
+            AIMAG(a(1))*AIMAG(b(1)))
     ENDIF
     IF (n.GT.1) THEN
        dotp=dotp+2.0_real_8*ddot(2*n-2,a(2),1,b(2),1)
     ENDIF
   END FUNCTION dotp_c
+  ! ==================================================================
+  FUNCTION dotp_c1_cp(n,a,geq0_loc) RESULT(dotp_cp)
+    INTEGER,INTENT(IN)                         :: n
+    COMPLEX(real_8),INTENT(IN)                 :: a(*)
+    REAL(real_8)                               :: dotp_cp
+    LOGICAL,INTENT(IN)                         :: geq0_loc
 
+    REAL(real_8), EXTERNAL                     :: ddot
+    ! ==--------------------------------------------------------------==
+    dotp_cp = 0._real_8
+    IF (n.EQ.0) RETURN
+
+    IF (geq0_loc) THEN
+       dotp_cp = REAL(a(1),KIND=real_8) * REAL(a(1),KIND=real_8)
+    ELSE
+       dotp_cp=2.0_real_8*( REAL(a(1),KIND=real_8)*REAL(a(1),KIND=real_8) + &
+            AIMAG(a(1))*AIMAG(a(1)))
+    ENDIF
+    IF (n.GT.1) THEN
+       dotp_cp=dotp_cp+2.0_real_8*ddot(2*n-2,a(2),1,a(2),1)
+    ENDIF
+    ! ==--------------------------------------------------------------==
+    RETURN
+  END FUNCTION dotp_c1_cp
+  ! ==================================================================
+  FUNCTION dotp_c2_cp(n,a,b,geq0_loc) RESULT(dotp_cp)
+    INTEGER,INTENT(IN)                         :: n
+    COMPLEX(real_8),INTENT(IN)                 :: a(*), b(*)
+    REAL(real_8)                               :: dotp_cp
+    LOGICAL,INTENT(IN)                         :: geq0_loc
+
+    REAL(real_8), EXTERNAL                     :: ddot
+    ! ==--------------------------------------------------------------==
+    dotp_cp = 0._real_8
+    IF (n.EQ.0) RETURN
+
+    IF (geq0_loc) THEN
+       dotp_cp = REAL(a(1),KIND=real_8) * REAL(b(1),KIND=real_8)
+    ELSE
+       dotp_cp=2.0_real_8*( REAL(a(1),KIND=real_8)*REAL(b(1),KIND=real_8) + &
+            AIMAG(a(1))*AIMAG(b(1)))
+    ENDIF
+    IF (n.GT.1) THEN
+       dotp_cp=dotp_cp+2.0_real_8*ddot(2*n-2,a(2),1,b(2),1)
+    ENDIF
+    ! ==--------------------------------------------------------------==
+    RETURN
+  END FUNCTION dotp_c2_cp
+  ! ==================================================================
 END MODULE dotp_utils
 
 ! ==================================================================
 FUNCTION dotp(n,a,b)
   ! ==--------------------------------------------------------------==
-  USE kinds, ONLY: real_4, real_8, int_1, int_2, int_4, int_8
-  USE error_handling, ONLY: stopgm
-  USE timer, ONLY: tiset, tihalt
+  USE kinds, ONLY: real_8
   USE geq0mod , ONLY:geq0
   IMPLICIT NONE
   INTEGER                                    :: n
