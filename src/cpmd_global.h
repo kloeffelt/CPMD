@@ -80,6 +80,10 @@
 #define _HAS_LIBXC
 #endif
 
+!tk DGEMMT not yet in standard BLAS
+#if defined(__HAS_DGEMMT) || defined(__INTEL_MKL)
+#define _HAS_DGEMMT
+#endif
 
 !vw ------------------------------------------------------
 !vw CUDA 
