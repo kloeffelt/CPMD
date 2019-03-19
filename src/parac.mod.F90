@@ -25,7 +25,7 @@ MODULE parac
   ! == CP_GRP  : CPMD communicator (should be use instead of        ==
   ! MPI_COMM_WORLD)                                    ==
   ! == CP_NPROC: Nbr processes in the cpmd communicator             ==
-  ! == CP_ME   : id of the processes in the cpmd communicator       == 
+  ! == CP_ME   : id of the processes in the cpmd communicator       ==
   ! == NHRAYS  : number of rays for the processor for the density   ==
   ! == NGRAYS  : number of rays for the processor for the wavefunc. ==
   ! == CP_INTER_GRP: CPMD group communicator                        ==
@@ -36,6 +36,12 @@ MODULE parac
   ! == LOC_ME
   ! == LOC_NPROC
   ! == LOC_INTER_GRP
+  ! == node_grp : subgroup of allgrp
+  ! == node_nproc : nbr of procs
+  ! == node_me : index
+  ! == cp_inter_node_grp : sub group of cp_inter_grp
+  ! == cp_inter_node_nproc : nbr of procs
+  ! == cp_inter_node_me :index
   ! ==--------------------------------------------------------------==
   TYPE :: parai_t
      INTEGER :: ncpus = HUGE(0)
@@ -62,6 +68,12 @@ MODULE parac
      INTEGER :: loc_me = HUGE(0)
      INTEGER :: loc_nproc = HUGE(0)
      INTEGER :: loc_inter_grp = HUGE(0)
+     INTEGER :: node_grp = HUGE(0)
+     INTEGER :: node_nproc = HUGE(0)
+     INTEGER :: node_me = HUGE(0)
+     INTEGER :: cp_inter_node_grp = HUGE(0)
+     INTEGER :: cp_inter_node_nproc = HUGE(0)
+     INTEGER :: cp_inter_node_me = HUGE(0)
   END TYPE parai_t
   TYPE(parai_t), SAVE :: parai
 

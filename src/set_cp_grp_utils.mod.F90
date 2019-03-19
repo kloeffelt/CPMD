@@ -14,7 +14,8 @@ MODULE set_cp_grp_utils
                                              mp_get_version,&
                                              mp_max,&
                                              mp_sum,&
-                                             mp_sync
+                                             mp_sync,&
+                                             mp_split_type
   USE parac,                           ONLY: parai,&
                                              paral
   USE pimd,                            ONLY: grandparent
@@ -119,6 +120,14 @@ CONTAINS
     cp_grp_get_cp_rank = 0
     cp_grp_get_cp_rank(parai%me,parai%cp_inter_me) = parai%cp_me
     CALL mp_sum(cp_grp_get_cp_rank,parai%cp_nproc,parai%cp_grp)
+
+    ! set node group
+    CALL mp_split_type(0,parai%allgrp,parai%node_grp)
+    CALL mp_environ(parai%node_grp,parai%node_nproc,parai%node_me)
+
+    ! set node group splitted from cp_inter_grp -> cp_group synchronization via mpi shared memory window!
+    CALL mp_split_type(0,parai%cp_inter_grp,parai%cp_inter_node_grp)
+    CALL mp_environ(parai%cp_inter_node_grp,parai%cp_inter_node_nproc,parai%cp_inter_node_me)
 
     ! 
     ! some tests

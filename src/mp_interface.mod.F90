@@ -46,6 +46,7 @@ MODULE mp_interface
   PUBLIC :: mp_min
   PUBLIC :: mp_dims_create
   PUBLIC :: mp_split
+  PUBLIC :: mp_split_type
   PUBLIC :: mp_group
   PUBLIC :: mp_send
   PUBLIC :: mp_recv
@@ -54,6 +55,9 @@ MODULE mp_interface
   PUBLIC :: mp_get_node_env
   PUBLIC :: mp_get_version
   PUBLIC :: mp_get_library_version
+  PUBLIC :: mp_win_alloc_shared_mem
+  PUBLIC :: mp_win_sync
+
   !
   ! interfaces
   !
@@ -276,6 +280,8 @@ MODULE mp_interface
   INTEGER, SAVE, PRIVATE :: mp_complex_in_bytes, mp_double_complex_in_bytes
   INTEGER, SAVE, PRIVATE :: mp_char_in_bytes
   INTEGER, SAVE, PRIVATE :: mp_logical_in_bytes
+  !TK, FAU Erlangen Nuernberg, 03.19 shared memory windows
+  INTEGER, SAVE, PRIVATE :: mpi_window(2)
 
 
 CONTAINS
@@ -892,6 +898,25 @@ CONTAINS
     RETURN
   END SUBROUTINE mp_split
 
+  SUBROUTINE mp_split_type(key,comm,newcomm)
+#ifdef __PARALLEL
+    USE mpi
+#endif
+    INTEGER,INTENT(IN)                       :: key,comm
+    INTEGER,INTENT(OUT)                      :: newcomm
+    INTEGER                                  :: ierr
+    CHARACTER(*), PARAMETER                  :: procedureN = 'mp_comm_split_type'
+    ! Author: Tobias Kloeffel, FAU Erlangen Nuernberg, March 2019
+
+#ifdef __PARALLEL
+    CALL mpi_comm_split_type(comm,MPI_COMM_TYPE_SHARED,key,MPI_INFO_NULL,newcomm,ierr)
+    CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+#else
+    newcomm=comm
+#endif
+  END SUBROUTINE mp_split_type
+
+
   SUBROUTINE mp_group(gsize,glist,gid,pcomm)
     ! ==--------------------------------------------------------------==
     ! == Forms groups of processors                                   ==
@@ -1023,6 +1048,115 @@ CONTAINS
 #endif
 
   END SUBROUTINE mp_get_library_version
+
+  SUBROUTINE mp_win_sync(comm)
+    ! ==--------------------------------------------------------------==
+    ! == Wrapper for mpi_win_fence                                    ==
+    ! ==--------------------------------------------------------------==
+    ! Author: Tobias Kloeffel, FAU Erlangen Nuernberg, March 2019
+
+    INTEGER,INTENT(IN) :: comm
+#ifdef __PARALLEL
+    INTEGER:: index,ierr
+    CHARACTER(*),PARAMETER::procedureN='mp_win_sync'
+
+    IF(comm.EQ.parai%node_grp)THEN
+       index=1
+    ELSEIF(comm.EQ.parai%cp_inter_node_grp)THEN
+       index=2
+    ELSE
+       CALL stopgm(procedureN,'Unsupported mpi communicator',&
+            __LINE__,__FILE__)
+    END IF
+    CALL mpi_win_fence(0,mpi_window(index),ierr)
+    CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+#endif
+  END SUBROUTINE mp_win_sync
+
+  SUBROUTINE mp_win_alloc_shared_mem(type,lda,n,baseptr,nproc,mypos,comm)
+#ifdef __PARALLEL
+    USE mpi
+#endif
+    USE, INTRINSIC :: ISO_C_BINDING, ONLY : C_PTR
+    ! ==--------------------------------------------------------------==
+    ! == Return baseptr to shared memory window                       ==
+    ! == Currently two shared memory windows are maintained, one for  ==
+    ! == comm.eq.node_grp (index.eq.1) and one for                    ==
+    ! == comm.eq.cp_inter_node_grp (index.eq.2)                       ==
+    ! == Deallocation for type .eq. A or a, reallocation possible     ==
+    ! ==--------------------------------------------------------------==
+    ! Author: Tobias Kloeffel, FAU Erlangen Nuernberg, March 2019
+    INTEGER,INTENT(IN) :: lda,n,nproc,mypos,comm
+    CHARACTER(1),INTENT(IN) :: type
+    TYPE(C_PTR),INTENT(OUT) :: baseptr(0:nproc-1)
+#ifdef __PARALLEL
+    INTEGER(int_8), SAVE :: allocated_size(2) = 0
+    INTEGER(int_8) :: requested_size
+    INTEGER(KIND=MPI_ADDRESS_KIND) :: windowsize
+    INTEGER :: proc,ierr,index,info,displ
+    LOGICAL, SAVE :: first(2)=.TRUE.
+    CHARACTER(*),PARAMETER::procedureN='mp_win_alloc_shared_mem'
+
+    IF(type.EQ.'C'.OR.type.EQ.'c')THEN
+       requested_size=lda*n*mp_double_complex_in_bytes
+    ELSEIF(type.EQ.'R'.OR.type.EQ.'r')THEN
+       requested_size=lda*n*mp_double_in_bytes
+    ELSEIF(type.EQ.'A'.OR.type.EQ.'a')THEN
+       IF(.NOT.first(1))THEN
+          CALL MPI_WIN_FREE(mpi_window(1), IERR)
+          CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+          first(1)=.TRUE.
+       END IF
+       IF(.NOT.first(2))THEN
+          CALL MPI_WIN_FREE(mpi_window(2), IERR)
+          CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+          first(2)=.TRUE.
+       END IF
+       RETURN
+    END IF
+
+    IF(comm.EQ.parai%node_grp)THEN
+       index=1
+    ELSEIF(comm.EQ.parai%cp_inter_node_grp)THEN
+       index=2
+    ELSE
+       CALL stopgm(procedureN,'Unsupported mpi communicator',&
+            __LINE__,__FILE__)
+    END IF
+
+    CALL mp_max(requested_size,comm)
+
+    !check if allocated window is big enough...
+    IF (allocated_size(index).LT.requested_size) THEN
+       IF(.NOT.first(index)) THEN
+          CALL MPI_WIN_FREE(mpi_window(index), IERR)
+          CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+          first(index)=.FALSE.
+       END IF
+       CALL MPI_INFO_CREATE(info,ierr)
+       CALL MPI_INFO_SET(INFO, 'same_disp_unit', 'true',ierr)
+       CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+       CALL MPI_INFO_SET(INFO, 'alloc_shared_noncontig', 'true',ierr)
+       CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+       CALL mpi_info_set(info, 'same_size', 'true',ierr)
+       CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+       windowsize=requested_size
+       allocated_size(index)=requested_size
+       displ=8
+       CALL MPI_WIN_allocate_shared(windowsize , displ, info,  &
+            comm, baseptr(mypos), mpi_window(index), ierr)
+       CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+       CALL mpi_info_free(info,ierr)
+       CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+    END IF
+    !set baseptrs for all procs
+    DO proc=0,nproc-1
+       CALL mpi_win_shared_query(mpi_window(index), proc, windowsize, &
+            displ, baseptr(proc), ierr)
+       CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+    END DO
+#endif
+  END SUBROUTINE mp_win_alloc_shared_mem
 
   !
   ! include file for the interfaces
