@@ -1,6 +1,8 @@
 #include "cpmd_global.h"
 
 MODULE rotate_utils
+  USE cp_grp_utils,                    ONLY: cp_grp_get_sizes,&
+                                             cp_grp_redist_array_f
   USE error_handling,                  ONLY: stopgm
   USE kinds,                           ONLY: int_1,&
                                              int_2,&
@@ -11,6 +13,7 @@ MODULE rotate_utils
   USE nvtx_utils
   USE timer,                           ONLY: tihalt,&
                                              tiset
+  USE system,                          ONLY: ncpw
 
   IMPLICIT NONE
 
@@ -24,83 +27,125 @@ MODULE rotate_utils
 CONTAINS
 
   ! ==================================================================
-  SUBROUTINE rottr(a,c1,gam,transa,nstate,n,tlsd,na,nb)
+  SUBROUTINE rottr(a,c1,gam,transa,nstate,n,tlsd,na,nb,redist,use_cp)
     ! ==--------------------------------------------------------------==
     ! ==         C1 <= A*C1*GAM                                       ==
     ! ==   SPECIAL CASE FOR GAM UPPER TRIAGONAL                       ==
     ! ==--------------------------------------------------------------==
-    REAL(real_8)                             :: a
-    COMPLEX(real_8)                          :: c1(:,:)
-    REAL(real_8)                             :: gam(:,:)
-    CHARACTER(len=*)                         :: transa
-    INTEGER                                  :: nstate, n
-    LOGICAL                                  :: tlsd
-    INTEGER                                  :: na, nb
+    REAL(real_8),INTENT(IN)                  :: a
+    COMPLEX(real_8),INTENT(INOUT)            :: c1(:,:)
+    REAL(real_8),INTENT(IN)                  :: gam(:,:)
+    CHARACTER(len=*),INTENT(IN)              :: transa
+    INTEGER,INTENT(IN)                       :: nstate, n, na, nb
+    LOGICAL,INTENT(IN)                       :: tlsd
+    LOGICAL,INTENT(IN),OPTIONAL              :: redist,use_cp
 
-    INTEGER                                  :: isub, naa
+    INTEGER                                  :: isub, naa,ibeg_c0,ngw_local
+    LOGICAL                                  :: rdst,cp_active
+    CHARACTER(*), PARAMETER                  :: procedureN = 'rottr'
 
 !(nstate,nstate)
 ! Variables
 ! ==--------------------------------------------------------------==
-
     IF (n.EQ.0 .OR. nstate.EQ.0) RETURN
-    CALL tiset('     ROTTR',isub)
+    CALL tiset(procedureN,isub)
+    !can we use cp_grp tricks?
+    IF(PRESENT(use_cp))THEN
+       cp_active=use_cp
+    ELSE
+       cp_active=.FALSE.
+    END IF
+    IF(cp_active)THEN
+       CALL cp_grp_get_sizes(ngw_l=ngw_local,first_g=ibeg_c0)
+       IF(PRESENT(redist))THEN
+          rdst=redist
+       ELSE
+          rdst=.TRUE.
+       END IF
+    ELSE
+       ngw_local=n
+       ibeg_c0=1
+       rdst=.FALSE.
+    END IF
     IF (tlsd) THEN
        naa=na+1
-       CALL dtrmm('R','U',transa,'N',2*n,na,a,gam,nstate,c1,2*n)
-       CALL dtrmm('R','U',transa,'N',2*n,nb,a,gam(naa,naa),nstate,&
-            c1(1,naa),2*n)
+       CALL dtrmm('R','U',transa,'N',2*ngw_local,na,a,gam,nstate,&
+            c1(ibeg_c0,1),2*n)
+       CALL dtrmm('R','U',transa,'N',2*ngw_local,nb,a,gam(naa,naa),&
+            nstate,c1(ibeg_c0,naa),2*n)
     ELSE
-       CALL dtrmm('R','U',transa,'N',2*n,nstate,a,gam,nstate,c1,2*n)
+       CALL dtrmm('R','U',transa,'N',2*ngw_local,nstate,a,gam,&
+            nstate,c1(ibeg_c0,1),2*n)
     ENDIF
-    CALL tihalt('     ROTTR',isub)
+    IF(rdst) CALL cp_grp_redist_array_f(c1,n,nstate)
+    CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==
   END SUBROUTINE rottr
   ! ==================================================================
 
-
   ! ==================================================================
-  SUBROUTINE rotate(a,c1,b,c2,gam,nstate,n,tlsd,na,nb)
+  SUBROUTINE rotate(a,c1,b,c2,gam,nstate,n,tlsd,na,nb,redist,use_cp)
     ! ==--------------------------------------------------------------==
     ! ==         C2 <= B*C2 + A*C1*GAM                                ==
     ! ==   ALSO FOR LSD                                               ==
     ! ==--------------------------------------------------------------==
-    REAL(real_8)                             :: a
-    COMPLEX(real_8)                          :: c1(:,:)
-    REAL(real_8)                             :: b
-    COMPLEX(real_8)                          :: c2(:,:)
-    INTEGER                                  :: nstate
-    REAL(real_8)                             :: gam(nstate,*)
-    INTEGER                                  :: n
-    LOGICAL                                  :: tlsd
-    INTEGER                                  :: na, nb
+    INTEGER,INTENT(IN)                       :: nstate,n,na,nb
+    REAL(real_8),INTENT(IN)                  :: a,b
+    COMPLEX(real_8),INTENT(IN)               :: c1(:,:)
+    COMPLEX(real_8),INTENT(INOUT)            :: c2(:,:)
+    REAL(real_8),INTENT(IN)                  :: gam(nstate,*)
+    LOGICAL,INTENT(IN)                       :: tlsd
+    LOGICAL,INTENT(IN),OPTIONAL              :: redist,use_cp
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'rotate'
 
-    INTEGER                                  :: isub, naa
-
+    INTEGER                                  :: isub, naa, ibeg_c0, ngw_local
+    LOGICAL                                  :: rdst,cp_active
 ! Variables
 ! ==--------------------------------------------------------------==
+    IF (n.EQ.0 .OR. nstate.EQ.0) RETURN
 
     CALL tiset(procedureN,isub)
     __NVTX_TIMER_START ( procedureN )
 
+    !can we use cp_grp tricks?
+    IF(PRESENT(use_cp))THEN
+       cp_active=use_cp
+    ELSE
+       cp_active=.FALSE.
+    END IF
+    IF(cp_active)THEN
+       CALL cp_grp_get_sizes(ngw_l=ngw_local,first_g=ibeg_c0)
+       IF(PRESENT(redist))THEN
+          rdst=redist
+       ELSE
+          rdst=.TRUE.
+       END IF
+    ELSE
+       ngw_local=n/2
+       ibeg_c0=1
+       rdst=.FALSE.
+    END IF
+
     IF (n>0) THEN
        IF (tlsd) THEN
           naa=na+1
-          CALL dgemm('N','N',n,na,na,a,c1(1,1),n,gam(1,1),nstate,b,c2(1,1),n)
-          CALL dgemm('N','N',n,nb,nb,a,c1(1,naa),n,gam(naa,naa),nstate,b,c2(1,naa),n)
+          CALL dgemm('N','N',2*ngw_local,na,na,a,c1(ibeg_c0,1),n,&
+               gam(1,1),nstate,b,c2(ibeg_c0,1),n)
+          CALL dgemm('N','N',2*ngw_local,nb,nb,a,c1(ibeg_c0,naa),n,&
+               gam(naa,naa),nstate,b,c2(ibeg_c0,naa),n)
        ELSE
-          CALL dgemm('N','N',n,nstate,nstate,a,c1,n,gam,nstate,b,c2,n)
+          CALL dgemm('N','N',2*ngw_local,nstate,nstate,a,c1(ibeg_c0,1),&
+               n,gam,nstate,b,c2(ibeg_c0,1),n)
        ENDIF
     ENDIF
+
+    IF(rdst)CALL cp_grp_redist_array_f(c2,n/2,nstate)
 
     __NVTX_TIMER_STOP
     CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==
   END SUBROUTINE rotate
-
-
 
 END MODULE rotate_utils
 
