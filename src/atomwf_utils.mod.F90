@@ -120,8 +120,10 @@ CONTAINS
     ! vw using always cntl%tdmal = T:
     ! vw    1) still bugs with cntl%cdft = T
     ! vw    2) not yet implemented with TKPNT = T 
+    ! TK    3) not yet implemented with USPP
     ! vw so we hack...
-    IF (.NOT.tkpts%tkpnt.AND..NOT.cntl%cdft) cntl%tdmal = .TRUE.
+    IF (.NOT.tkpts%tkpnt.AND..NOT.cntl%cdft.AND..NOT.pslo_com%tivan) &
+         cntl%tdmal = .TRUE.
     ! vw<<<
     IF (cntl%tdmal.AND.paral%io_parent) THEN
        WRITE(6,*)&
