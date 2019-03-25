@@ -1,7 +1,8 @@
 MODULE csize_utils
-  USE dotp_utils,                      ONLY: dotp
+  USE cp_grp_utils,                    ONLY: cp_grp_get_sizes
+  USE dotp_utils,                      ONLY: dotp_c1_cp
   USE elct,                            ONLY: crge
-  USE error_handling,                  ONLY: stopgm
+  USE geq0mod,                         ONLY: geq0
   USE kinds,                           ONLY: real_8
   USE kpts,                            ONLY: tkpts
   USE mp_interface,                    ONLY: mp_max,&
@@ -9,10 +10,10 @@ MODULE csize_utils
   USE parac,                           ONLY: parai
   USE spin,                            ONLY: spin_mod
   USE system,                          ONLY: cntl,&
-                                             ncpw,&
                                              nkpt,&
                                              spar
-  USE utils,                           ONLY: zgive
+  USE timer,                           ONLY: tihalt,&
+                                             tiset
 
   IMPLICIT NONE
 
@@ -23,112 +24,66 @@ MODULE csize_utils
 CONTAINS
 
   ! ==================================================================
-  SUBROUTINE csize(c2,nstate,gemax,cnorm)
+  SUBROUTINE csize(c2,nstate,gemax,cnorm,use_cp_grps)
     ! ==--------------------------------------------------------------==
-    INTEGER                                  :: nstate
-    COMPLEX(real_8)                          :: c2(nkpt%ngwk,nstate)
-    REAL(real_8)                             :: gemax, cnorm
+    INTEGER,INTENT(IN)                       :: nstate
+    COMPLEX(real_8),INTENT(IN)               :: c2(nkpt%ngwk,nstate)
+    REAL(real_8),INTENT(OUT)                 :: gemax, cnorm
+    LOGICAL,INTENT(IN),OPTIONAL              :: use_cp_grps
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'csize'
 
-    INTEGER                                  :: i, iiabs, nocc, nod, nou
-    REAL(real_8)                             :: gd, gu
+    INTEGER                                  :: i, iiabs, nocc, isub, &
+                                                ngwk_local, ibeg_c0, gid
+    LOGICAL                                  :: geq0_local, cp_active
     REAL(real_8), EXTERNAL                   :: ddot
 
-#if defined(__SR11KIBM)
-    REAL(real_8), EXTERNAL                   :: dzamax
-#else
     INTEGER, EXTERNAL                        :: izamax
-#endif
     ! ==--------------------------------------------------------------==
-    nocc=0
-    nou=0
-    IF (nkpt%ngwk.GT.0) THEN
-       IF (cntl%tlsd) THEN
-          nou=0
-          DO i=1,spin_mod%nsup
-             IF (crge%f(i,1).GT.1.e-5_real_8) nou=nou+1
-          ENDDO
-          IF (nou.GT.0) THEN
-#if defined(__SR11KIBM)
-             gu=dzamax(nou*nkpt%ngwk,c2,1)
-#else
-             iiabs=izamax(nou*nkpt%ngwk,c2,1)
-             IF (iiabs<1.OR.iiabs>nou*nkpt%ngwk) CALL stopgm(procedureN,&
-                  'out of bound',& 
-                  __LINE__,__FILE__)
-             gu=ABS(zgive(c2,iiabs))
-#endif
-          ELSE
-             gu=0._real_8
-          ENDIF
-          nod=0
-          DO i=spin_mod%nsup+1,nstate
-             IF (crge%f(i,1).GT.1.e-5_real_8) nod=nod+1
-          ENDDO
-          IF (nod.GT.0) THEN
-#if defined(__SR11KIBM)
-             gd=dzamax(nod*nkpt%ngwk,c2(1,spin_mod%nsup+1),1)
-#else
-             iiabs=izamax(nod*nkpt%ngwk,c2(1,spin_mod%nsup+1),1)
-             IF (iiabs<1.OR.iiabs>nod*nkpt%ngwk) CALL stopgm(procedureN,&
-                  'out of bound',& 
-                  __LINE__,__FILE__)
-             gd=ABS(zgive(c2(1,spin_mod%nsup+1),iiabs))
-#endif
-          ELSE
-             gd=0._real_8
-          ENDIF
-          gemax=MAX(gu,gd)
-          nocc=nod+nou
-          cnorm=0.0_real_8
-          IF (tkpts%tkpnt) THEN
-             DO i=1,nou
-                cnorm=cnorm+ddot(2*nkpt%ngwk,c2(1,i),1,c2(1,i),1)
-             ENDDO
-             DO i=spin_mod%nsup+1,spin_mod%nsup+nod
-                cnorm=cnorm+ddot(2*nkpt%ngwk,c2(1,i),1,c2(1,i),1)
-             ENDDO
-          ELSE
-             DO i=1,nou
-                cnorm=cnorm+dotp(ncpw%ngw,c2(:,i),c2(:,i))
-             ENDDO
-             DO i=spin_mod%nsup+1,spin_mod%nsup+nod
-                cnorm=cnorm+dotp(ncpw%ngw,c2(:,i),c2(:,i))
-             ENDDO
-          ENDIF
-       ELSE
-          nocc=0
-          DO i=1,nstate
-             IF (crge%f(i,1).GT.1.e-5_real_8) nocc=nocc+1
-          ENDDO
-#if defined(__SR11KIBM)
-          gemax=dzamax(nocc*nkpt%ngwk,c2,1)
-#else 
-          iiabs=izamax(nocc*nkpt%ngwk,c2,1)
-          IF (iiabs<1.OR.iiabs>nocc*nkpt%ngwk) CALL stopgm(procedureN,&
-               'out of bound',& 
-               __LINE__,__FILE__)
-          gemax=ABS(zgive(c2(1,1),iiabs))
-#endif
-          cnorm=0.0_real_8
-          IF (tkpts%tkpnt) THEN
-             DO i=1,nocc
-                cnorm=cnorm+ddot(2*nkpt%ngwk,c2(1,i),1,c2(1,i),1)
-             ENDDO
-          ELSE
-             DO i=1,nocc
-                cnorm=cnorm+dotp(ncpw%ngw,c2(:,i),c2(:,i))
-             ENDDO
-          ENDIF
-       ENDIF
+    CALL tiset(procedureN,isub)
+    gemax=0.0_real_8
+    cnorm=0.0_real_8
+    nocc=0.0_real_8
+    IF(PRESENT(use_cp_grps))THEN
+       cp_active=use_cp_grps
     ELSE
-       cnorm=0._real_8
-       gemax=0._real_8
-    ENDIF
-    CALL mp_sum(cnorm,parai%allgrp)
-    CALL mp_max(gemax,parai%allgrp)
+       cp_active=.FALSE.
+    END IF
+    IF(cp_active)THEN
+       CALL cp_grp_get_sizes(ngwk_l=ngwk_local,firstk_g=ibeg_c0,geq0_l=geq0_local)
+       gid=parai%cp_grp
+    ELSE
+       ngwk_local=nkpt%ngwk
+       ibeg_c0=1
+       geq0_local=geq0
+       gid=parai%allgrp
+    END IF
+    IF(ngwk_local.GT.0)THEN
+       IF (tkpts%tkpnt) THEN
+          !$omp parallel do private(i,iiabs) reduction(max:gemax) reduction(+:cnorm,nocc)
+          DO i=1,nstate
+             IF(crge%f(i,1).LE.1.e-5_real_8) CYCLE
+             nocc=nocc+1
+             cnorm=cnorm+ddot(2*ngwk_local,c2(ibeg_c0,i),1,c2(ibeg_c0,i),1)
+             iiabs=izamax(ngwk_local,c2(ibeg_c0,i),1)
+             gemax=MAX(ABS(c2(iiabs,i)),gemax)
+          ENDDO
+       ELSE
+          !$omp parallel do private(i,iiabs) reduction(max:gemax) reduction(+:cnorm,nocc)
+          DO i=1,nstate
+             IF(crge%f(i,1).LE.1.e-5_real_8) CYCLE
+             nocc=nocc+1
+             cnorm=cnorm+dotp_c1_cp(ngwk_local,c2(ibeg_c0,i),geq0_local)
+             iiabs=izamax(ngwk_local,c2(ibeg_c0,i),1)
+             gemax=MAX(ABS(c2(iiabs,i)),gemax)
+          ENDDO
+       END IF
+    END IF
+
+    CALL mp_sum(cnorm,gid)
+    CALL mp_max(gemax,gid)
     cnorm=SQRT(cnorm/REAL(nocc*spar%ngwks,kind=real_8))
+    CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE csize
