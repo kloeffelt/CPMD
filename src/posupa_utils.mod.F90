@@ -1,6 +1,9 @@
 MODULE posupa_utils
-  USE dotp_utils,                      ONLY: dotp
+  USE cp_grp_utils,                    ONLY: cp_grp_get_sizes
+  USE dotp_utils,                      ONLY: dotp_c1_cp,&
+                                             dotp_c2_cp
   USE error_handling,                  ONLY: stopgm
+  USE geq0mod,                         ONLY: geq0
   USE harm,                            ONLY: dcgt,&
                                              dsgtw,&
                                              dtan2w,&
@@ -10,6 +13,7 @@ MODULE posupa_utils
   USE kinds,                           ONLY: real_8
   USE kpts,                            ONLY: tkpts
   USE mp_interface,                    ONLY: mp_sum
+  USE nort,                            ONLY: nort_com
   USE parac,                           ONLY: parai
   USE pslo,                            ONLY: pslo_com
   USE ropt,                            ONLY: ropt_mod
@@ -41,85 +45,142 @@ MODULE posupa_utils
 CONTAINS
 
   ! ==================================================================
-  SUBROUTINE posupa(c0,cm,c2,gamx,nstate)
+  SUBROUTINE posupa(c0,cm,c2,gamx,nstate,use_cp_grps)
     ! ==--------------------------------------------------------------==
     ! ==  UPDATE OF THE POSITIONS FOR VELOCITY VERLET                 ==
     ! ==--------------------------------------------------------------==
-    COMPLEX(real_8)                          :: c2(ncpw%ngw,*)
-    REAL(real_8)                             :: gamx(*)
-    INTEGER                                  :: nstate
-    COMPLEX(real_8)                          :: cm(ncpw%ngw,nstate), &
+    COMPLEX(real_8),INTENT(OUT)              :: c2(ncpw%ngw,*)
+    REAL(real_8),INTENT(OUT)                 :: gamx(*)
+    INTEGER,INTENT(IN)                       :: nstate
+    COMPLEX(real_8),INTENT(INOUT)            :: cm(ncpw%ngw,nstate), &
                                                 c0(ncpw%ngw,nstate)
+    LOGICAL,INTENT(IN),OPTIONAL              :: use_cp_grps
 
-    INTEGER                                  :: i, ig, isub, nstx
-    LOGICAL                                  :: prtev, tnon
-    REAL(real_8)                             :: ai(3), odt, pf1, pf2, pf3, &
-                                                pf4, xi
-
+    INTEGER                                  :: i, ig, isub, nstx, ibeg_c0,&
+                                                iend_c0, ngw_local, ierr, &
+                                                il_ai(2), gid
+    LOGICAL                                  :: prtev, tnon, cp_active, geq0_local
+    REAL(real_8)                             :: odt, pf1, pf2, pf3, &
+                                                pf4, xi, xi_dt_elec
+    REAL(real_8),ALLOCATABLE                 :: ai(:,:)
+    CHARACTER(*), PARAMETER                  :: procedureN = 'posupa'
 ! Variables
 ! ==--------------------------------------------------------------==
 ! ==  WAVEFUNCTIONS                                               ==
 ! ==--------------------------------------------------------------==
 
-    CALL tiset('    POSUPA',isub)
+    CALL tiset(procedureN,isub)
+    IF(PRESENT(use_cp_grps))THEN
+       cp_active=use_cp_grps
+    ELSE
+       cp_active=.FALSE.
+    END IF
+    IF(cp_active)THEN
+       CALL cp_grp_get_sizes(ngw_l=ngw_local,geq0_l=geq0_local,&
+         first_g=ibeg_c0,last_g=iend_c0)
+       gid=parai%cp_grp
+    ELSE
+       ngw_local=ncpw%ngw
+       geq0_local=geq0
+       ibeg_c0=1
+       iend_c0=ncpw%ngw
+       gid=parai%allgrp
+    END IF
     IF (tkpts%tkpnt) CALL stopgm('POSUPA','K POINTS NOT IMPLEMENTED',& 
          __LINE__,__FILE__)
     ! ==--------------------------------------------------------------==
     IF (cntl%nonort) THEN
+       IF(nort_com%scond.GT.nort_com%slimit)THEN
+          il_ai(1)=3
+          il_ai(2)=nstate
+       ELSE
+          il_ai(1)=nstate
+          il_ai(2)=1
+       END IF
+       ALLOCATE(ai(il_ai(1),il_ai(2)),STAT=ierr)
+       IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate ai',&
+         __LINE__,__FILE__)
+
+       ! ..LINEAR CONSTRAINTS
        IF (cntl%tharm) THEN
-          !$omp parallel do private (I,IG,PF1,PF2,PF3)
+          !$omp parallel do private (i,ig,pf1,pf2,pf3,pf4)
           DO i=1,nstate
-             DO ig=1,ncpw%ngw
+             DO ig=ibeg_c0,iend_c0
                 pf1=dcgt(ig)
                 pf2=dsgtw(ig)
                 pf3=wdsgt(ig)
                 c2(ig,i)=pf1*c0(ig,i)+pf2*cm(ig,i)
                 cm(ig,i)=pf1*cm(ig,i)-pf3*c0(ig,i)
-             ENDDO
-          ENDDO
-       ELSE
-          !$omp parallel do private (I,IG)
-          DO i=1,nstate
-             DO ig=1,ncpw%ngw
-                c2(ig,i)=c0(ig,i)+dt_elec*cm(ig,i)
-             ENDDO
-          ENDDO
-       ENDIF
-       ! ..LINEAR CONSTRAINTS
-       IF (cntl%tharm.OR.cntl%tmass) THEN
-          DO i=1,nstate
-             !$omp parallel do private (IG,PF4)
-             DO ig=1,ncpw%ngw
-                IF (cntl%tharm) THEN
-                   pf4=dsgtw(ig)*dtan2w(ig)/dtb2me
-                ELSE
-                   pf4=cntr%emass/xmu(ig)
-                ENDIF
+                pf4=dsgtw(ig)*dtan2w(ig)/dtb2me
                 c0(ig,i)=pf4*c0(ig,i)
              ENDDO
-             ai(1)=dotp(ncpw%ngw,c0(:,i),c0(:,i))
-             ai(2)=2.0_real_8*dotp(ncpw%ngw,c2(:,i),c0(:,i))
-             ai(3)=dotp(ncpw%ngw,c2(:,i),c2(:,i))
-             CALL mp_sum(ai,3,parai%allgrp)
-             ai(3)=ai(3)-1.0_real_8
-             xi=(-ai(2)+SQRT(ai(2)*ai(2)-4._real_8*ai(1)*ai(3)))/(2._real_8*ai(1))
-             CALL daxpy(2*ncpw%ngw,xi,c0(1,i),1,c2(1,i),1)
-             CALL daxpy(2*ncpw%ngw,xi/dt_elec,c0(1,i),1,cm(1,i),1)
+             IF(nort_com%scond.GT.nort_com%slimit)THEN
+                ai(:,i)=lagrange_afterrot(c0(ibeg_c0,i),c2(ibeg_c0,i),ngw_local,geq0_local)
+             ELSE
+                ai(i,1)=lagrange_norot(c2(ibeg_c0,i),ngw_local,geq0_local)
+             END IF
+          ENDDO
+       ELSE IF(cntl%tmass)THEN
+          !$omp parallel do private (i,ig,pf4)
+          DO i=1,nstate
+             DO ig=ibeg_c0,iend_c0
+                pf4=cntr%emass/xmu(ig)
+                c2(ig,i)=c0(ig,i)+dt_elec*cm(ig,i)
+                c0(ig,i)=pf4*c0(ig,i)
+             ENDDO
+             IF(nort_com%scond.GT.nort_com%slimit)THEN
+                ai(:,i)=lagrange_afterrot(c0(ibeg_c0,i),c2(ibeg_c0,i),ngw_local,geq0_local)
+             ELSE
+                ai(i,1)=lagrange_norot(c2(ibeg_c0,i),ngw_local,geq0_local)
+             END IF
           ENDDO
        ELSE
+          !$omp parallel do private (i,ig)
           DO i=1,nstate
-             ai(1)=dotp(ncpw%ngw,c0(:,i),c0(:,i))
-             ai(2)=2.0_real_8*dotp(ncpw%ngw,c2(:,i),c0(:,i))
-             ai(3)=dotp(ncpw%ngw,c2(:,i),c2(:,i))
-             CALL mp_sum(ai,3,parai%allgrp)
-             ai(3)=ai(3)-1.0_real_8
-             xi=(-ai(2)+SQRT(ai(2)*ai(2)-4._real_8*ai(1)*ai(3)))/&
-                  (2._real_8*ai(1))
-             CALL daxpy(2*ncpw%ngw,xi,c0(1,i),1,c2(1,i),1)
-             CALL daxpy(2*ncpw%ngw,xi/dt_elec,c0(1,i),1,cm(1,i),1)
+             DO ig=ibeg_c0,iend_c0
+                c2(ig,i)=c0(ig,i)+dt_elec*cm(ig,i)
+             ENDDO
+             IF(nort_com%scond.GT.nort_com%slimit)THEN
+                ai(:,i)=lagrange_afterrot(c0(ibeg_c0,i),c2(ibeg_c0,i),ngw_local,geq0_local)
+             ELSE
+                ai(i,1)=lagrange_norot(c2(ibeg_c0,i),ngw_local,geq0_local)
+             END IF
           ENDDO
        ENDIF
-       CALL dcopy(2*ncpw%ngw*nstate,c2(1,1),1,c0(1,1),1)
+       IF(nort_com%scond.GT.nort_com%slimit)THEN
+          CALL mp_sum(ai,3*nstate,gid)
+          !$omp parallel do private(i,ig,xi,xi_dt_elec)
+          DO i=1,nstate
+             ai(3,i)=ai(3,i)-1.0_real_8
+             xi=(-ai(2,i)+SQRT(ai(2,i)*ai(2,i)-ai(1,i)*ai(3,i)))/(ai(1,i))
+             xi_dt_elec=xi/dt_elec
+             DO ig=ibeg_c0,iend_c0
+                cm(ig,i)=cm(ig,i)+c0(ig,i)*xi_dt_elec
+                c2(ig,i)=c2(ig,i)+c0(ig,i)*xi
+             END DO
+             DO ig=ibeg_c0,iend_c0
+                c0(ig,i)=c2(ig,i)
+             END DO
+          END DO
+       ELSE
+          CALL mp_sum(ai,nstate,gid)
+          !$omp parallel do private(i,ig,xi,xi_dt_elec)
+          DO i=1,nstate
+             xi=(-1+SQRT(2._real_8-ai(i,1)))
+             xi_dt_elec=xi/dt_elec
+             DO ig=ibeg_c0,iend_c0
+                cm(ig,i)=cm(ig,i)+c0(ig,i)*xi_dt_elec
+                c2(ig,i)=c2(ig,i)+c0(ig,i)*xi
+             END DO
+             DO ig=ibeg_c0,iend_c0
+                c0(ig,i)=c2(ig,i)
+             END DO
+          END DO
+       ENDIF
+       DEALLOCATE(ai,STAT=ierr)
+       IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate ai',&
+         __LINE__,__FILE__)
+
     ELSE
        IF (cntl%tharm) THEN
           !$omp parallel do private (I,IG,PF1,PF2,PF3,PF4)
@@ -181,10 +242,34 @@ CONTAINS
           CALL dcopy(2*nstate*ncpw%ngw,c2(1,1),1,c0(1,1),1)
        ENDIF
     ENDIF
-    CALL tihalt('    POSUPA',isub)
+    CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE posupa
+  ! ==================================================================
+  FUNCTION lagrange_afterrot(c0,c2,n,geq0_l) RESULT(ai)
+    ! ==--------------------------------------------------------------==
+    INTEGER,INTENT(IN)                       :: n
+    LOGICAL,INTENT(IN)                       :: geq0_l
+    COMPLEX(real_8),INTENT(IN)               :: c0(*),c2(*)
+    REAL(real_8)                             :: ai(3)
+
+    ai(1)=dotp_c1_cp(n,c0,geq0_l)
+    ai(2)=dotp_c2_cp(n,c2,c0,geq0_l)
+    ai(3)=dotp_c1_cp(n,c2,geq0_l)
+
+  END FUNCTION lagrange_afterrot
+  ! ==================================================================
+  FUNCTION lagrange_norot(c2,n,geq0_l) RESULT(ai)
+    ! ==--------------------------------------------------------------==
+    INTEGER,INTENT(IN)                       :: n
+    LOGICAL,INTENT(IN)                       :: geq0_l
+    COMPLEX(real_8),INTENT(IN)               :: c2(*)
+    REAL(real_8)                             :: ai
+
+    ai=dotp_c1_cp(n,c2,geq0_l)
+
+  END FUNCTION lagrange_norot
   ! ==================================================================
   SUBROUTINE give_scr_posupa(lposupa,tag,nstate)
     ! ==--------------------------------------------------------------==
