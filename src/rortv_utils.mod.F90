@@ -1,7 +1,8 @@
 MODULE rortv_utils
-  USE crotwf_utils,                    ONLY: crotwf,&
-                                             give_scr_crotwf
-  USE dotp_utils,                      ONLY: dotp
+  USE cp_grp_utils,                    ONLY: cp_grp_get_sizes,&
+                                             cp_grp_redist_array_f
+  USE crotwf_utils,                    ONLY: crotwf
+  USE dotp_utils,                      ONLY: dotp_c2_cp
   USE error_handling,                  ONLY: stopgm
   USE geq0mod,                         ONLY: geq0
   USE harm,                            ONLY: dtan2w,&
@@ -21,6 +22,8 @@ MODULE rortv_utils
                                              ncpw,&
                                              parap,&
                                              paraw
+  USE timer,                           ONLY: tihalt,&
+                                             tiset
   USE tpar,                            ONLY: dtb2me
 !!use ovlap_utils, only : ovlap2
   USE zeroing_utils,                   ONLY: zeroing
@@ -36,29 +39,51 @@ MODULE rortv_utils
 CONTAINS
 
   ! ==================================================================
-  SUBROUTINE rortv(c0,cm,c2,sc0,gamy,nstate)
+  SUBROUTINE rortv(c0,cm,c2,sc0,gamy,nstate,use_cp_grps)
     ! ==--------------------------------------------------------------==
-    COMPLEX(real_8)                          :: c2(ncpw%ngw,*), &
-                                                sc0(ncpw%ngw,*)
-    INTEGER                                  :: nstate
-    REAL(real_8)                             :: gamy(nstate,nstate)
-    COMPLEX(real_8)                          :: cm(ncpw%ngw,nstate), &
+    INTEGER,INTENT(IN)                       :: nstate
+    COMPLEX(real_8),INTENT(INOUT)            :: c2(ncpw%ngw,*),&
+                                                cm(ncpw%ngw,nstate), &
                                                 c0(ncpw%ngw,nstate)
+    COMPLEX(real_8),INTENT(OUT)              :: sc0(ncpw%ngw,*)
+    REAL(real_8),INTENT(OUT)                 :: gamy(nstate,nstate)
+    LOGICAL,INTENT(IN),OPTIONAL              :: use_cp_grps
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'rortv'
 
-    INTEGER                                  :: i, ierr, ig, ip, j, nstx, nx
+    INTEGER                                  :: i, ig, ip, j, nstx, nx,&
+                                                ngw_local, ibeg_c0, iend_c0, &
+                                                isub, il_yi_n(1), ierr, gid
+    LOGICAL                                  :: geq0_local,cp_active
     REAL(real_8)                             :: ai, bi, pf4, s2, yi
-    REAL(real_8), ALLOCATABLE                :: a1mat(:,:), a2mat(:,:)
+    REAL(real_8), ALLOCATABLE                :: a1mat(:,:), a2mat(:,:), yi_n(:)
 
+    CALL tiset(procedureN,isub)
+    IF(PRESENT(use_cp_grps))THEN
+       cp_active=use_cp_grps
+    ELSE
+       cp_active=.FALSE.
+    END IF
+    
+    IF(cp_active)THEN
+       CALL cp_grp_get_sizes(ngw_l=ngw_local,geq0_l=geq0_local,&
+         first_g=ibeg_c0,last_g=iend_c0)
+       gid=parai%cp_grp
+    ELSE
+       ngw_local=ncpw%ngw
+       geq0_local=geq0
+       ibeg_c0=1
+       iend_c0=ncpw%ngw
+       gid=parai%allgrp
+    END IF
     IF (cntl%nonort) THEN
        ! Norm constraints
-       DO i=1,nstate
-          IF (cntl%tharm.OR.cntl%tmass) THEN
+       IF (cntl%tharm.OR.cntl%tmass) THEN
+          DO i=1,nstate
              s2=0.0_real_8
              IF (cntl%tharm) THEN
                 !$omp parallel do private(IG,PF4,AI,BI) reduction(+:S2)
-                DO ig=1,ncpw%ngw
+                DO ig=ibeg_c0,iend_c0
                    pf4=2.0_real_8*dtan2w(ig)/dtb2me
                    ai=REAL(c0(ig,i))
                    bi=AIMAG(c0(ig,i))
@@ -66,45 +91,68 @@ CONTAINS
                 ENDDO
              ELSE
                 !$omp parallel do private(IG,PF4,AI,BI) reduction(+:S2)
-                DO ig=1,ncpw%ngw
+                DO ig=ibeg_c0,iend_c0
                    pf4=2.0_real_8*cntr%emass/xmu(ig)
                    ai=REAL(c0(ig,i))
                    bi=AIMAG(c0(ig,i))
                    s2=s2+pf4*(ai*ai+bi*bi)
                 ENDDO
              ENDIF
-             CALL mp_sum(s2,parai%allgrp)
-             IF (geq0) THEN
+             CALL mp_sum(s2,gid)
+             !TK this does not make sense, probably it should be shifted up into the loops
+             !computing s2
+             IF (geq0_local) THEN
                 IF (cntl%tharm) THEN
                    pf4=dtan2w(1)/dtb2me
                 ELSE
                    pf4=cntr%emass/xmu(1)
                 ENDIF
              ENDIF
-             yi=-dotp(ncpw%ngw,cm(:,i),c0(:,i))/s2
-             CALL mp_sum(yi,parai%allgrp)
+             yi=-dotp_c2_cp(ngw_local,cm(ibeg_c0,i),c0(ibeg_c0,i),geq0_local)/s2
+             CALL mp_sum(yi,gid)
              IF (cntl%tharm) THEN
                 !$omp parallel do private(IG,PF4)
-                DO ig=1,ncpw%ngw
+                DO ig=ibeg_c0,iend_c0
                    pf4=dtan2w(ig)/dtb2me
                    cm(ig,i)=cm(ig,i)+pf4*yi*c0(ig,i)
                 ENDDO
              ELSE
                 !$omp parallel do private(IG,PF4)
-                DO ig=1,ncpw%ngw
+                DO ig=ibeg_c0,iend_c0
                    pf4=cntr%emass/xmu(ig)
                    cm(ig,i)=cm(ig,i)+pf4*yi*c0(ig,i)
                 ENDDO
              ENDIF
-          ELSE
-             yi=-dotp(ncpw%ngw,cm(:,i),c0(:,i))
-             CALL mp_sum(yi,parai%allgrp)
-             CALL daxpy(2*ncpw%ngw,yi,c0(1,i),1,cm(1,i),1)
-          ENDIF
-       ENDDO
+          END DO
+       ELSE
+          il_yi_n(1)=nstate
+          ALLOCATE(yi_n(il_yi_n(1)),STAT=ierr)
+          IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+               __LINE__,__FILE__)
+          !$omp parallel private(i)
+          !$omp do
+          DO i=1,nstate
+             yi_n(i)=-dotp_c2_cp(ngw_local,cm(ibeg_c0,i),c0(ibeg_c0,i),geq0_local)
+          END DO
+          !$omp master
+          CALL mp_sum(yi_n,nstate,gid)
+          !$omp end master
+          !$omp barrier
+          !$omp do private(i,ig)
+          DO i=1,nstate
+             DO ig=ibeg_c0,iend_c0
+                cm(ig,i)=cm(ig,i)+yi_n(i)*c0(ig,i)
+             END DO
+          END DO
+          !$omp end do nowait
+          !$omp end parallel
+          DEALLOCATE(yi_n,STAT=ierr)
+          IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+               __LINE__,__FILE__)
+       END IF
        ! UNITARY ROTATION?
        IF (nort_com%scond.GT.nort_com%slimit) THEN
-          CALL crotwf(c0,cm,c2,sc0,nstate,gamy)
+          CALL crotwf(c0,cm,c2,sc0,nstate,gamy,cp_active)
        ENDIF
     ELSE
        ! Overlap constraints
@@ -161,6 +209,7 @@ CONTAINS
           ENDIF
        ENDIF
     ENDIF
+    CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE rortv
@@ -938,7 +987,6 @@ CONTAINS
 
     IF (cntl%nonort) THEN
        IF (nort_com%scond.GT.nort_com%slimit) THEN
-          CALL give_scr_crotwf(lrortv,tag,nstate)
        ELSE
           lrortv=0
        ENDIF
