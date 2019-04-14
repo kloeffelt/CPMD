@@ -186,9 +186,9 @@ CONTAINS
     ! c2u0 is calculated in uprho or rscpot
     IF (cntl%thubb) CALL add_hubbardu(c2,c2u0,nstate)
     IF (pslo_com%tivan) THEN
-       CALL ovlap(nstate,gam,c2,sc0)
+       CALL ovlap(nstate,gam,c2,sc0,redist=.FALSE.,full=.FALSE.)
        CALL hnlmat(gam,crge%f,nstate)
-       CALL summat(gam,nstate)
+       CALL summat(gam,nstate,lsd=.TRUE.,gid=parai%cp_grp)
        CALL rotate(-1.0_real_8,sc0,1.0_real_8,c2,gam,nstate,2*ncpw%ngw,cntl%tlsd,spin_mod%nsup,&
             spin_mod%nsdown)
        IF (tfor) CALL rnlfl(fion,gam,nstate,1)

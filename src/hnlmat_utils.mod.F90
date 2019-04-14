@@ -1,6 +1,10 @@
+#include "cpmd_global.h"
+
 MODULE hnlmat_utils
+  USE cp_grp_utils,                    ONLY: cp_grp_split_atoms
   USE cvan,                            ONLY: deeq,&
                                              dvan
+  USE distribution_utils,              ONLY: dist_atoms
   USE error_handling,                  ONLY: stopgm
   USE ions,                            ONLY: ions0,&
                                              ions1
@@ -11,7 +15,8 @@ MODULE hnlmat_utils
                                              wsg
   USE parac,                           ONLY: parai
   USE pslo,                            ONLY: pslo_com
-  USE sfac,                            ONLY: fnl
+  USE sfac,                            ONLY: fnl,&
+                                             fnl_packed
   USE sgpp,                            ONLY: sgpp1,&
                                              sgpp2
   USE spin,                            ONLY: spin_mod
@@ -31,24 +36,243 @@ CONTAINS
   ! ==================================================================
   SUBROUTINE hnlmat(hmat,f,nstate)
     ! ==--------------------------------------------------------------==
+    INTEGER,INTENT(IN)                       :: nstate
+    REAL(real_8),INTENT(IN)                  :: f(nstate)
+    REAL(real_8),INTENT(INOUT),TARGET        :: hmat(nstate,nstate)
+    INTEGER                                  :: i, j, ia, is, isa0, ispin, nspin, isa_start,&
+                                                ia_sum, tot_work, ns(2), nmin(2), off_i, &
+                                                off_mat, off_fnl, ia_fnl, start_fnl, &
+                                                end_fnl, fnl_start, start_mat, end_mat, &
+                                                il_fnlat(3), il_fnlatj(3),na(2,ions1%nsp), &
+                                                na_fnl(2,ions1%nsp), il_hmat_loc(2), &
+                                                na_grp(2,ions1%nsp,0:parai%cp_nogrp-1),&
+                                                isub, ierr
+    LOGICAL                                  :: need_hmat_loc, non_uspp
+    REAL(real_8)                             :: ffi, fac, sum , fractions(parai%nproc)
+    REAL(real_8),ALLOCATABLE                 :: fnlat(:,:,:), fnlatj(:,:,:)
+    REAL(real_8),POINTER __CONTIGUOUS        :: hmat_loc(:,:)
+    INTEGER,ALLOCATABLE,SAVE                 :: na_buff(:,:,:)
+    CHARACTER(*), PARAMETER                  :: procedureN = 'hnlmat'
+    ! ==--------------------------------------------------------------==
+    ! == Compute the non-local contribution to the Hamilton matrix    ==
+    ! == optimized version for uspp only, calls old hnlmat in case of ==
+    ! == other pseudo potentials                                      ==
+    ! ==--------------------------------------------------------------==
+
+    CALL tiset(procedureN,isub)
+    IF (cntl%tfdist) CALL stopgm('HNLMAT','TFDIST NOT IMPLEMENTED',&
+         __LINE__,__FILE__)
+    IF (imagp.EQ.2)CALL stopgm('HNLMAT','K-POINT NOT IMPLEMENTED',&
+         __LINE__,__FILE__)
+    IF (pslo_com%tivan) THEN
+       ! VANDERBILT PP
+       ns(1)=nstate
+       ns(2)=0
+       nmin(1)=1
+       nmin(2)=0
+       nspin=1
+       fac=-2.0_real_8
+       IF (cntl%tlsd) THEN
+          ns(1)=spin_mod%nsup
+          ns(2)=spin_mod%nsdown
+          nmin(1)=1
+          nmin(2)=spin_mod%nsup+1
+          nspin=2
+          fac=-1.0_real_8
+       ENDIF
+       CALL cp_grp_split_atoms(na_grp)
+       na_fnl(:,:)=na_grp(:,:,parai%cp_inter_me)
+       IF (.NOT. ALLOCATED(na_buff))THEN
+          !distribute atoms between procs
+          ALLOCATE(na_buff(2,ions1%nsp,0:parai%nproc-1), stat=ierr)
+          IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate na_buff',&
+               __LINE__,__FILE__)
+          fractions=1.0_real_8/REAL(parai%nproc,KIND=real_8)
+          CALL dist_atoms(parai%nproc,fractions,na_fnl,na_buff,only_uspp=.TRUE.)
+       END IF
+       na(:,:)=na_buff(:,:,parai%mepos)
+       !do we have equal occupation numbers?
+       need_hmat_loc=.FALSE.
+       ffi=f(1)
+       DO i=1,nstate
+          IF (ffi.NE.f(i)) THEN
+             need_hmat_loc=.TRUE.
+             EXIT
+          ENDIF
+       ENDDO
+       IF(need_hmat_loc)THEN
+          il_hmat_loc(1)=nstate
+          il_hmat_loc(2)=nstate
+
+          ALLOCATE(hmat_loc(il_hmat_loc(1),il_hmat_loc(2)), stat=ierr)
+          IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate hmat_loc',&
+               __LINE__,__FILE__)
+          fac=-1.0_real_8
+       ELSE
+          hmat_loc=>hmat
+       END IF
+
+       !calculate local part of total work
+       tot_work=0
+       DO is=1,ions1%nsp
+          IF(pslo_com%tvan(is))THEN
+             tot_work=tot_work+(na(2,is)-na(1,is)+1)*nlps_com%ngh(is)
+          END IF
+       END DO
+
+       IF(tot_work.GT.0)THEN
+          il_fnlat(1)=tot_work
+          il_fnlat(2)=MAXVAL(ns)
+          il_fnlat(3)=nspin
+
+          il_fnlatj(1)=tot_work
+          il_fnlatj(2)=MAXVAL(ns)
+          il_fnlatj(3)=nspin
+          ALLOCATE(fnlat(il_fnlat(1),il_fnlat(2),il_fnlat(3)), stat=ierr)
+          IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate fnlat',&
+               __LINE__,__FILE__)
+          ALLOCATE(fnlatj(il_fnlatj(1),il_fnlatj(2),il_fnlatj(3)), stat=ierr)
+          IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate fnlatj',&
+               __LINE__,__FILE__)
+          !$omp parallel private(ispin,off_i,i,isa0,off_mat,off_fnl,is,ia_fnl,ia_sum,&
+          !$omp isa_start,start_fnl,end_fnl,fnl_start,start_mat,end_mat)
+          DO ispin=1,nspin
+             off_i=0
+             IF(ispin.EQ.2) off_i=spin_mod%nsup
+             !$omp do schedule(static)
+             DO i=1,ns(ispin)
+                isa0=0
+                off_mat=0
+                off_fnl=0
+                DO is=1,ions1%nsp
+                   ia_fnl=na_fnl(2,is)-na_fnl(1,is)+1
+                   ia_sum=na(2,is)-na(1,is)+1
+                   !nc alreday filtered out in dist_atoms
+                   IF(ia_sum.GT.0)THEN
+                      !starting index isa
+                      isa_start=isa0+na(1,is)-1
+                      !starting index fnl_packed
+                      fnl_start=na(1,is)-na_fnl(1,is)
+                      !fnl_range
+                      start_fnl=off_fnl+1
+                      end_fnl=off_fnl+ia_fnl*nlps_com%ngh(is)
+                      !mat_range
+                      start_mat=off_mat+1
+                      end_mat=off_mat+ia_sum*nlps_com%ngh(is)
+                      CALL prepare_matrix(fnl_packed(start_fnl:end_fnl,i+off_i),&
+                           fnlat(start_mat:end_mat,i,ispin),&
+                           fnlatj(start_mat:end_mat,i,ispin),deeq(:,:,:,ispin),dvan(:,:,is),&
+                           nlps_com%ngh(is),&
+                           ia_sum,ia_fnl,fnl_start,isa_start)
+                      off_mat=off_mat+ia_sum*nlps_com%ngh(is)
+                   END IF
+                   off_fnl=off_fnl+ia_fnl*nlps_com%ngh(is)
+                   isa0=isa0+ions0%na(is)
+                END DO
+             END DO
+          END DO
+          !$omp end parallel
+
+          DO ispin=1,nspin
+#ifdef _HAS_DGEMMT
+             CALL dgemmt('U','T','N',ns(ispin),tot_work,fac,&
+                  fnlat(1,1,ispin),tot_work,fnlatj(1,1,ispin),tot_work,1.0_real_8,&
+                  hmat_loc(nmin(ispin),nmin(ispin)),nstate)
+#else
+             CALL dgemm('T','N',ns(ispin),ns(ispin),tot_work,fac,&
+                  fnlat(1,1,ispin),tot_work,fnlatj(1,1,ispin),tot_work,1.0_real_8,&
+                  hmat_loc(nmin(ispin),nmin(ispin)),nstate)
+#endif
+          END DO
+          DEALLOCATE(fnlat, stat=ierr)
+          IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate fnlat',&
+               __LINE__,__FILE__)
+          DEALLOCATE(fnlatj, stat=ierr)
+          IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate fnlatj',&
+               __LINE__,__FILE__)
+          IF(need_hmat_loc)THEN
+             !$omp parallel do private(i,j)
+             DO i=1,nstate
+                DO j=1,nstate
+                   IF (f(i) .GE. 1.e-5_real_8) THEN
+                      hmat(j,i)=hmat(j,i)+hmat_loc(j,i)*f(i)
+                   ELSE
+                      hmat(j,i)=hmat(j,i)+hmat_loc(j,i)
+                   END IF
+                END DO
+             END DO
+             DEALLOCATE(hmat_loc, stat=ierr)
+             IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate deeqt',&
+                  __LINE__,__FILE__)
+          END IF
+       END IF
+    END IF
+
+    !!END VANDERBILT OPTIMIZED!!
+    !lets check if there is something else...
+
+    non_uspp=.FALSE.
+    DO is=1,ions1%nsp
+       IF (pslo_com%tvan(is))CYCLE
+       non_uspp=.TRUE.
+    END DO
+
+    IF (non_uspp) CALL hnlmat_old(hmat,f,nstate)
+    CALL tihalt(procedureN,isub)
+
+  END SUBROUTINE hnlmat
+  ! ==================================================================
+  PURE SUBROUTINE prepare_matrix(fnl_p,fnli,fnlj,deeq_,dvan_,ngh,ia_sum,ia_fnl,fnl_start,isa_start)
+    INTEGER,INTENT(IN)                       :: ngh,ia_sum,ia_fnl,isa_start,fnl_start
+    REAL(real_8),INTENT(IN)                  :: fnl_p(ia_fnl,ngh,*)
+    REAL(real_8),INTENT(IN) __CONTIGUOUS     :: dvan_(:,:),deeq_(:,:,:)
+    REAL(real_8),INTENT(OUT)                 :: fnli(ia_sum,ngh,*),fnlj(ia_sum,ngh,*)
+    INTEGER                                  :: iv,ia,jv,isa
+
+    DO iv=1,ngh
+       DO ia=1,ia_sum
+          fnli(ia,iv,1)=fnl_p(ia+fnl_start,iv,1)
+          fnlj(ia,iv,1)=0.0_real_8
+       END DO
+    END DO
+    DO iv=1,ngh
+       DO jv=1,ngh
+          isa=isa_start
+          DO ia=1,ia_sum
+             isa=isa+1
+             fnlj(ia,iv,1)=fnlj(ia,iv,1)&
+                  +(dvan_(jv,iv)+deeq_(isa,jv,iv))*fnli(ia,jv,1)
+          END DO
+       END DO
+    END DO
+  END SUBROUTINE prepare_matrix
+  ! ==================================================================
+  SUBROUTINE hnlmat_old(hmat,f,nstate)
+    ! ==--------------------------------------------------------------==
     INTEGER                                  :: nstate
     REAL(real_8)                             :: f(nstate), hmat(nstate,nstate)
 
     INTEGER                                  :: chunk, i, ia, ind, ind1, is, &
                                                 isa, isa0, ispin, isub, iv, &
                                                 j, jmax, jv, ki, kj, l, l2, &
-                                                li, lj, mxmypos, mxrank, mypos
+                                                li, lj, mxmypos, mxrank, mypos,&
+                                                na_grp(2,ions1%nsp,0:parai%cp_nogrp-1),&
+                                                na_fnl(2,ions1%nsp)
+
     REAL(real_8)                             :: dd, fdd, ffi
+    CHARACTER(*), PARAMETER                  :: procedureN = 'hnlmat_old'
 
 ! Variables
 ! ==--------------------------------------------------------------==
 ! == Compute the non-local contribution to the Hamilton matrix    ==
 ! ==--------------------------------------------------------------==
 
-    CALL tiset('    HNLMAT',isub)
-    IF (cntl%tfdist) CALL stopgm('HNLMAT','TFDIST NOT IMPLEMENTED',& 
+    CALL tiset(procedureN,isub)
+    CALL cp_grp_split_atoms(na_grp)
+    na_fnl(:,:)=na_grp(:,:,parai%cp_inter_me)
+    IF (cntl%tfdist) CALL stopgm(procedureN,'TFDIST NOT IMPLEMENTED',& 
          __LINE__,__FILE__)
-    IF (imagp.EQ.2)CALL stopgm('HNLMAT','K-POINT NOT IMPLEMENTED',& 
+    IF (imagp.EQ.2)CALL stopgm(procedureN,'K-POINT NOT IMPLEMENTED',& 
          __LINE__,__FILE__)
     DO i=1,nstate
        ffi=f(i)
@@ -71,20 +295,7 @@ CONTAINS
           DO j=i,jmax
              isa0=0
              DO is=1,ions1%nsp
-                IF (pslo_com%tvan(is)) THEN
-                   ! VANDERBILT PP
-                   DO iv=1,nlps_com%ngh(is)
-                      DO jv=1,nlps_com%ngh(is)
-                         DO ia=1,ions0%na(is)
-                            isa=isa0+ia
-                            dd=deeq(isa,iv,jv,ispin)+dvan(iv,jv,is)
-                            fdd=dd*fnl(1,isa,iv,i,1)*fnl(1,isa,jv,j,1)
-                            hmat(i,j)=hmat(i,j)-fdd
-                            IF (i.NE.j) hmat(j,i)=hmat(j,i)-fdd
-                         ENDDO
-                      ENDDO
-                   ENDDO
-                ELSEIF (sgpp1%tsgp(is)) THEN
+                IF (sgpp1%tsgp(is)) THEN
                    ! Stefan Goedecker PP
                    DO iv=1,nlps_com%ngh(is)
                       l=nghtol(iv,is)+1
@@ -95,7 +306,7 @@ CONTAINS
                          lj=sgpp2%lpval(jv,is)
                          IF (l2.EQ.l.AND.li.EQ.lj) THEN
                             kj=sgpp2%lfval(jv,is)
-                            DO ia=1,ions0%na(is)
+                            DO ia=na_fnl(1,is),na_fnl(2,is)
                                isa=isa0+ia
                                fdd=sgpp2%hlsg(ki,kj,l,is)*fnl(1,isa,iv,i,1)*&
                                     fnl(1,isa,jv,j,1)
@@ -109,7 +320,7 @@ CONTAINS
                    ! BACHELET HAMANN SCHLUTER
                    DO iv=1,nlps_com%ngh(is)
                       dd=wsg(is,iv)
-                      DO ia=1,ions0%na(is)
+                      DO ia=na_fnl(1,is),na_fnl(2,is)
                          isa=isa0+ia
                          fdd=dd*fnl(1,isa,iv,i,1)*fnl(1,isa,iv,j,1)
                          hmat(i,j)=hmat(i,j)-fdd
@@ -161,20 +372,7 @@ CONTAINS
           IF (cntl%tlsd.AND.i.LE.spin_mod%nsup) jmax=spin_mod%nsup
           IF (cntl%tlsd.AND.i.GT.spin_mod%nsup) ispin=2
           DO is=1,ions1%nsp
-             IF (pslo_com%tvan(is)) THEN
-                ! VANDERBILT PP
-                DO iv=1,nlps_com%ngh(is)
-                   DO jv=1,nlps_com%ngh(is)
-                      DO ia=1,ions0%na(is)
-                         isa=isa0+ia
-                         dd=deeq(isa,iv,jv,ispin)+dvan(iv,jv,is)
-                         fdd=dd*fnl(1,isa,iv,i,1)*fnl(1,isa,jv,j,1)
-                         hmat(i,j)=hmat(i,j)-fdd
-                         IF (i.NE.j) hmat(j,i)=hmat(j,i)-fdd
-                      ENDDO
-                   ENDDO
-                ENDDO
-             ELSEIF (sgpp1%tsgp(is)) THEN
+             IF (sgpp1%tsgp(is)) THEN
                 ! Stefan Goedecker PP
                 DO iv=1,nlps_com%ngh(is)
                    l=nghtol(iv,is)+1
@@ -185,7 +383,7 @@ CONTAINS
                       lj=sgpp2%lpval(jv,is)
                       IF (l2.EQ.l.AND.li.EQ.lj) THEN
                          kj=sgpp2%lfval(jv,is)
-                         DO ia=1,ions0%na(is)
+                         DO ia=na_fnl(1,is),na_fnl(2,is)
                             isa=isa0+ia
                             fdd=sgpp2%hlsg(ki,kj,l,is)*fnl(1,isa,iv,i,1)*&
                                  fnl(1,isa,jv,j,1)
@@ -199,7 +397,7 @@ CONTAINS
                 ! BACHELET HAMANN SCHLUTER
                 DO iv=1,nlps_com%ngh(is)
                    dd=wsg(is,iv)
-                   DO ia=1,ions0%na(is)
+                   DO ia=na_fnl(1,is),na_fnl(2,is)
                       isa=isa0+ia
                       fdd=dd*fnl(1,isa,iv,i,1)*fnl(1,isa,iv,j,1)
                       hmat(i,j)=hmat(i,j)-fdd
@@ -228,10 +426,10 @@ CONTAINS
           hmat(i,j)=hmat(i,j)*ffi
        ENDDO
     ENDDO
-    CALL tihalt('    HNLMAT',isub)
+    CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==
     RETURN
-  END SUBROUTINE hnlmat
+  END SUBROUTINE hnlmat_old
   ! ==================================================================
 
 END MODULE hnlmat_utils

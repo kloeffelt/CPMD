@@ -238,9 +238,9 @@ CONTAINS
           IF (tkpts%tkpnt) CALL stopgm(procedureN,'K-POINTS NOT IMPLEMENTED',& 
                __LINE__,__FILE__)
           IF (lproj.AND.cnti%iproj.NE.0) THEN
-             CALL ovlap(nstate,gam,c2,c0(:,:,ik))
+             CALL ovlap(nstate,gam,c2,c0(:,:,ik),redist=.FALSE.,full=.FALSE.)
              CALL hnlmat(gam,crge%f,nstate)
-             CALL mp_sum(gam,nstate*nstate,parai%allgrp)
+             CALL summat(gam,nstate,lsd=.TRUE.,gid=parai%cp_grp)
              IF (tfor) CALL rnlfl(fion,gam,nstate,nkpoint)
              IF (cnti%iproj.EQ.1) THEN
                 DO i=1,nstate
