@@ -59,7 +59,6 @@ MODULE k_forces_driver
   USE spin,                            ONLY: clsd,&
                                              spin_mod
   USE stress_utils,                    ONLY: stress
-  USE summat_utils,                    ONLY: give_scr_summat
   USE symtrz_utils,                    ONLY: symvec
   USE system,                          ONLY: cnti,&
                                              cntl,&
@@ -123,7 +122,7 @@ CONTAINS
     COMPLEX(real_8), ALLOCATABLE             :: auxc(:), zgam(:,:)
     COMPLEX(real_8), EXTERNAL                :: zdotc
     INTEGER :: i, ib, idamax, ierr, ik, il_auxc, il_ddia, il_fsc, il_gam, &
-      imax, isub, j, lsummat, nfto, nleft, nnx, nnxs, nwfc
+      imax, isub, j, nfto, nleft, nnx, nnxs, nwfc
     LOGICAL                                  :: debug
     REAL(real_8)                             :: bottom, ee, enband
     REAL(real_8), ALLOCATABLE                :: ddia(:), fsc(:), gam(:,:)
@@ -147,8 +146,6 @@ CONTAINS
        CALL give_scr_fnonloc(il_auxc,il_ddia,nstate)
        il_gam = imagp*nstate*nstate
     ENDIF
-    CALL give_scr_summat(lsummat,tag,nstate)
-    il_auxc=MAX(il_auxc,lsummat)
     il_auxc=MAX(il_auxc,nstate**2)  ! AUXC space for OVLAP (Laio A.)
     il_fsc=nstate
     ! ==--------------------------------------------------------------==

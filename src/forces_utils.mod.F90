@@ -11,7 +11,6 @@ MODULE forces_utils
   USE ropt,                            ONLY: ropt_mod
   USE rscpot_utils,                    ONLY: give_scr_rscpot
   USE spin,                            ONLY: lspin2
-  USE summat_utils,                    ONLY: give_scr_summat
   USE symtrz_utils,                    ONLY: give_scr_symvec
   USE system,                          ONLY: cnti,&
                                              cntl
@@ -32,9 +31,8 @@ CONTAINS
     LOGICAL                                  :: lproj, tfor
 
     INTEGER :: il_amat, il_auxc, il_ddia, il_fsc, il_gam, il_psiab, il_scr, &
-      il_scrdip, lrnlsm, lrscpot, lsummat, lsymvec, nstx
+      il_scrdip, lrnlsm, lrscpot, lsymvec, nstx
 
-    lsummat=0
     lsymvec=0
     lrnlsm=0
     lrscpot=0
@@ -46,15 +44,12 @@ CONTAINS
     il_auxc=0
     IF (pslo_com%tivan .AND. lproj .AND. cnti%iproj.NE.0) THEN
        CALL give_scr_nlforce(il_gam,il_auxc,il_ddia,nstate)
-       CALL give_scr_summat(lsummat,tag,nstate)
     ELSE
        CALL give_scr_fnonloc(il_auxc,il_ddia,nstate)
        IF (cntl%tdmal) THEN
           il_gam = 1
-          lsummat=0
        ELSE
           il_gam = imagp*nstate*nstate
-          CALL give_scr_summat(lsummat,tag,nstate)
        ENDIF
     ENDIF
     il_scrdip=0
@@ -64,7 +59,6 @@ CONTAINS
        il_amat=3*nstate*nstx
     ELSE
        il_amat=0
-       il_auxc=MAX(il_auxc,2*lsummat)
        il_auxc=MAX(il_auxc,nstate**2)! AUXC space for OVLAP (Laio A.)
     ENDIF
     il_fsc=nstate

@@ -51,8 +51,7 @@ MODULE forces_driver
                                              lspin2,&
                                              lspin3,&
                                              spin_mod
-  USE summat_utils,                    ONLY: give_scr_summat,&
-                                             summat
+  USE summat_utils,                    ONLY: summat
   USE symtrz_utils,                    ONLY: symvec
   USE system,                          ONLY: cnti,&
                                              cntl,&
@@ -105,7 +104,7 @@ CONTAINS
     COMPLEX(real_8), EXTERNAL                :: zdotc
     COMPLEX(real_8), POINTER                 :: cgam(:)
     INTEGER :: first_g, i, ierr, ik, ikind, il_auxc, il_ddia, il_fsc, il_gam, &
-      il_psiab, il_scrdip, ipp, isub, isub2, isub3, j, jj, last_g, lsummat, &
+      il_psiab, il_scrdip, ipp, isub, isub2, isub3, j, jj, last_g,  &
       naa, ngw_l, nstx, NSTX_grp
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: NWA12_grp
     LOGICAL                                  :: debug, redist_c2
@@ -146,8 +145,6 @@ CONTAINS
        CALL set_orbdist(nstate,cnti%nstblk,parai%nproc,nstx)
        il_gam=1
     ELSE
-       CALL give_scr_summat(lsummat,tag,nstate)
-       il_auxc=MAX(il_auxc,lsummat)
        il_auxc=MAX(il_auxc,nstate*nstate)! AUXC space for OVLAP (Laio A.)
     ENDIF
     il_fsc=nstate

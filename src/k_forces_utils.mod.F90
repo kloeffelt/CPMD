@@ -9,7 +9,6 @@ MODULE k_forces_utils
   USE ropt,                            ONLY: ropt_mod
   USE rscpot_utils,                    ONLY: give_scr_rscpot
   USE spin,                            ONLY: lspin2
-  USE summat_utils,                    ONLY: give_scr_summat
   USE symtrz_utils,                    ONLY: give_scr_symvec
   USE system,                          ONLY: cnti
 
@@ -29,7 +28,7 @@ CONTAINS
     LOGICAL                                  :: lproj, tfor
 
     INTEGER :: il_auxc, il_ddia, il_fsc, il_gam, il_ksener, il_psiab, il_scr, &
-      lortho, lrnlsm, lrscpot, lsummat, lsymvec
+      lortho, lrnlsm, lrscpot, lsymvec
 
     CALL give_scr_rnlsm(lrnlsm,tag,nstate,tfor)
     IF (tfor) THEN
@@ -44,8 +43,6 @@ CONTAINS
        CALL give_scr_fnonloc(il_auxc,il_ddia,nstate)
        il_gam = imagp*nstate*nstate
     ENDIF
-    CALL give_scr_summat(lsummat,tag,nstate)
-    il_auxc=MAX(il_auxc,2*lsummat)
     il_fsc=nstate
     il_psiab=2
     IF (lspin2%tlse) il_psiab=2*maxfft

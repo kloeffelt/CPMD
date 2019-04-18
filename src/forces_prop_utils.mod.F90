@@ -21,7 +21,6 @@ MODULE forces_prop_utils
                                              paral
   USE ropt,                            ONLY: infi,&
                                              ropt_mod
-  USE summat_utils,                    ONLY: give_scr_summat
   USE system,                          ONLY: cnti,&
                                              cntl,&
                                              maxsys,&
@@ -71,7 +70,7 @@ CONTAINS
     COMPLEX(real_8), ALLOCATABLE             :: auxc(:), gde(:)
     INTEGER                                  :: freq_diag, i, ierr, ik, &
                                                 il_auxc, il_ddia, il_gam, &
-                                                infr, isub, lsummat, nhpsi, &
+                                                infr, isub, nhpsi, &
                                                 update_pot
     INTEGER, SAVE                            :: icall = -1
     LOGICAL                                  :: calcrho
@@ -87,8 +86,6 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     time1 = m_cputime()
     CALL give_scr_nlforce(il_gam,il_auxc,il_ddia,nstate)
-    CALL give_scr_summat(lsummat,tag,nstate)
-    il_auxc=MAX(il_auxc,lsummat)
     il_auxc=MAX(il_auxc,nstate**2)
     ALLOCATE(auxc(il_auxc),STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&

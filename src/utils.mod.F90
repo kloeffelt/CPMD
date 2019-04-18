@@ -1,7 +1,4 @@
 #include "cpmd_global.h"
-#if defined(__SR11000)
-!option OPT(O(ss))
-#endif
 
 MODULE utils
   USE error_handling,                  ONLY: stopgm
@@ -26,6 +23,8 @@ MODULE utils
   PUBLIC :: zclean
   PUBLIC :: icopy
   PUBLIC :: symma
+  PUBLIC :: symmat_pack
+  PUBLIC :: symmat_unpack
   PUBLIC :: numcpus
   PUBLIC :: invmat
   PUBLIC :: inversemat
@@ -152,6 +151,78 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE symma
+  ! ==================================================================
+  SUBROUTINE symmat_pack(a,packeda,n,n1,n2)
+    ! ==--------------------------------------------------------------==
+    INTEGER,INTENT(IN)                       :: n,n1,n2
+    REAL(real_8),INTENT(IN)                  :: a(n,n)
+    REAL(real_8),INTENT(OUT) __CONTIGUOUS    :: packeda(:)
+
+    INTEGER                                  :: offset, i, j
+    !for lsd=>n=nstate,n1=spind_mod%nsup,n2=spin_mod%nsdown
+    !else=>n=nstate,n1=nstate,n2=0
+    ! ==--------------------------------------------------------------==
+    offset=n1*(n1+1)/2
+    !$omp parallel private(i,j)
+    !$omp do schedule(static)
+    DO i=0,n1-1
+       j=i*(i-1)/2+i+1
+       packeda(j:j+i)=a(1:i+1,i+1)
+    END DO
+    !$omp end do nowait
+    !$omp do schedule(static)
+    DO i=0,n2-1
+       j=i*(i-1)/2+i+1+offset
+       packeda(j:j+i)=a(n1+1:n1+i+1,n1+i+1)
+    END DO
+    !$omp end parallel
+    RETURN
+  END SUBROUTINE symmat_pack
+  ! ==================================================================
+  SUBROUTINE symmat_unpack(a,packeda,n,n1,n2,full)
+    ! ==--------------------------------------------------------------==
+    INTEGER,INTENT(IN)                       :: n,n1,n2
+    REAL(real_8),INTENT(OUT)                 :: a(n,n)
+    REAL(real_8),INTENT(IN)  __CONTIGUOUS    :: packeda(:)
+    LOGICAL,INTENT(IN)                       :: full
+
+    INTEGER                                  :: offset, i, j
+    !for lsd=>n=nstate,n1=spind_mod%nsup,n2=spin_mod%nsdown
+    !else=>n=nstate,n1=nstate,n2=0
+    ! ==--------------------------------------------------------------==
+    offset=n1*(n1+1)/2
+    !$omp parallel private(i,j)
+    !$omp do schedule(static)
+    DO i=0,n1-1
+       j=i*(i-1)/2+i+1
+       a(1:i+1,i+1)=packeda(j:j+i)
+    END DO
+    !$omp end do nowait
+    !$omp do schedule(static)
+    DO i=0,n2-1
+       j=i*(i-1)/2+i+1+offset
+       a(n1+1:n1+i+1,n1+i+1)=packeda(j:j+i)
+    END DO
+    !$omp end parallel
+    IF(full)THEN
+       !$omp parallel private(i,j)
+       !$omp do schedule(static)
+       DO i=1,n1
+          DO j=i,n1
+             a(j,i)=a(i,j)
+          END DO
+       END DO
+       !$omp end do nowait
+       !$omp do schedule(static)
+       DO i=n1+1,n
+          DO j=i,n
+             a(j,i)=a(i,j)
+          END DO
+       END DO
+       !$omp end parallel
+    END IF
+    RETURN
+  END SUBROUTINE symmat_unpack
   ! ==================================================================
   SUBROUTINE numcpus(ncpus)
     ! ==--------------------------------------------------------------==

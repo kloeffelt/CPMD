@@ -83,8 +83,7 @@ MODULE cplngs_utils
   USE spin,                            ONLY: clsd,&
                                              lspin2,&
                                              spin_mod
-  USE summat_utils,                    ONLY: give_scr_summat,&
-                                             summat
+  USE summat_utils,                    ONLY: summat
   USE symtrz_utils,                    ONLY: give_scr_symvec,&
                                              symvec
   USE system,                          ONLY: &
@@ -1487,7 +1486,7 @@ CONTAINS
     CHARACTER(*), PARAMETER                  :: procedureN = 'give_scr_cplsub'
 
     INTEGER :: lforcedr, lget_eind, LNL_RES, LOPT_LR, lrhoofr, lrnlsm, &
-      LRNLSM_2D, LSUMMAT, lsymvec, LV1OFRHO1, NSTATE
+      LRNLSM_2D, lsymvec, LV1OFRHO1, NSTATE
 
 ! ==--------------------------------------------------------------==
 
@@ -1512,13 +1511,8 @@ CONTAINS
        ELSE
           CALL give_scr_get_eind (lget_eind, tag)
        ENDIF
-       IF (lspin2%tlse) THEN
-          CALL give_scr_summat (lsummat, tag, nstate)
-       ELSE
-          lsummat = 0
-       ENDIF
        lcplsub = MAX (lcplsub, lrhoofr, lrnlsm_2d, lnl_res, lopt_lr,&
-            LGET_EIND, LSUMMAT, LV1OFRHO1)
+            LGET_EIND, LV1OFRHO1)
     ENDIF
     ! ==--------------------------------------------------------------==
     RETURN

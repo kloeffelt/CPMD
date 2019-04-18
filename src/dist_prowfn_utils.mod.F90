@@ -1496,7 +1496,7 @@ CONTAINS
     INTEGER                                  :: norbx
 
     INTEGER                                  :: is, lcmaos, lrnlsm, lsatch, &
-                                                lsummat, lwfnrho, nstate, &
+                                                lwfnrho, nstate, &
                                                 numin
 
     nstate=crge%n
@@ -1504,8 +1504,6 @@ CONTAINS
     lcmaos=0
     lsatch=0
     lwfnrho=0
-    lsummat=0
-    ! CALL GIVE_SCR_SUMMAT(LSUMMAT,TAG,NATTOT)
     IF (pslo_com%tivan) CALL give_scr_rnlsm(lrnlsm,tag,atwp%nattot,.FALSE.)
     IF (prop1%dpan) THEN
        CALL stopgm('DIST_PROWFN','DISTRIBUTED DAVIDSON NOT IMPLEMENTED',& 
@@ -1522,7 +1520,7 @@ CONTAINS
     lprowfn=MAX(2*atwp%nattot+4*atwp%nattot,&
          atwp%nattot*prop2%numorb,&
          atwp%nattot*norbx,&
-         lrnlsm,lsummat,lcmaos,lsatch,lwfnrho)
+         lrnlsm,lcmaos,lsatch,lwfnrho)
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE give_scr_dist_prowfn

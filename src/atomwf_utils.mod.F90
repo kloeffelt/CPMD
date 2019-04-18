@@ -54,8 +54,7 @@ MODULE atomwf_utils
   USE spin,                            ONLY: clsd,&
                                              lspin2,&
                                              spin_mod
-  USE summat_utils,                    ONLY: give_scr_summat,&
-                                             summat
+  USE summat_utils,                    ONLY: summat
   USE system,                          ONLY: cntl,&
                                              kpbeg,&
                                              ncpw,&
@@ -541,7 +540,7 @@ CONTAINS
     INTEGER                                  :: nstate
 
     INTEGER                                  :: latrho, lcopot, lksmat, &
-                                                lrnlsm, lsummat, lvofrho, &
+                                                lrnlsm, lvofrho, &
                                                 ngso, nleft
     LOGICAL                                  :: tlsd2, tlse2
 
@@ -583,12 +582,7 @@ CONTAINS
        ngso=MAX(nleft**2,nleft*atwp%nattot)+nleft
        latomwf=MAX(latomwf,ngso)
     ENDIF
-    IF (cntl%tdmal) THEN
-       lsummat=0
-    ELSE
-       CALL give_scr_summat(lsummat,tag,atwp%nattot)
-    ENDIF
-    latomwf=MAX(latrho,latomwf,lcopot,lvofrho,lrnlsm,lsummat,lksmat)
+    latomwf=MAX(latrho,latomwf,lcopot,lvofrho,lrnlsm,lksmat)
     ! 
     cntl%tlsd=tlsd2
     lspin2%tlse=tlse2

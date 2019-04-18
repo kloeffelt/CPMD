@@ -25,8 +25,7 @@ MODULE ainitwf_utils
                                              rscpot
   USE spin,                            ONLY: lspin2,&
                                              spin_mod
-  USE summat_utils,                    ONLY: give_scr_summat,&
-                                             summat
+  USE summat_utils,                    ONLY: summat
   USE system,                          ONLY: cntl,&
                                              nkpt
   USE timer,                           ONLY: tihalt,&
@@ -287,15 +286,13 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
     INTEGER                                  :: nstate
 
-    INTEGER                                  :: latrho, lksmat, lrscpot, &
-                                                lsummat
+    INTEGER                                  :: latrho, lksmat, lrscpot
 
     lainitwf=atwp%nattot*atwp%nattot+3*atwp%nattot+atwp%nattot
     CALL give_scr_atrho(latrho,tag)
     CALL give_scr_rscpot(lrscpot,tag,.FALSE.)
     CALL give_scr_ksmat(lksmat,tag)
-    CALL give_scr_summat(lsummat,tag,atwp%nattot)
-    lainitwf=MAX(lainitwf,lrscpot,lksmat,lsummat,latrho)
+    lainitwf=MAX(lainitwf,lrscpot,lksmat,latrho)
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE give_scr_ainitwf

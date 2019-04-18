@@ -43,8 +43,7 @@ MODULE prowfn_utils
   USE sfac,                            ONLY: fnl,&
                                              fnl2
   USE spin,                            ONLY: spin_mod
-  USE summat_utils,                    ONLY: give_scr_summat,&
-                                             summat
+  USE summat_utils,                    ONLY: summat
   USE system,                          ONLY: cntl,&
                                              maxsys,&
                                              ncpw
@@ -926,7 +925,7 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
 
     INTEGER                                  :: is, lcmaos, lrnlsm, lsatch, &
-                                                lsummat, lwfnrho, nstate, &
+                                                lwfnrho, nstate, &
                                                 numin
 
     nstate=crge%n
@@ -934,7 +933,6 @@ CONTAINS
     lcmaos=0
     lsatch=0
     lwfnrho=0
-    CALL give_scr_summat(lsummat,tag,atwp%nattot)
     IF (pslo_com%tivan) CALL give_scr_rnlsm(lrnlsm,tag,atwp%nattot,.FALSE.)
     IF (prop1%dpan) THEN
        ! Davidson Population Analysis
@@ -948,7 +946,7 @@ CONTAINS
     ! PROWFN
     lprowfn=MAX(2*atwp%nattot*atwp%nattot+4*atwp%nattot,&
          atwp%nattot*prop2%numorb,&
-         lrnlsm,lsummat,lcmaos,lsatch,lwfnrho)
+         lrnlsm,lcmaos,lsatch,lwfnrho)
     ! ==--------------------------------------------------------------==
   END SUBROUTINE give_scr_prowfn
   ! ==================================================================
