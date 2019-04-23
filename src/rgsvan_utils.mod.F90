@@ -14,6 +14,7 @@ MODULE rgsvan_utils
                                              paral
   USE pslo,                            ONLY: pslo_com
   USE rgs_utils,                       ONLY: uinv
+  USE ropt,                            ONLY: ropt_mod
   USE rotate_utils,                    ONLY: rottr,&
                                              rottr_c0_fnl,&
                                              rottr_fnl
@@ -91,7 +92,7 @@ CONTAINS
                spin_mod%nsdown,use_cp=.TRUE.,redist=.TRUE.)
           CALL rottr_fnl(il_fnl_packed(1),fnl_packed,nstate,smat)
        END IF
-       IF(pslo_com%mixed_psp) THEN
+       IF(pslo_com%mixed_psp.OR.ropt_mod%calste) THEN
           CALL cp_grp_split_atoms(na_grp)
           CALL unpack_fnl(na_grp(:,:,parai%cp_inter_me),fnl_packed,unpacked=fnla)
           IF(parai%cp_nogrp.GT.1)CALL cp_grp_redist_dfnl_fnl(.TRUE.,.FALSE.,nstate,1)

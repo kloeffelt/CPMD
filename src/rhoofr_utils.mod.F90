@@ -1,7 +1,6 @@
 #include "cpmd_global.h"
 
 MODULE rhoofr_utils
-  USE augchg_utils,                    ONLY: augchg
   USE cnst,                            ONLY: uimag
   USE cp_cuda_types,                   ONLY: cp_cuda_env
   USE cp_cudensity_utils,              ONLY: cp_cubuild_density_copy_to_host,&
@@ -524,25 +523,28 @@ CONTAINS
           ENDDO
        ENDIF
        ! Vanderbilt Charges
-       IF (paral%parent) THEN
-          ALLOCATE(qa(ions1%nat),STAT=ierr)
-          IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
-               __LINE__,__FILE__)
-          CALL zeroing(qa)!,ions1%nat)
-          CALL augchg(fnl,crge%f,qa,nstate)
-          iat=0
-          DO is=1,ions1%nsp
-             chrg%vdbchg(is)=0._real_8
-             DO ia=1,ions0%na(is)
-                iat=iat+1
-                chrg%vdbchg(is)=chrg%vdbchg(is)+qa(iat)
-             ENDDO
-             chrg%vdbchg(is)=chrg%vdbchg(is)/REAL(ions0%na(is),kind=real_8)
-          ENDDO
-          DEALLOCATE(qa,STAT=ierr)
-          IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-               __LINE__,__FILE__)
-       ENDIF
+       !TK This part here is meaningless, only calculated to print at the very first and very last step
+       !VDB Charges are calculated in rhov and newd
+       !optimized and parallelized routine: calc_rho
+!       IF (paral%parent) THEN
+!          ALLOCATE(qa(ions1%nat),STAT=ierr)
+!          IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+!               __LINE__,__FILE__)
+!          CALL zeroing(qa)!,ions1%nat)
+!          CALL augchg(fnl,crge%f,qa,nstate)
+!          iat=0
+!          DO is=1,ions1%nsp
+!             chrg%vdbchg(is)=0._real_8
+!             DO ia=1,ions0%na(is)
+!                iat=iat+1
+!                chrg%vdbchg(is)=chrg%vdbchg(is)+qa(iat)
+!             ENDDO
+!             chrg%vdbchg(is)=chrg%vdbchg(is)/REAL(ions0%na(is),kind=real_8)
+!          ENDDO
+!          DEALLOCATE(qa,STAT=ierr)
+!          IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+!               __LINE__,__FILE__)
+!       ENDIF
     ENDIF
 
     ! ALPHA+BETA DENSITY IN RHOE(*,1), BETA DENSITY IN RHOE(*,2)

@@ -54,7 +54,8 @@ MODULE forces_driver
   USE rscpot_utils,                    ONLY: rscpot
   USE rswfmod,                         ONLY: rsactive
   USE sfac,                            ONLY: fnl_packed,&
-                                             il_fnl_packed
+                                             il_fnl_packed,&
+                                             dfnl_packed
   USE spin,                            ONLY: clsd,&
                                              lspin2,&
                                              lspin3,&
@@ -118,7 +119,8 @@ CONTAINS
       il_psiab, il_scrdip, ipp, isub, isub2, isub3, j, jj, last_g,  &
       naa, ngw_l, nstx, NSTX_grp, is,  il_c0_ort(3), il_smat(2)
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: NWA12_grp
-    LOGICAL                                  :: debug, redist_c2
+    LOGICAL                                  :: debug, redist_c2, &
+                                                case1, case2, case3, case4
     REAL(real_8)                             :: ee, ehfx, fi, fj, vhfx
     REAL(real_8), ALLOCATABLE                :: a1mat(:,:), a2mat(:,:), &
                                                 a3mat(:,:), ddia(:), fsc(:), &
@@ -138,6 +140,27 @@ CONTAINS
     IF (tkpts%tkpnt.AND.pslo_com%tivan) &
          CALL stopgm(procedureN,'K-POINTS NOT IMPLEMENTED',&
          __LINE__,__FILE__)
+    case1=.FALSE.
+    case2=.FALSE.
+    case3=.FALSE.
+    case4=.FALSE.
+    IF(.NOT.pslo_com%tivan)THEN
+       case1=.TRUE.
+    ELSEIF(pslo_com%tivan)THEN
+       IF(cntl%nonort)THEN
+          IF(pslo_com%mixed_psp)THEN
+             case2=.TRUE.
+          ELSE
+             case4=.TRUE.
+          END IF
+       ELSE
+          IF(pslo_com%mixed_psp)THEN
+             case1=.TRUE.
+          ELSE
+             case3=.TRUE.
+          END IF
+       END IF
+    END IF
     IF(cntl%nonort.AND.pslo_com%tivan)THEN
        IF (lspin2%tlse) CALL stopgm('NOFORCE','NO LSE ALLOWED HERE',&
             __LINE__,__FILE__)
@@ -201,7 +224,14 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     DO ikind=1,nkpoint
        IF (nstate >0 ) THEN
-          CALL rnlsm(c0_ptr(:,:,ikind),nstate,1,ikind,tfor)
+          IF(case1)THEN
+             CALL rnlsm(c0_ptr(:,:,ikind),nstate,1,ikind,tfor)
+          ELSEIF(case2)THEN
+             CALL rnlsm(c0_ptr(:,:,ikind),nstate,1,ikind,tfor,only_dfnl=.TRUE.)
+          ELSEIF(case3)THEN
+             CALL rnlsm(c0_ptr(:,:,ikind),nstate,1,ikind,.FALSE.,&
+                  unpack_dfnl_fnl=ropt_mod%calste)
+          END IF
        ENDIF
     ENDDO
     rsactive = cntl%krwfn
@@ -281,12 +311,10 @@ CONTAINS
        __NVTX_TIMER_START ( procedureN//'_b' )
 
        IF (pslo_com%tivan) THEN
-          IF (tkpts%tkpnt) CALL stopgm(procedureN,'K-POINTS NOT IMPLEMENTED',&
-               __LINE__,__FILE__)
           CALL ovlap(nstate,gam,c2,c0_ptr(:,:,ik),redist=.FALSE.,full=.FALSE.)
           CALL hnlmat(gam,crge%f,nstate)
-          CALL summat(gam,nstate,lsd=.TRUE.,gid=parai%cp_grp)
-          IF (tfor) CALL rnlfl(fion,gam,nstate,nkpoint)
+          CALL summat(gam,nstate,lsd=.TRUE.,gid=parai%cp_grp,symmetrization=&
+               ropt_mod%prteig.OR.ropt_mod%calste)
           ALLOCATE(fnlgam_packed(il_fnl_packed(1),il_fnl_packed(2)),STAT=ierr)
           IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
                __LINE__,__FILE__)
@@ -295,10 +323,15 @@ CONTAINS
                   fnlgam_packed,nstate,gam,redist=.TRUE.)
           ELSE
              CALL rotate(-1.0_real_8,c0_ptr(:,:,ik),1.0_real_8,c2,gam,&
-                  nstate,2*nkpt%ngwk,cntl%tlsd,spin_mod%nsup,spin_mod%nsdown,)
+                  nstate,2*nkpt%ngwk,cntl%tlsd,spin_mod%nsup,spin_mod%nsdown,symm=.TRUE.)
              CALL rotate_fnl(il_fnl_packed(1),fnl_packed,fnlgam_packed,nstate,gam)
-          ELSE
+          END IF
           CALL nlforce(c2,crge%f,fnl_packed,fnlgam_packed,nstate,redist=.TRUE.)
+          IF (tfor) THEN
+             CALL rnlsm(c0_ptr(:,:,ik),nstate,1,ik,tfor,unpack_dfnl_fnl=.FALSE.,&
+                  only_dfnl=.TRUE.)
+             CALL rnlfl(fion,nstate,nkpoint,fnl_packed,fnlgam_packed,dfnl_packed)
+          END IF
           DEALLOCATE(fnlgam_packed, STAT=ierr)
           IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
                __LINE__,__FILE__)

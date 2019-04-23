@@ -193,13 +193,13 @@ CONTAINS
        offset_fnl0=offset_fnl0+(na(2,is)-na(1,is)+1)*nlps_com%ngh(is)
     END DO
 
-    DEALLOCATE(ctmp,STAT=ierr)
+    DEALLOCATE(fnlt,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
     DEALLOCATE(dia,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
-    DEALLOCATE(fnlt,STAT=ierr)
+    DEALLOCATE(ctmp,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
 
