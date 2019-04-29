@@ -33,6 +33,7 @@ MODULE mdmain_utils
   USE copot_utils,                     ONLY: copot,&
                                              give_scr_copot
   USE cotr,                            ONLY: cotc0
+  USE cp_grp_utils,                    ONLY: cp_grp_redist_array_f
   USE csize_utils,                     ONLY: csize
   USE ddipo_utils,                     ONLY: ddipo,&
                                              give_scr_ddipo
@@ -370,7 +371,7 @@ CONTAINS
             WRITE(6,333) 'BROKEN SYMMETRY INIT SUCCESSFUL'
     ENDIF
     ! 
-    CALL mp_bcast(taup,SIZE(taup),parai%source,parai%allgrp)
+    CALL mp_bcast(taup,SIZE(taup),parai%io_source,parai%cp_grp)
     CALL dcopy(3*maxsys%nax*maxsys%nsx,taup,1,taui,1)
     ! INITIALIZE WF CENTERS & SPREAD
     IF (vdwl%vdwd) THEN
@@ -394,7 +395,11 @@ CONTAINS
                WRITE(6,333) 'QUENCHING BROKEN SYMMETRY STATE'
        ENDIF
        CALL quenbo(c0(:,:,1),c2,sc0,taur,rhoe,psi)
-
+       IF(parai%cp_nogrp.GT.1.AND.cntl%nonort)THEN
+          CALL cp_grp_redist_array_f(c0,ncpw%ngw,nstate)
+          CALL cp_grp_redist_array_f(c2,ncpw%ngw,nstate)
+          CALL cp_grp_redist_array_f(cm,ncpw%ngw,nstate)
+       END IF
        CALL zhwwf(2,irec,c0,cm,nstate,eigv,tau0,velp,taui,iteropt%nfi)
        ! NN: BROKEN SYMMETRY: QUENCHING TO BO SURFACE OF HS STATE
        IF (cntl%bsymm)THEN
@@ -404,6 +409,11 @@ CONTAINS
                WRITE(6,333) 'QUENCHING HIGH SPIN STATE'
           CALL quenbo(c0(:,:,2),c2(:,:,2),sc0(1,1,2),taur,&
                rhoe,psi)
+          IF(parai%cp_nogrp.GT.1.AND.cntl%nonort)THEN
+             CALL cp_grp_redist_array_f(c0,ncpw%ngw,nstate)
+             CALL cp_grp_redist_array_f(c2,ncpw%ngw,nstate)
+             CALL cp_grp_redist_array_f(cm,ncpw%ngw,nstate)
+          END IF
           CALL zhwwf(2,irec,c0(:,:,2),cm(1,1,2),nstate,eigv(1,2),&
                tau0,velp,taui,iteropt%nfi)
        ENDIF
@@ -466,8 +476,8 @@ CONTAINS
     ENDIF
     ! >>>
     ! make sure the velocities are correctly replicated while using groups      
-    CALL mp_bcast(velp,SIZE(velp),0,parai%cp_grp)
-    CALL mp_bcast(cm,ncpw%ngw*nstate*bsfac,0,parai%cp_inter_grp)
+    CALL mp_bcast(velp,SIZE(velp),parai%io_source,parai%cp_grp)
+    CALL mp_bcast(cm,ncpw%ngw*nstate*bsfac,parai%io_source,parai%cp_inter_grp)
     ! <<<
     ! RESET ACCUMULATORS
     IF (paral%parent.AND.irec(irec_ac).EQ.0)&
@@ -581,13 +591,13 @@ CONTAINS
        bsclcs=1
        CALL setbsstate
     ENDIF
-    CALL rortv(c0,cm,c2,sc0,gamy,nstate)
+    CALL rortv(c0,cm,c2,sc0,gamy,nstate,use_cp_grps=cntl%nonort)
     ! SET UP HIGH SPIN STATE
     IF (cntl%bsymm)THEN
        bsclcs=2
        CALL setbsstate
        CALL rortv(c0(:,:,2),cm(1,1,2),c2(:,:,2),sc0(1,1,2),&
-            gamy(1,2),nstate)
+            gamy(1,2),nstate,use_cp_grps=cntl%nonort)
     ENDIF
     ! Initialize thermostats
     IF (paral%parent) THEN
@@ -640,17 +650,23 @@ CONTAINS
     CALL write_irec(irec)
     ! EVALUATE KINETIC ENERGY FOR BROKEN SYMMETRY STATE WAVEFUNCTIONS
     IF (cntl%bsymm)THEN
-       CALL rekine(cm,nstate,ekinc)
+       CALL rekine(cm,nstate,ekinc,use_cp_grps=cntl%nonort)
        ekinc_bs=ekinc
        ! EVALUATE KINETIC ENERGY FOR HIGH SPIN STATE WAVEFUNCTIONS
-       CALL rekine(cm(1,1,2),nstate,ekinc)
+       CALL rekine(cm(1,1,2),nstate,ekinc,use_cp_grps=cntl%nonort)
        ekinc_hs=ekinc
     ENDIF
     ! ==--------------------------------------------------------------==
     ! == END INITIALIZATION                                           ==
     ! ==--------------------------------------------------------------==
-    IF (teststore(0).AND.cntl%tsampl)&
-         CALL zhwwf(2,irec,c0,cm,nstate,eigv,taup,velp,taui,iteropt%nfi)
+    IF (teststore(0).AND.cntl%tsampl)THEN
+       IF(parai%cp_nogrp.GT.1.AND.cntl%nonort)THEN
+          CALL cp_grp_redist_array_f(c0,ncpw%ngw,nstate)
+          CALL cp_grp_redist_array_f(c2,ncpw%ngw,nstate)
+          CALL cp_grp_redist_array_f(cm,ncpw%ngw,nstate)
+       END IF
+       CALL zhwwf(2,irec,c0,cm,nstate,eigv,taup,velp,taui,iteropt%nfi)
+    END IF
     IF (paral%parent) THEN
        time2 =m_walltime()
        tcpu = (time2 - time1)*0.001_real_8
@@ -683,12 +699,12 @@ CONTAINS
        tstrng=cntl%tpmin.AND.MOD(iteropt%nfi,cnti%nomore).EQ.0
        ! ANNEALING
        bsclcs=1
-       CALL berendsen(velp,cm(1,1,1),nstate,dummy,ekinc,0.0_real_8)
-       CALL anneal(velp,cm(1,1,1),nstate,dummy)
+       CALL berendsen(velp,cm(1,1,1),nstate,dummy,ekinc,0.0_real_8,use_cp_grps=cntl%nonort)
+       CALL anneal(velp,cm(1,1,1),nstate,dummy,use_cp_grps=cntl%nonort)
        IF (cntl%bsymm)THEN
           bsclcs=2
-          CALL anneal(velp,cm(1,1,2),nstate,dummy)
-          CALL berendsen(velp,cm(1,1,2),nstate,dummy,ekinc,0.0_real_8)
+          CALL anneal(velp,cm(1,1,2),nstate,dummy,use_cp_grps=cntl%nonort)
+          CALL berendsen(velp,cm(1,1,2),nstate,dummy,ekinc,0.0_real_8,use_cp_grps=cntl%nonort)
        ENDIF
        ! SUBTRACT CENTER OF MASS VELOCITY
        IF (paral%parent.AND.comvl%subcom) CALL comvel(velp,vcmio,.TRUE.)
@@ -697,21 +713,21 @@ CONTAINS
        ! UPDATE NOSE THERMOSTATS
        ! -FOR BROKEN SYMMETRY
        bsclcs=1
-       CALL noseup(velp,cm,nstate,ipwalk)
+       CALL noseup(velp,cm,nstate,ipwalk,use_cp_grps=cntl%nonort)
        ! FIRST HALF OF GLE EVOLUTION
        IF (glepar%gle_mode.GT.0) CALL gle_step(tau0,velp,rmass%pma)
 
        ! -FOR HIGH SPIN 
        IF (cntl%bsymm)THEN
           bsclcs=2
-          CALL noseup(velp,cm(1,1,2),nstate,2)
+          CALL noseup(velp,cm(1,1,2),nstate,2,use_cp_grps=cntl%nonort)
        ENDIF
        ! UPDATE VELOCITIES
        IF (paral%parent) CALL velupi(velp,fion,1)
        ! UPDATE BROKEN SYMMETRY WF VELOCITIES
-       CALL velupa(c0,cm,c2,nstate,1)
+       CALL velupa(c0,cm,c2,nstate,1,use_cp_grps=cntl%nonort)
        ! UPDATE HIGH SPIN WF VELOCITIES
-       IF (cntl%bsymm)CALL velupa(c0(:,:,2),cm(1,1,2),c2(:,:,2),nstate,1)
+       IF (cntl%bsymm)CALL velupa(c0(:,:,2),cm(1,1,2),c2(:,:,2),nstate,1,use_cp_grps=cntl%nonort)
 #if defined (__QMECHCOUPL)
        IF (paral%parent .AND. qmmech) THEN
           CALL mm_cpmd_velup(cntr%delt_ions)
@@ -742,13 +758,13 @@ CONTAINS
        ! BROKEN SYMMETRY WF UPDATED USING VELOCITY VERLET
        bsclcs=1
        IF (cntl%bsymm)CALL setbsstate
-       CALL posupa(c0,cm,c2,gamx,nstate)
+       CALL posupa(c0,cm,c2,gamx,nstate,use_cp_grps=cntl%nonort)
        ! HIGH SPIN WF UPDATED USING VELOCITY VERLET
        IF (cntl%bsymm)THEN
           bsclcs=2
           CALL setbsstate
           CALL posupa(c0(:,:,2),cm(1,1,2),c2(:,:,2),gamx(1,2),&
-               nstate)
+               nstate,use_cp_grps=cntl%nonort)
        ENDIF
        ! ..Dipole moment
        ! !!! NOT ACTIVATED FOR BROKEN SYMMETRY !!!
@@ -794,14 +810,14 @@ CONTAINS
        ENDIF
        ! ==================================================================
        ! Damped Dynamics
-       CALL dampdyn(velp,fion,cm(1,1,1),c2(:,:,1),nstate,dummy,dummy)
+       CALL dampdyn(velp,fion,cm(1,1,1),c2(:,:,1),nstate,dummy,dummy,use_cp_grps=cntl%nonort)
        IF (cntl%bsymm)THEN
           bsclcs=2
-          CALL dampdyn(velp,fion,cm(1,1,2),c2(:,:,2),nstate,dummy,dummy)
+          CALL dampdyn(velp,fion,cm(1,1,2),c2(:,:,2),nstate,dummy,dummy,use_cp_grps=cntl%nonort)
        ENDIF
        ! ==================================================================
        ! Meta Dynamics of Collective Variables
-
+       ! TODO: We should move this to forcedr_driver
        IF (lmeta%lcolvardyn) THEN
           lquench = .FALSE.
           lmetares= .FALSE.
@@ -867,17 +883,20 @@ CONTAINS
 
        ! ==================================================================
        ! IF (lmeta%lcolvardyn .AND. paral%parent) THEN ! bugfix
-       IF (lmeta%lcolvardyn .AND. paral%io_parent) THEN
-
+       ! TODO: This should be moved to forcedr_driver!
+       IF (lmeta%lcolvardyn .AND. paral%parent) THEN
+          IF (paral%io_parent) THEN
           ! Additional Contribution to FION due to the Metadynamics
           ! (from coupling pot.if extended Lagrangian, directly from V(S,t) if not)
-          DO is = 1,ions1%nsp
-             DO ia = 1,ions0%na(is)
-                fion(1,ia,is) = fion(1,ia,is) + fhills(1,ia,is)
-                fion(2,ia,is) = fion(2,ia,is) + fhills(2,ia,is)
-                fion(3,ia,is) = fion(3,ia,is) + fhills(3,ia,is)
+             DO is = 1,ions1%nsp
+                DO ia = 1,ions0%na(is)
+                   fion(1,ia,is) = fion(1,ia,is) + fhills(1,ia,is)
+                   fion(2,ia,is) = fion(2,ia,is) + fhills(2,ia,is)
+                   fion(3,ia,is) = fion(3,ia,is) + fhills(3,ia,is)
+                ENDDO
              ENDDO
-          ENDDO
+          ENDIF
+          CALL mp_bcast(fion,3*maxsys%nax*maxsys%nsx,parai%io_source,parai%cp_inter_grp)
        ENDIF
 
 
@@ -912,15 +931,15 @@ CONTAINS
        ! UPDATE BROKEN_SYMMETRY_WAVEFUNCTION_VELOCITIES
        bsclcs=1
        IF (cntl%bsymm)CALL setbsstate
-       CALL velupa(c0,cm,c2,nstate,1)
-       CALL rortv(c0,cm,c2,sc0,gamy,nstate)
+       CALL velupa(c0,cm,c2,nstate,1,use_cp_grps=cntl%nonort)
+       CALL rortv(c0,cm,c2,sc0,gamy,nstate,use_cp_grps=cntl%nonort)
        ! UPDATE HIGH_SPIN_WAVEFUNCTION_VELOCITIES
        IF (cntl%bsymm)THEN
           bsclcs=2
           CALL setbsstate
-          CALL velupa(c0(:,:,2),cm(1,1,2),c2(:,:,2),nstate,1)
+          CALL velupa(c0(:,:,2),cm(1,1,2),c2(:,:,2),nstate,1,use_cp_grps=cntl%nonort)
           CALL rortv(c0(:,:,2),cm(1,1,2),c2(:,:,2),sc0(1,1,2),&
-               gamy(1,2),nstate)
+               gamy(1,2),nstate,use_cp_grps=cntl%nonort)
        ENDIF
 
        IF (paral%parent) CALL geofile(taup,velp,'WRITE')
@@ -963,31 +982,31 @@ CONTAINS
 
        ! UPDATE NOSE THERMOSTATS
        IF (cntl%tnosee.OR.cntl%tc) THEN
-          CALL rekine(cm,nstate,ekinc)
+          CALL rekine(cm,nstate,ekinc,use_cp_grps=cntl%nonort)
           IF (cntl%bsymm)THEN
              ekinc_bs=ekinc
-             CALL rekine(cm(1,1,2),nstate,ekinc)
+             CALL rekine(cm(1,1,2),nstate,ekinc,use_cp_grps=cntl%nonort)
              ekinc_hs=ekinc
           ENDIF
        ENDIF
        ! UPDATE FOR BROKEN SYMMETRY 
        bsclcs=1
-       CALL noseup(velp,cm,nstate,ipwalk)
-       CALL berendsen(velp,cm(1,1,1),nstate,dummy,ekinc,0.0_real_8)
+       CALL noseup(velp,cm,nstate,ipwalk,use_cp_grps=cntl%nonort)
+       CALL berendsen(velp,cm(1,1,1),nstate,dummy,ekinc,0.0_real_8,use_cp_grps=cntl%nonort)
        ! UPDATE FOR HIGH SPIN 
        IF (cntl%bsymm)THEN
           bsclcs=2
-          CALL noseup(velp,cm(1,1,2),nstate,2)
-          CALL berendsen(velp,cm(1,1,2),nstate,dummy,ekinc,0.0_real_8)
+          CALL noseup(velp,cm(1,1,2),nstate,2,use_cp_grps=cntl%nonort)
+          CALL berendsen(velp,cm(1,1,2),nstate,dummy,ekinc,0.0_real_8,use_cp_grps=cntl%nonort)
        ENDIF
        ! ANNEALING
        ! -FOR BROKEN SYMMETRY
        bsclcs=1
-       CALL anneal(velp,cm,nstate,dummy)
+       CALL anneal(velp,cm,nstate,dummy,use_cp_grps=cntl%nonort)
        ! FOR HIGH SPIN
        IF (cntl%bsymm)THEN
           bsclcs=2
-          CALL anneal(velp,cm(1,1,2),nstate,dummy)
+          CALL anneal(velp,cm(1,1,2),nstate,dummy,use_cp_grps=cntl%nonort)
        ENDIF
        IF (paral%parent) THEN
           CALL ekinpp(ekinp,velp)
@@ -1009,10 +1028,10 @@ CONTAINS
        ! MEAN SQUARE DISPLACEMENT OF DIFFERENT IONIC SPECIES
        IF (paral%parent) CALL dispp(taup,taui,disa)
        ! KINETIC ENERGY OF THE ELECTRONS
-       CALL rekine(cm,nstate,ekinc)
+       CALL rekine(cm,nstate,ekinc,use_cp_grps=cntl%nonort)
        IF (cntl%bsymm)THEN
           ekinc_bs=ekinc
-          CALL rekine(cm(1,1,2),nstate,ekinc)
+          CALL rekine(cm(1,1,2),nstate,ekinc,use_cp_grps=cntl%nonort)
           ekinc_hs=ekinc
           ! PROJECTED KINETIC ENERGY OF ELECTRONS
           ekinc=(scalhs*ekinc_hs)+(scalbs*ekinc_bs)
@@ -1098,6 +1117,11 @@ CONTAINS
           ENDIF
        ENDIF
        IF (teststore(iteropt%nfi).OR.soft_com%exsoft.OR.lmetares) THEN
+          IF(parai%cp_nogrp.GT.1.AND.cntl%nonort)THEN
+             CALL cp_grp_redist_array_f(c0,ncpw%ngw,nstate)
+             CALL cp_grp_redist_array_f(c2,ncpw%ngw,nstate)
+             CALL cp_grp_redist_array_f(cm,ncpw%ngw,nstate)
+          END IF
           CALL zhwwf(2,irec,c0,cm,nstate,eigv,taup,velp,taui,iteropt%nfi)
        ENDIF
        IF (soft_com%exsoft .AND.lmeta%lcolvardyn) THEN
@@ -1179,11 +1203,11 @@ CONTAINS
     ENDIF
     bsclcs=1
     IF (cntl%bsymm)CALL setbsstate
-    CALL csize(c2,crge%n,gemax,cnorm)
+    CALL csize(c2,crge%n,gemax,cnorm,use_cp_grps=cntl%nonort)
     IF (cntl%bsymm)THEN
        bsclcs=2
        CALL setbsstate
-       CALL csize(c2(:,:,2),crge%n,gemax,cnorm)
+       CALL csize(c2(:,:,2),crge%n,gemax,cnorm,use_cp_grps=cntl%nonort)
     ENDIF
     IF (paral%parent) CALL gsize(fion,gnmax,gnorm)
     IF (paral%parent) THEN

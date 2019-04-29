@@ -3,7 +3,8 @@
 MODULE forces_driver
   USE cp_grp_utils,                    ONLY: cp_grp_get_cp_rank,&
                                              cp_grp_get_sizes,&
-                                             cp_grp_redist
+                                             cp_grp_redist,&
+                                             cp_grp_redist_array_f
   USE csize_utils,                     ONLY: csize
   USE dotp_utils,                      ONLY: dotp
   USE efield_utils,                    ONLY: extfield
@@ -180,6 +181,7 @@ CONTAINS
        IF (ierr.NE.0) CALL stopgm(procedureN,'Allocation problem',&
             __LINE__,__FILE__)
        CALL dcopy(2*ncpw%ngw*nstate,c0,1,c0_ort,1)
+       IF(parai%cp_nogrp.GT.1) CALL cp_grp_redist_array_f(c0_ort,ncpw%ngw,nstate)
        c0_ptr=> c0_ort
        IF(pslo_com%tivan) CALL rnlsm(c0_ptr(:,:,1),nstate,1,1,.FALSE.,&
             unpack_dfnl_fnl=.FALSE.)
@@ -328,13 +330,14 @@ CONTAINS
                __LINE__,__FILE__)
           IF(cntl%distribute_fnl_rot)THEN
              CALL rotate_c0_fnl(ncpw%ngw,c0_ptr(:,:,ik),c2,il_fnl_packed(1),fnl_packed,&
-                  fnlgam_packed,nstate,gam,redist=.TRUE.)
+                  fnlgam_packed,nstate,gam,redist=.NOT.cntl%nonort)
           ELSE
              CALL rotate(-1.0_real_8,c0_ptr(:,:,ik),1.0_real_8,c2,gam,&
-                  nstate,2*nkpt%ngwk,cntl%tlsd,spin_mod%nsup,spin_mod%nsdown,symm=.TRUE.)
+                  nstate,2*nkpt%ngwk,cntl%tlsd,spin_mod%nsup,spin_mod%nsdown,symm=.TRUE.,&
+                  use_cp=.TRUE.,redist=.NOT.cntl%nonort)
              CALL rotate_fnl(il_fnl_packed(1),fnl_packed,fnlgam_packed,nstate,gam)
           END IF
-          CALL nlforce(c2,crge%f,fnl_packed,fnlgam_packed,nstate,redist=.TRUE.)
+          CALL nlforce(c2,crge%f,fnl_packed,fnlgam_packed,nstate,redist=.NOT.cntl%nonort)
           IF (tfor) THEN
              CALL rnlsm(c0_ptr(:,:,ik),nstate,1,ik,tfor,unpack_dfnl_fnl=.FALSE.,&
                   only_dfnl=.TRUE.)
@@ -473,7 +476,7 @@ CONTAINS
           ! ==   ROTATE ELECTRONIC FORCE BACK INTO NONORTHOGONAL BASIS      ==
           ! ==--------------------------------------------------------------==
           CALL rottr(1._real_8,c2,smat,"T",nstate,ncpw%ngw,cntl%tlsd,spin_mod%nsup,&
-               spin_mod%nsdown)
+               spin_mod%nsdown,redist=.NOT.cntl%nonort,use_cp=cntl%nonort)
           IF (geq0) CALL zclean(c2,nstate,ncpw%ngw)
        ELSE
           IF (geq0) THEN
