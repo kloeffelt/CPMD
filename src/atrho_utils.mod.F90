@@ -28,13 +28,15 @@ MODULE atrho_utils
   USE setbasis_utils,                  ONLY: loadc
   USE sfac,                            ONLY: ei1,&
                                              ei2,&
-                                             ei3
+                                             ei3,&
+                                             eigrb
   USE spin,                            ONLY: clsd
   USE system,                          ONLY: fpar,&
                                              maxsys,&
                                              ncpw,&
                                              parm,&
-                                             spar
+                                             spar,&
+                                             cntl
   USE timer,                           ONLY: tihalt,&
                                              tiset
   USE zeroing_utils,                   ONLY: zeroing
@@ -106,38 +108,37 @@ CONTAINS
     natsave=0
     DO is=1,ions1%nsp
        CALL atdens(is,datom)
-#if defined(__VECTOR)
-       !$omp parallel do private(IG,IA,ISA,TSFAC,AR) shared(NSPLPO)
-#else
-       !$omp parallel do private(IG,IA,ISA,TSFAC,AR) shared(NSPLPO)&
-       !$omp  schedule(static)
-#endif
-#ifdef __SR8000
-       !poption parallel, tlocal(IG,IA,ISA,TSFAC,AR)
-#endif 
-
-       DO ig=1,ncpw%nhg
-          tsfac=CMPLX(0._real_8,0._real_8,kind=real_8)
-          DO ia=1,ions0%na(is)
-             isa=isa0+ia
-             tsfac=tsfac+ei1(isa,inyh(1,ig))*ei2(isa,inyh(2,ig))*&
-                  ei3(isa,inyh(3,ig))
+       IF(cntl%bigmem)THEN
+          !$omp parallel do private(IG,IA,ISA,TSFAC,AR) shared(NSPLPO)&
+          !$omp  schedule(static)
+          DO ig=1,ncpw%nhg
+             tsfac=CMPLX(0._real_8,0._real_8,kind=real_8)
+             DO ia=1,ions0%na(is)
+                isa=isa0+ia
+                tsfac=tsfac+eigrb(ig,isa)
+             ENDDO
+             ar=curv2(hg(ig),nsplpo,ggnh(1),datom(1,1),datom(1,2),0._real_8)
+             rhog(ig)=rhog(ig) + ar*vol*tsfac
           ENDDO
-          ar=curv2(hg(ig),nsplpo,ggnh(1),datom(1,1),datom(1,2),0._real_8)
-          rhog(ig)=rhog(ig) + ar*vol*tsfac
-       ENDDO
+       ELSE
+          !$omp parallel do private(IG,IA,ISA,TSFAC,AR) shared(NSPLPO)&
+          !$omp  schedule(static)
+          DO ig=1,ncpw%nhg
+             tsfac=CMPLX(0._real_8,0._real_8,kind=real_8)
+             DO ia=1,ions0%na(is)
+                isa=isa0+ia
+                tsfac=tsfac+ei1(isa,inyh(1,ig))*ei2(isa,inyh(2,ig))*&
+                     ei3(isa,inyh(3,ig))
+             ENDDO
+             ar=curv2(hg(ig),nsplpo,ggnh(1),datom(1,1),datom(1,2),0._real_8)
+             rhog(ig)=rhog(ig) + ar*vol*tsfac
+          ENDDO
+       END IF
        isa0=isa0+ions0%na(is)
     ENDDO
     CALL zeroing(psi)!,maxfft)
     !CDIR NODEP
-#if defined(__VECTOR)
-    !$omp parallel do private(IG)
-#else
     !$omp parallel do private(IG) schedule(static)
-#endif
-#ifdef __SR8000
-    !poption parallel, tlocal(IG)
-#endif 
     DO ig=1,ncpw%nhg
        psi(indz(ig)) = CONJG(rhog(ig))
        psi(nzh(ig))  = rhog(ig)
@@ -149,11 +150,7 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     ! COMPUTE THE INTEGRAL OF THE CHARGE DENSITY IN REAL SPACE
     rsum1=0._real_8
-#if defined(__VECTOR)
-    !$omp parallel do private(IR,RDUM) reduction(+:RSUM1)
-#else
     !$omp parallel do private(IR,RDUM) reduction(+:RSUM1) schedule(static)
-#endif
     DO ir=1,fpar%nnr1
        rdum = REAL(psi(ir))
        rhoe(ir)= rdum

@@ -1,7 +1,3 @@
-#if defined(__SR11000)
-!option OPT(O(ss))
-#endif
-
 MODULE phfac_utils
   USE cppt,                            ONLY: inyh
   USE error_handling,                  ONLY: stopgm
@@ -13,7 +9,9 @@ MODULE phfac_utils
                                              eikr,&
                                              rk
   USE kpts,                            ONLY: tkpts
-  USE parac,                           ONLY: paral
+  !$ USE omp_lib,                         ONLY: omp_get_thread_num
+  USE parac,                           ONLY: paral, &
+                                             parai
   USE prmem_utils,                     ONLY: prmem
   USE sfac,                            ONLY: ei1,&
                                              ei2,&
@@ -53,11 +51,12 @@ CONTAINS
                                                 ei30, svtmpm, svtmpp, zsum
     INTEGER                                  :: i, ia, ierr, ig, ik, ikk, &
                                                 ikpt, is, isa, isub, j, k, &
-                                                nh1, nh2, nh3
+                                                nh1, nh2, nh3, il_ei1t(2), &
+                                                il_ei2t(2), il_ei3t(2), methread
     INTEGER, SAVE                            :: ifirst = 0
     REAL(real_8)                             :: ar1, ar2, ar3, sum, sum1, &
                                                 sum2, sum3
-
+    COMPLEX(real_8),ALLOCATABLE              :: ei1t(:,:), ei2t(:,:), ei3t(:,:)
 ! ==--------------------------------------------------------------==
 
     IF (spar%nr1s.LT.3) THEN
@@ -73,10 +72,21 @@ CONTAINS
             __LINE__,__FILE__)
     ENDIF
     ! ==--------------------------------------------------------------==
-    CALL tiset('     PHFAC',isub)
+    CALL tiset(procedureN,isub)
     IF (ifirst.EQ.0) THEN
+       !TK either eigrb or ei1-3
        IF (cntl%bigmem) THEN
           ALLOCATE(eigrb(ncpw%nhg,ions1%nat),STAT=ierr)
+          IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+               __LINE__,__FILE__)
+       ELSE
+          ALLOCATE(ei1(natx,(2*spar%nr1s-1)),STAT=ierr)
+          IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+               __LINE__,__FILE__)
+          ALLOCATE(ei2(natx,(2*spar%nr2s-1)),STAT=ierr)
+          IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+               __LINE__,__FILE__)
+          ALLOCATE(ei3(natx,(2*spar%nr3s-1)),STAT=ierr)
           IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
                __LINE__,__FILE__)
        ENDIF
@@ -92,40 +102,50 @@ CONTAINS
           IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
                __LINE__,__FILE__)
        ENDIF
-       ALLOCATE(ei1(natx,(2*spar%nr1s-1)),STAT=ierr)
-       IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
-            __LINE__,__FILE__)
-       ALLOCATE(ei2(natx,(2*spar%nr2s-1)),STAT=ierr)
-       IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
-            __LINE__,__FILE__)
-       ALLOCATE(ei3(natx,(2*spar%nr3s-1)),STAT=ierr)
-       IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
-            __LINE__,__FILE__)
        ifirst  = 1
        IF (paral%parent) THEN
           CALL prmem('     PHFAC')
        ENDIF
     ENDIF
+    !TK temporary arrays
+    il_ei1t(1)=2*spar%nr1s-1
+    il_ei1t(2)=parai%ncpus
+    il_ei2t(1)=2*spar%nr2s-1
+    il_ei2t(2)=parai%ncpus
+    il_ei3t(1)=2*spar%nr3s-1
+    il_ei3t(2)=parai%ncpus
+    ALLOCATE(ei1t(il_ei1t(1),il_ei2t(2)),STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+         __LINE__,__FILE__)
+    ALLOCATE(ei2t(il_ei2t(1),il_ei2t(2)),STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+         __LINE__,__FILE__)
+    ALLOCATE(ei3t(il_ei3t(1),il_ei3t(2)),STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+         __LINE__,__FILE__)
     ! ==--------------------------------------------------------------==
-    nh1=spar%nr1s/2+1
-    nh2=spar%nr2s/2+1
-    nh3=spar%nr3s/2+1
-    !$omp parallel do private(ISA,IA,IS,SUM1,SUM2,SUM3,AR1,AR2,AR3) &
-    !$omp private(CTEP1,CTEP2,CTEP3,CTEM1,CTEM2,CTEM3) &
-    !$omp private(SVTMPP,SVTMPM,I,J,K,EI10,EI20,EI30) &
-    !$omp shared(NH1,NH2,NH3)
+    nh1=spar%nr1s/2
+    nh2=spar%nr2s/2
+    nh3=spar%nr3s/2
+    methread=1
+    !$omp parallel private(isa,ia,is,sum1,sum2,sum3,ar1,ar2,ar3) &
+    !$omp private(ctep1,ctep2,ctep3,ctem1,ctem2,ctem3) &
+    !$omp private(svtmpp,svtmpm,i,j,k,ei10,ei20,ei30,methread) &
+    !$omp shared(nh1,nh2,nh3)
+    !$ methread=omp_get_thread_num()+1
+    !$omp do
     DO isa=1,ions1%nat
        ia=iatpt(1,isa)
        is=iatpt(2,isa)
-       sum1=gvec_com%b1(1)*tau0(1,ia,is)+gvec_com%b1(2)*tau0(2,ia,is)+gvec_com%b1(3)*tau0(3,ia,is)
-       sum2=gvec_com%b2(1)*tau0(1,ia,is)+gvec_com%b2(2)*tau0(2,ia,is)+gvec_com%b2(3)*tau0(3,ia,is)
-       sum3=gvec_com%b3(1)*tau0(1,ia,is)+gvec_com%b3(2)*tau0(2,ia,is)+gvec_com%b3(3)*tau0(3,ia,is)
+       sum1=gvec_com%b1(1)*tau0(1,ia,is)+gvec_com%b1(2)*tau0(2,ia,is)+&
+            gvec_com%b1(3)*tau0(3,ia,is)
+       sum2=gvec_com%b2(1)*tau0(1,ia,is)+gvec_com%b2(2)*tau0(2,ia,is)+&
+            gvec_com%b2(3)*tau0(3,ia,is)
+       sum3=gvec_com%b3(1)*tau0(1,ia,is)+gvec_com%b3(2)*tau0(2,ia,is)+&
+            gvec_com%b3(3)*tau0(3,ia,is)
        ar1=parm%tpiba*sum1
        ar2=parm%tpiba*sum2
        ar3=parm%tpiba*sum3
-       ei1(isa,1)=CMPLX(1.0_real_8,0.0_real_8,kind=real_8)
-       ei2(isa,1)=CMPLX(1.0_real_8,0.0_real_8,kind=real_8)
-       ei3(isa,1)=CMPLX(1.0_real_8,0.0_real_8,kind=real_8)
        ctep1=CMPLX(COS(ar1),-SIN(ar1),kind=real_8)
        ctep2=CMPLX(COS(ar2),-SIN(ar2),kind=real_8)
        ctep3=CMPLX(COS(ar3),-SIN(ar3),kind=real_8)
@@ -133,84 +153,70 @@ CONTAINS
        ctem2=CONJG(ctep2)
        ctem3=CONJG(ctep3)
 
+       ei10=ctep1**(-nh1)
+       ei1t(1,methread)=CMPLX(1.0_real_8,0.0_real_8,kind=real_8)*ei10
        svtmpp=ctep1
        svtmpm=ctem1
        DO i=2,spar%nr1s
-          ei1(isa,i)=svtmpp
+          ei1t(i,methread)=svtmpp*ei10
           svtmpp=svtmpp*ctep1
-          ei1(isa,spar%nr1s+i-1)=svtmpm
+          ei1t(spar%nr1s+i-1,methread)=svtmpm*ei10
           svtmpm=svtmpm*ctem1
-       ENDDO
+       END DO
 
+       ei20=ctep2**(-nh2)
+       ei2t(1,methread)=CMPLX(1.0_real_8,0.0_real_8,kind=real_8)*ei20
        svtmpp=ctep2
        svtmpm=ctem2
        DO j=2,spar%nr2s
-          ei2(isa,j)=svtmpp
+          ei2t(j,methread)=svtmpp*ei20
           svtmpp=svtmpp*ctep2
-          ei2(isa,spar%nr2s+j-1)=svtmpm
+          ei2t(spar%nr2s+j-1,methread)=svtmpm*ei20
           svtmpm=svtmpm*ctem2
-       ENDDO
+       END DO
 
+       ei30=ctep3**(-nh3)
+       ei3t(1,methread)=CMPLX(1.0_real_8,0.0_real_8,kind=real_8)*ei30
        svtmpp=ctep3
        svtmpm=ctem3
        DO k=2,spar%nr3s
-          ei3(isa,k)=svtmpp
+          ei3t(k,methread)=svtmpp*ei30
           svtmpp=svtmpp*ctep3
-          ei3(isa,spar%nr3s+k-1)=svtmpm
+          ei3t(spar%nr3s+k-1,methread)=svtmpm*ei30
           svtmpm=svtmpm*ctem3
-       ENDDO
+       END DO
 
-       ei10=1._real_8/ei1(isa,nh1)
-       ei20=1._real_8/ei2(isa,nh2)
-       ei30=1._real_8/ei3(isa,nh3)
-#ifdef __SR8000
-       !poption parallel, tlocal(I)
-#endif 
-       DO i=1,2*spar%nr1s-1
-          ei1(isa,i)=ei1(isa,i)*ei10
-       ENDDO
-#ifdef __SR8000
-       !poption parallel, tlocal(J)
-#endif 
-       DO j=1,2*spar%nr2s-1
-          ei2(isa,j)=ei2(isa,j)*ei20
-       ENDDO
-#ifdef __SR8000
-       !poption parallel, tlocal(K)
-#endif 
-       DO k=1,2*spar%nr3s-1
-          ei3(isa,k)=ei3(isa,k)*ei30
-       ENDDO
-    ENDDO
-    ! ==--------------------------------------------------------------==
-#ifdef __SR8000 
-    !poption parallel 
-#endif 
-#ifdef _vpp_
-    !OCL NOALIAS
-#endif
-    !$omp parallel do private (ISA,IG)
-    DO isa=1,ions1%nat
-       DO ig=1,ncpw%ngw
-          eigr(ig,isa,1)=ei1(isa,inyh(1,ig))*ei2(isa,inyh(2,ig))*&
-               ei3(isa,inyh(3,ig))
-       ENDDO
-    ENDDO
-    IF (cntl%bigmem) THEN
-#ifdef __SR8000 
-       !poption parallel 
-#endif 
-#ifdef _vpp_
-       !OCL NOALIAS
-#endif
-       !$omp parallel do private (ISA,IG)
-       DO isa=1,ions1%nat
-          DO ig=1,ncpw%nhg
-             eigrb(ig,isa)=ei1(isa,inyh(1,ig))*ei2(isa,inyh(2,ig))*ei3(&
-                  isa,inyh(3,ig))
-          ENDDO
-       ENDDO
-    ENDIF
+       ! ==--------------------------------------------------------------==
+       IF (cntl%bigmem) THEN
+          DO ig=1,ncpw%ngw
+             eigr(ig,isa,1)=ei1t(inyh(1,ig),methread)*ei2t(inyh(2,ig),methread)&
+                  *ei3t(inyh(3,ig),methread)
+             eigrb(ig,isa)=ei1t(inyh(1,ig),methread)*ei2t(inyh(2,ig),methread)&
+                  *ei3t(inyh(3,ig),methread)
+          END DO
+          DO ig=ncpw%ngw+1,ncpw%nhg
+             eigrb(ig,isa)=ei1t(inyh(1,ig),methread)*ei2t(inyh(2,ig),methread)&
+                  *ei3t(inyh(3,ig),methread)
+          END DO
+       ELSE
+       !TK ei1-3 only needed if bigmem is not active
+          DO ig=1,ncpw%ngw
+             eigr(ig,isa,1)=ei1t(inyh(1,ig),methread)*ei2t(inyh(2,ig),methread)&
+                  *ei3t(inyh(3,ig),methread)
+          END DO
+          DO ig=1,2*spar%nr1s-1
+             ei1(isa,ig)=ei1t(ig,methread)
+          END DO
+          DO ig=1,2*spar%nr2s-1
+             ei2(isa,ig)=ei2t(ig,methread)
+          END DO
+          DO ig=1,2*spar%nr3s-1
+             ei3(isa,ig)=ei3t(ig,methread)
+          END DO
+       END IF
+    END DO
+    !$omp end do nowait
+    !$omp end parallel
     ! ==--------------------------------------------------------------==
     IF (tkpts%tkpnt) THEN
        DO ikpt=1,nkpt%nblkp
@@ -220,25 +226,25 @@ CONTAINS
              DO isa=1,ions1%nat
                 ia=iatpt(1,isa)
                 is=iatpt(2,isa)
-                sum1=gvec_com%b1(1)*tau0(1,ia,is)+gvec_com%b1(2)*tau0(2,ia,is)+gvec_com%b1(3)*tau0(3,&
-                     ia,is)
-                sum2=gvec_com%b2(1)*tau0(1,ia,is)+gvec_com%b2(2)*tau0(2,ia,is)+gvec_com%b2(3)*tau0(3,&
-                     ia,is)
-                sum3=gvec_com%b3(1)*tau0(1,ia,is)+gvec_com%b3(2)*tau0(2,ia,is)+gvec_com%b3(3)*tau0(3,&
-                     ia,is)
+                sum1=gvec_com%b1(1)*tau0(1,ia,is)+gvec_com%b1(2)*tau0(2,ia,is)+&
+                     gvec_com%b1(3)*tau0(3,ia,is)
+                sum2=gvec_com%b2(1)*tau0(1,ia,is)+gvec_com%b2(2)*tau0(2,ia,is)+&
+                     gvec_com%b2(3)*tau0(3,ia,is)
+                sum3=gvec_com%b3(1)*tau0(1,ia,is)+gvec_com%b3(2)*tau0(2,ia,is)+&
+                     gvec_com%b3(3)*tau0(3,ia,is)
                 sum=rk(1,ikk)*sum1+rk(2,ikk)*sum2+rk(3,ikk)*sum3
                 zsum=CMPLX(COS(sum),SIN(sum),kind=real_8)
                 eikr(ikk,isa)=zsum
                 DO ig=1,ncpw%ngw
                    eigkr(ig,isa,ik)=eigr(ig,isa,1)*zsum
                    eigkr(ig+ncpw%ngw,isa,ik)=CONJG(eigr(ig,isa,1))*zsum
-                ENDDO
-             ENDDO
-          ENDDO
+                END DO
+             END DO
+          END DO
           IF (tkpts%tkblock) THEN
              CALL wkpt_swap(eigkr,1,ikpt,'EIGKR')
           ENDIF
-       ENDDO
+       END DO
     ELSE
        ! kpt..not to duplicate code.
        ! NB: it is impossible to achieve this using Fortran 90, because
@@ -255,7 +261,18 @@ CONTAINS
        ! TODO: fix this!
        eigkr => eigr
     ENDIF
-    CALL tihalt('     PHFAC',isub)
+
+    DEALLOCATE(ei1t,STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+         __LINE__,__FILE__)
+    DEALLOCATE(ei2t,STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+         __LINE__,__FILE__)
+    DEALLOCATE(ei3t,STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+         __LINE__,__FILE__)
+
+    CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE phfac
