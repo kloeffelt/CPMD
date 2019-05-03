@@ -13,6 +13,7 @@ MODULE hpsi_utils
   USE kpts,                            ONLY: tkpts
   USE pslo,                            ONLY: pslo_com
   USE rnlsm_utils,                     ONLY: rnlsm
+  USE sfac,                            ONLY: fnl_packed
   USE spin,                            ONLY: lspin2
   USE spsi_utils,                      ONLY: spsi
   USE system,                          ONLY: cntl,&
@@ -97,7 +98,7 @@ CONTAINS
     ENDDO
     IF (pslo_com%tivan) THEN
        CALL dcopy(2*nkpt%ngwk*nstate,c0(1,1),1,sc0(1,1),1)
-       CALL spsi(nstate,sc0)
+       CALL spsi(nstate,sc0,fnl_packed,redist=.TRUE.)
     ENDIF
     ! ==--------------------------------------------------------------==
     ! == Compute the force on the electronic degrees of freedom due   ==

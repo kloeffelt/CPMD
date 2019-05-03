@@ -15,10 +15,10 @@ MODULE davidson_utils
                                              paral
   USE pslo,                            ONLY: pslo_com
   USE rnlsm_utils,                     ONLY: rnlsm
+  USE sfac,                            ONLY: fnl_packed
   USE soft,                            ONLY: soft_com
   USE sort_utils,                      ONLY: sort2
-  USE spsi_utils,                      ONLY: give_scr_spsi,&
-                                             spsi
+  USE spsi_utils,                      ONLY: spsi
   USE system,                          ONLY: cnti,&
                                              cntl,&
                                              cntr,&
@@ -330,7 +330,7 @@ CONTAINS
        IF (pslo_com%tivan) THEN
           CALL rnlsm(c0(:,ncurr+1:ncurr+nnew),nnew,1,1,.FALSE.)
           CALL dcopy(2*ncpw%ngw*nnew,c0(1,ncurr+1),1,sc0(1,ncurr+1),1)
-          CALL spsi(nnew,sc0(1,ncurr+1))
+          CALL spsi(nnew,sc0(1,ncurr+1),fnl_packed,redist=.TRUE.)
           CALL vgsortho(c0,sc0,ncpw%ngw,ncurr+1,ncurr+nnew)
        ELSE
           CALL gs_ortho(c0,ncurr,c0(:,ncurr+1:ncurr+nnew),nnew)
@@ -484,15 +484,14 @@ CONTAINS
     INTEGER                                  :: ndiag, nadd
 
     INTEGER                                  :: ldspevy, lhpsi, &
-                                                lscr2, lspsi
+                                                lscr2
 
     lscr2 =  ndiag+        & ! INDEX
          nadd*(nadd+1)/2+     & ! ADAV
          nadd*nadd            ! UDAV
     CALL give_scr_hpsi(lhpsi,tag,ndiag)
     ldspevy=3*ndiag
-    CALL give_scr_spsi(lspsi,tag)
-    ldavidson=lscr2+MAX(lhpsi,ldspevy,lspsi)+200
+    ldavidson=lscr2+MAX(lhpsi,ldspevy)+200
     tag='LSCR+MAX(HPSI,DIAG,RNLSM,SPSI)'
     ! ==--------------------------------------------------------------==
     RETURN

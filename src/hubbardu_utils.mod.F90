@@ -51,10 +51,10 @@ USE ropt,                           ONLY: iteropt
 USE sfac,                           ONLY: dfnl,&
                                           eigr,&
                                           ei1,ei2,ei3,eigrb,&
-                                          fnl
+                                          fnl,&
+                                          fnl_packed
 USE spin,                           ONLY: spin_mod
-USE spsi_utils,                     ONLY: spsi,&
-                                          give_scr_spsi
+USE spsi_utils,                     ONLY: spsi
 USE sphe,                           ONLY: gcutka
 USE system,                         ONLY: cntl,&
                                           iatpt,&
@@ -312,7 +312,7 @@ USE zeroing_utils,                  ONLY: zeroing
       IF(pslo_com%tivan)THEN
         CALL rnlsm(myc0,nstate,1,1,.false.)
 !       |S|psi>
-        CALL spsi(nstate,myc0)
+        CALL spsi(nstate,myc0,fnl_packed,redist=.TRUE.)
       END IF
 !
 ! Load atomic orbitals and store it for further use
@@ -465,7 +465,7 @@ USE zeroing_utils,                  ONLY: zeroing
         CALL FNL_SET('SAVE')
         CALL FNLALLOC(hubbu%nuproj,.FALSE.,.FALSE.)
         CALL rnlsm(myscr,hubbu%nuproj,1,1,.false.)
-        CALL spsi(hubbu%nuproj,myscr)
+        CALL spsi(hubbu%nuproj,myscr,fnl_packed,redist=.TRUE.)
         CALL FNLDEALLOC(.FALSE.,.FALSE.)
         CALL FNL_SET('RECV')
         cntl%tlsd=TLSD_BAK
@@ -756,7 +756,7 @@ USE zeroing_utils,                  ONLY: zeroing
         CALL FNLALLOC(hubbu%nuproj,.FALSE.,.FALSE.)
 !GM FIXME fix the call
         CALL rnlsm(sca,hubbu%nuproj,1,1,.false.)
-        CALL spsi(hubbu%nuproj,sca)
+        CALL spsi(hubbu%nuproj,sca,fnl_packed,redist=.TRUE.)
         CALL FNLDEALLOC(.FALSE.,.FALSE.)
         CALL FNL_SET('RECV')
         cntl%tlsd=TLSD_BAK
@@ -1146,14 +1146,12 @@ USE zeroing_utils,                  ONLY: zeroing
     CHARACTER(*), PARAMETER     ::  procedureN = 'give_scr_hubbardu'
     CHARACTER(len=30)           ::  TAG
 
-    INTEGER                     ::  L_ORTHO,L_SPSI,NOMAX
+    INTEGER                     ::  L_ORTHO,NOMAX
 !  ==--------------------------------------------------------------==
   IF(cntl%thubb)THEN 
     NOMAX=MAX(hubbu%nuproj,NSTATE)
     CALL GIVE_SCR_ORTHO(L_ORTHO,TAG,NOMAX)
-    CALL GIVE_SCR_SPSI(L_SPSI,TAG)
     L_DFTU=MAX(1,L_ORTHO)
-    L_DFTU=MAX(L_DFTU,L_SPSI)
   ELSE
     L_DFTU=0
   END IF
