@@ -1,6 +1,5 @@
 MODULE forces_utils
   USE fft_maxfft,                      ONLY: maxfft
-  USE fnonloc_utils,                   ONLY: give_scr_fnonloc
   USE jrotation_utils,                 ONLY: set_orbdist
   USE nlps,                            ONLY: imagp
   USE opeigr_utils,                    ONLY: give_scr_opeigr
@@ -28,7 +27,7 @@ CONTAINS
     INTEGER                                  :: nstate
     LOGICAL                                  :: lproj, tfor
 
-    INTEGER :: il_amat, il_auxc, il_ddia, il_fsc, il_gam, il_psiab, il_scr, &
+    INTEGER :: il_amat, il_auxc, il_fsc, il_gam, il_psiab, il_scr, &
       il_scrdip, lrscpot, lsymvec, nstx
 
     lsymvec=0
@@ -38,17 +37,10 @@ CONTAINS
     ENDIF
     CALL give_scr_rscpot(lrscpot,tag,ropt_mod%calste)
     il_auxc=0
-    IF (pslo_com%tivan .AND. lproj .AND. cnti%iproj.NE.0) THEN
-       il_gam = imagp*nstate*nstate
-       il_auxc=0
-       il_ddia=0
+    IF (cntl%tdmal) THEN
+       il_gam = 1
     ELSE
-       CALL give_scr_fnonloc(il_auxc,il_ddia,nstate)
-       IF (cntl%tdmal) THEN
-          il_gam = 1
-       ELSE
-          il_gam = imagp*nstate*nstate
-       ENDIF
+       il_gam = imagp*nstate*nstate
     ENDIF
     il_scrdip=0
     IF (cntl%tfield) CALL give_scr_opeigr(il_scrdip,tag,nstate)
@@ -62,7 +54,7 @@ CONTAINS
     il_fsc=nstate
     il_psiab=2
     IF (lspin2%tlse) il_psiab=2*maxfft
-    il_scr=il_gam+il_auxc+il_ddia+il_fsc+il_psiab+il_scrdip+100
+    il_scr=il_gam+il_auxc+il_fsc+il_psiab+il_scrdip+100
     il_scr=il_scr+il_amat
     lforces = MAX(lrscpot,lsymvec,il_scr)
     ! ==--------------------------------------------------------------==

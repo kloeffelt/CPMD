@@ -7,8 +7,7 @@ MODULE k_forces_driver
   USE elct,                            ONLY: crge
   USE ener,                            ONLY: ener_com
   USE error_handling,                  ONLY: stopgm
-  USE fnonloc_utils,                   ONLY: fnonloc,&
-                                             give_scr_fnonloc
+  USE fnonloc_utils,                   ONLY: fnonloc
   USE forces_driver,                   ONLY: gscal,&
                                              gscal_c
   USE frsblk_c_utils,                  ONLY: reorder_c
@@ -120,11 +119,11 @@ CONTAINS
     COMPLEX(real_8)                          :: zee
     COMPLEX(real_8), ALLOCATABLE             :: auxc(:), zgam(:,:)
     COMPLEX(real_8), EXTERNAL                :: zdotc
-    INTEGER :: i, ib, idamax, ierr, ik, il_auxc, il_ddia, il_fsc, il_gam, &
+    INTEGER :: i, ib, idamax, ierr, ik, il_auxc, il_fsc, il_gam, &
       imax, isub, j, nfto, nleft, nnx, nnxs, nwfc
     LOGICAL                                  :: debug
     REAL(real_8)                             :: bottom, ee, enband
-    REAL(real_8), ALLOCATABLE                :: ddia(:), fsc(:), gam(:,:)
+    REAL(real_8), ALLOCATABLE                :: fsc(:), gam(:,:)
     REAL(real_8), EXTERNAL                   :: dasum, ddot
 
     CALL tiset('  K_FORCES',isub)
@@ -139,14 +138,8 @@ CONTAINS
     ENDIF
     ! ==--------------------------------------------------------------==
     debug=.FALSE.
-    IF (pslo_com%tivan .AND. lproj .AND. cnti%iproj.NE.0) THEN
-       il_auxc=0
-       il_ddia=0
-    ELSE
-       CALL give_scr_fnonloc(il_auxc,il_ddia,nstate)
-    ENDIF
     il_gam = imagp*nstate*nstate
-    il_auxc=MAX(il_auxc,nstate**2)  ! AUXC space for OVLAP (Laio A.)
+    il_auxc=nstate**2  ! AUXC space for OVLAP (Laio A.)
     il_fsc=nstate
     ! ==--------------------------------------------------------------==
     ! ==   CALCULATE THE POTENTIAL AND THE FORCE ON THE IONS          ==
@@ -193,10 +186,6 @@ CONTAINS
 
        ALLOCATE(auxc(il_auxc), stat=ierr)
        IF (ierr /= 0) CALL stopgm('K_FORCES', 'ERROR ALLOCATING AUXC',& 
-            __LINE__,__FILE__)
-
-       ALLOCATE(ddia(il_ddia), stat=ierr)
-       IF (ierr /= 0) CALL stopgm('K_FORCES', 'ERROR ALLOCATING DDIA',& 
             __LINE__,__FILE__)
 
        ALLOCATE(fsc(il_fsc), stat=ierr)
@@ -256,9 +245,6 @@ CONTAINS
 !             DEALLOCATE(auxc,STAT=ierr)
 !             IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
 !                  __LINE__,__FILE__)
-!             DEALLOCATE(ddia,STAT=ierr)
-!             IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-!                  __LINE__,__FILE__)
 !             DEALLOCATE(fsc,STAT=ierr)
 !             IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
 !                  __LINE__,__FILE__)
@@ -310,9 +296,6 @@ CONTAINS
              IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
                   __LINE__,__FILE__)
              DEALLOCATE(auxc,STAT=ierr)
-             IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-                  __LINE__,__FILE__)
-             DEALLOCATE(ddia,STAT=ierr)
              IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
                   __LINE__,__FILE__)
              DEALLOCATE(fsc,STAT=ierr)
@@ -426,9 +409,6 @@ CONTAINS
        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
             __LINE__,__FILE__)
        DEALLOCATE(auxc,STAT=ierr)
-       IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-            __LINE__,__FILE__)
-       DEALLOCATE(ddia,STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
             __LINE__,__FILE__)
        DEALLOCATE(fsc,STAT=ierr)

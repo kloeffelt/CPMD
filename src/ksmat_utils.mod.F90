@@ -8,8 +8,7 @@ MODULE ksmat_utils
   USE fnlalloc_utils,                  ONLY: fnl_set,&
                                              fnlalloc,&
                                              fnldealloc
-  USE fnonloc_utils,                   ONLY: fnonloc,&
-                                             give_scr_fnonloc
+  USE fnonloc_utils,                   ONLY: fnonloc
   USE ions,                            ONLY: ions0,&
                                              ions1
   USE kinds,                           ONLY: real_8
@@ -28,7 +27,6 @@ MODULE ksmat_utils
   PRIVATE
 
   PUBLIC :: ksmat
-  PUBLIC :: give_scr_ksmat
 
 CONTAINS
 
@@ -44,7 +42,7 @@ CONTAINS
     INTEGER                                  :: nstate, ikind
 
     COMPLEX(real_8)                          :: pab(1)
-    INTEGER                                  :: ia, il_auxc, il_ddia, is, &
+    INTEGER                                  :: ia, is, &
                                                 ist, isub, natst
     LOGICAL                                  :: tfdist2
     REAL(real_8), DIMENSION(20)              :: foc = 1.0_real_8
@@ -61,7 +59,6 @@ CONTAINS
     cntl%tfdist=.FALSE.
     CALL fnl_set('SAVE')
     CALL fnlalloc(atwp%numaormax,.FALSE.,.FALSE.)
-    CALL give_scr_fnonloc(il_auxc,il_ddia,atwp%numaormax)
     ist=1
     DO is=1,ions1%nsp
        natst=atwf_mod%numaor(is)
@@ -90,20 +87,6 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE ksmat
-  ! ==================================================================
-  SUBROUTINE give_scr_ksmat(lksmat,tag)
-    ! ==--------------------------------------------------------------==
-    INTEGER                                  :: lksmat
-    CHARACTER(len=30)                        :: tag
-
-    INTEGER                                  :: il_auxc, il_ddia, lfnonloc
-
-    CALL give_scr_fnonloc(il_auxc,il_ddia,atwp%numaormax)
-    lfnonloc = il_auxc + il_ddia
-    lksmat=lfnonloc
-    ! ==--------------------------------------------------------------==
-    RETURN
-  END SUBROUTINE give_scr_ksmat
   ! ==================================================================
 
 END MODULE ksmat_utils

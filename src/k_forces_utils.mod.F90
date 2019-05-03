@@ -1,6 +1,5 @@
 MODULE k_forces_utils
   USE fft_maxfft,                      ONLY: maxfft
-  USE fnonloc_utils,                   ONLY: give_scr_fnonloc
   USE nlps,                            ONLY: imagp
   USE ortho_utils,                     ONLY: give_scr_ortho
   USE pslo,                            ONLY: pslo_com
@@ -25,7 +24,7 @@ CONTAINS
     INTEGER                                  :: nstate
     LOGICAL                                  :: lproj, tfor
 
-    INTEGER :: il_auxc, il_ddia, il_fsc, il_gam, il_ksener, il_psiab, il_scr, &
+    INTEGER :: il_fsc, il_gam, il_ksener, il_psiab, il_scr, &
       lortho, lrscpot, lsymvec
 
     IF (tfor) THEN
@@ -34,17 +33,11 @@ CONTAINS
        lsymvec=0
     ENDIF
     CALL give_scr_rscpot(lrscpot,tag,ropt_mod%calste)
-    IF (pslo_com%tivan .AND. lproj .AND. cnti%iproj.NE.0) THEN
-       il_auxc=0
-       il_ddia=0
-    ELSE
-       CALL give_scr_fnonloc(il_auxc,il_ddia,nstate)
-    ENDIF
     il_gam = imagp*nstate*nstate
     il_fsc=nstate
     il_psiab=2
     IF (lspin2%tlse) il_psiab=2*maxfft
-    il_scr=il_gam+il_auxc+il_ddia+il_fsc+il_psiab+100
+    il_scr=il_gam+il_fsc+il_psiab+100
     il_ksener = 2*nstate*nstate + 3*2*nstate + nstate/2 +&
          MAX(1,2*2*nstate-1)
     CALL give_scr_ortho(lortho,tag,nstate)

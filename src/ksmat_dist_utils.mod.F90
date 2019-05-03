@@ -7,8 +7,7 @@ MODULE ksmat_dist_utils
   USE fnlalloc_utils,                  ONLY: fnl_set,&
                                              fnlalloc,&
                                              fnldealloc
-  USE fnonloc_utils,                   ONLY: fnonloc,&
-                                             give_scr_fnonloc
+  USE fnonloc_utils,                   ONLY: fnonloc
   USE gsortho_utils,                   ONLY: gs_ortho
   USE ions,                            ONLY: ions0,&
                                              ions1
@@ -40,7 +39,6 @@ MODULE ksmat_dist_utils
   PRIVATE
 
   PUBLIC :: dist_ksmat
-  PUBLIC :: give_scr_dist_ksmat
 
 CONTAINS
 
@@ -645,20 +643,5 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE dist_ksmat
-  ! ==================================================================
-  SUBROUTINE give_scr_dist_ksmat(lksmat,tag)
-    ! ==--------------------------------------------------------------==
-    INTEGER                                  :: lksmat
-    CHARACTER(len=30)                        :: tag
-
-    INTEGER                                  :: il_auxc, il_ddia, lfnonloc
-
-    CALL give_scr_fnonloc(il_auxc,il_ddia,atwp%numaormax)
-    lfnonloc = il_auxc + il_ddia
-    lksmat=lfnonloc
-    ! ==--------------------------------------------------------------==
-    RETURN
-  END SUBROUTINE give_scr_dist_ksmat
-  ! ==================================================================
 
 END MODULE ksmat_dist_utils

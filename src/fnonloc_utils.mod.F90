@@ -46,7 +46,6 @@ MODULE fnonloc_utils
   PRIVATE
 
   PUBLIC :: fnonloc
-  PUBLIC :: give_scr_fnonloc
   !public :: fcasnl
 
 CONTAINS
@@ -395,17 +394,6 @@ CONTAINS
     CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==
   END SUBROUTINE fnonloc
-  ! ==================================================================
-  SUBROUTINE give_scr_fnonloc(il_auxc,il_ddia,nstate)
-    ! ==--------------------------------------------------------------==
-    INTEGER                                  :: il_auxc, il_ddia, nstate
-
-! ==--------------------------------------------------------------==
-
-    il_auxc=2*nkpt%ngwk*nstate+2
-    il_ddia=2*maxsys%nax*nstate+2
-    ! ==--------------------------------------------------------------==
-  END SUBROUTINE give_scr_fnonloc
   ! ==================================================================
   SUBROUTINE fcasnl(c2,auxc,ddia)
     ! ==--------------------------------------------------------------==

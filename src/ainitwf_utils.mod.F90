@@ -11,8 +11,7 @@ MODULE ainitwf_utils
   USE kinds,                           ONLY: real_8
   USE kpts,                            ONLY: tkpts
   USE ksmat_dist_utils,                ONLY: dist_ksmat
-  USE ksmat_utils,                     ONLY: give_scr_ksmat,&
-                                             ksmat
+  USE ksmat_utils,                     ONLY: ksmat
   USE mp_interface,                    ONLY: mp_bcast
   USE ortho_utils,                     ONLY: ortho
   USE ovlap_utils,                     ONLY: ovlap
@@ -286,13 +285,12 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
     INTEGER                                  :: nstate
 
-    INTEGER                                  :: latrho, lksmat, lrscpot
+    INTEGER                                  :: latrho, lrscpot
 
     lainitwf=atwp%nattot*atwp%nattot+3*atwp%nattot+atwp%nattot
     CALL give_scr_atrho(latrho,tag)
     CALL give_scr_rscpot(lrscpot,tag,.FALSE.)
-    CALL give_scr_ksmat(lksmat,tag)
-    lainitwf=MAX(lainitwf,lrscpot,lksmat,latrho)
+    lainitwf=MAX(lainitwf,lrscpot,latrho)
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE give_scr_ainitwf

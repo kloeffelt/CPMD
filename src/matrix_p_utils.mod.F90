@@ -3,8 +3,7 @@ MODULE matrix_p_utils
                                              twnl
   USE error_handling,                  ONLY: stopgm
   USE fft_maxfft,                      ONLY: maxfftn
-  USE fnonloc_utils,                   ONLY: fnonloc,&
-                                             give_scr_fnonloc
+  USE fnonloc_utils,                   ONLY: fnonloc
   USE geq0mod,                         ONLY: geq0
   USE ions,                            ONLY: ions0,&
                                              ions1
@@ -481,16 +480,6 @@ CONTAINS
          __LINE__,__FILE__)
     CALL zeroing(c2)!,ngw*nstate)
 
-    CALL give_scr_fnonloc(il_auxc,il_ddia,nstate)
-    ALLOCATE(auxc(il_auxc),STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
-         __LINE__,__FILE__)
-    CALL zeroing(auxc)!,il_auxc)
-    ALLOCATE(ddia(il_ddia),STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
-         __LINE__,__FILE__)
-    CALL zeroing(ddia)!,il_ddia)
-
     DO k_ = 1,3
        CALL zeroing(c2)!,ngw*nstate)
        CALL zeroing(fnl)!,ions1%nat*maxsys%nhxs*nstate*1)
@@ -514,12 +503,6 @@ CONTAINS
     DEALLOCATE(c2,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
          __LINE__,__FILE__)
-    DEALLOCATE(auxc,STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
-         __LINE__,__FILE__)
-    DEALLOCATE(ddia,STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
-         __LINE__,__FILE__)
 
     IF (paral%parent) THEN
        time2 =m_walltime()
@@ -539,12 +522,8 @@ CONTAINS
     CHARACTER(len=*)                         :: tag
     INTEGER                                  :: nstate
 
-    INTEGER                                  :: l_auxc, l_ddia, lmat
 
-    CALL give_scr_fnonloc(l_auxc,l_ddia,nstate)
-    lmat = 2*nstate*(nstate+1)
-
-    lmatrix_p = MAX(l_auxc+l_ddia,lmat)
+    lmatrix_p = 2*nstate*(nstate+1)
     RETURN
   END SUBROUTINE give_scr_matrix_p
   ! ==================================================================

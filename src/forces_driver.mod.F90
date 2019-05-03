@@ -13,8 +13,7 @@ MODULE forces_driver
   USE error_handling,                  ONLY: stopgm
   USE fft_maxfft,                      ONLY: maxfft
   USE fft,                             ONLY: batch_fft
-  USE fnonloc_utils,                   ONLY: fnonloc,&
-                                             give_scr_fnonloc
+  USE fnonloc_utils,                   ONLY: fnonloc
   USE func,                            ONLY: func1
   USE geq0mod,                         ONLY: geq0
   USE gsize_utils,                     ONLY: gsize
@@ -118,16 +117,17 @@ CONTAINS
     COMPLEX(real_8), ALLOCATABLE, TARGET     :: auxc(:), c0_ort(:,:,:)
     COMPLEX(real_8), EXTERNAL                :: zdotc
     COMPLEX(real_8), POINTER __CONTIGUOUS    :: cgam(:), c0_ptr(:,:,:)
-    INTEGER :: first_g, i, ierr, ik, ikind, il_auxc, il_ddia, il_fsc, il_gam, &
+    INTEGER :: first_g, i, ierr, ik, ikind, il_auxc, il_fsc, il_gam(2), &
       il_psiab, il_scrdip, ipp, isub, isub2, isub3, j, jj, last_g,  &
-      naa, ngw_l, nstx, NSTX_grp, is,  il_c0_ort(3), il_smat(2)
+      naa, ngw_l, nstx, NSTX_grp, is, il_c0_ort(3), il_smat(2)
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: NWA12_grp
     LOGICAL                                  :: debug, redist_c2, &
                                                 case1, case2, case3, case4
     REAL(real_8)                             :: ee, ehfx, fi, fj, vhfx
     REAL(real_8), ALLOCATABLE                :: a1mat(:,:), a2mat(:,:), &
-                                                a3mat(:,:), ddia(:), fsc(:), &
-                                                scrdip(:), smat(:,:), fnlgam_packed(:,:)
+                                                a3mat(:,:), fsc(:), &
+                                                scrdip(:)
+    REAL(real_8), ALLOCATABLE                :: smat(:,:), fnlgam_packed(:,:)
     REAL(real_8), ALLOCATABLE, TARGET        :: gam(:,:)
     REAL(real_8), EXTERNAL                   :: dasum
     REAL(real_8), POINTER                    :: aux(:)
@@ -201,13 +201,9 @@ CONTAINS
     IF (cntl%ttau) redist_c2=.TRUE.
     ! ==--------------------------------------------------------------==
     debug=.FALSE.
-    IF (pslo_com%tivan .AND. lproj .AND. cnti%iproj.NE.0) THEN
-       il_auxc=0
-       il_ddia=0
-    ELSE
-       CALL give_scr_fnonloc(il_auxc,il_ddia,nstate)
-    ENDIF
-    il_gam = imagp*nstate*nstate
+    il_gam(1) = imagp*nstate
+    il_gam(2) = nstate
+    il_auxc = 1
     IF (cntl%tfield) CALL give_scr_opeigr(il_scrdip,tag,nstate)
     IF (cntl%tdmal) THEN
        ALLOCATE(NWA12_grp(0:parai%cp_nproc-1,2),stat=ierr)
@@ -269,27 +265,26 @@ CONTAINS
        ALLOCATE(a3mat(nstate,nstx),STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
             __LINE__,__FILE__)
-    ENDIF
+       ALLOCATE(auxc(il_auxc),STAT=ierr)
+       IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+            __LINE__,__FILE__)
+       CALL reshape_inplace(auxc, (/2*il_auxc/), aux)
+    END IF
+    ALLOCATE(gam(il_gam(1), il_gam(2)),STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+         __LINE__,__FILE__)
+    IF(tkpts%tkpnt) CALL reshape_inplace(gam, (/nstate*nstate/), cgam)
 
-    ALLOCATE(auxc(il_auxc),STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
-         __LINE__,__FILE__)
-    CALL reshape_inplace(auxc, (/2*il_auxc/), aux)
-
-    ALLOCATE(gam(nstate, nstate*2),STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
-         __LINE__,__FILE__)
-    CALL reshape_inplace(gam, (/nstate*nstate/), cgam)
-
-    ALLOCATE(ddia(il_ddia),STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
-         __LINE__,__FILE__)
-    ALLOCATE(fsc(il_fsc),STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
-         __LINE__,__FILE__)
-    ALLOCATE(psiab(il_psiab),STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
-         __LINE__,__FILE__)
+    IF(.NOT.pslo_com%tivan)THEN
+       ALLOCATE(fsc(il_fsc),STAT=ierr)
+       IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+            __LINE__,__FILE__)
+    END IF
+    IF(lspin2%tlse)THEN
+       ALLOCATE(psiab(il_psiab),STAT=ierr)
+       IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+            __LINE__,__FILE__)
+    END IF
 
     IF (cntl%tfield) THEN
        ALLOCATE(scrdip(il_scrdip),STAT=ierr)
@@ -504,22 +499,23 @@ CONTAINS
        DEALLOCATE(a3mat,STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
             __LINE__,__FILE__)
-    ENDIF
-    DEALLOCATE(auxc,STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-         __LINE__,__FILE__)
+       DEALLOCATE(auxc,STAT=ierr)
+       IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+            __LINE__,__FILE__)
+    END IF
     DEALLOCATE(gam,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
-    DEALLOCATE(ddia,STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-         __LINE__,__FILE__)
-    DEALLOCATE(fsc,STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-         __LINE__,__FILE__)
-    DEALLOCATE(psiab,STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-         __LINE__,__FILE__)
+    IF(.NOT.pslo_com%tivan)THEN
+       DEALLOCATE(fsc,STAT=ierr)
+       IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+            __LINE__,__FILE__)
+    END IF
+    IF(lspin2%tlse)THEN
+       DEALLOCATE(psiab,STAT=ierr)
+       IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+            __LINE__,__FILE__)
+    END IF
     IF (cntl%tfield) THEN
        DEALLOCATE(scrdip,STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &

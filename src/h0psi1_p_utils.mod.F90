@@ -1,7 +1,6 @@
 MODULE h0psi1_p_utils
   USE fft_maxfft,                      ONLY: maxfft
-  USE fnonloc_utils,                   ONLY: fnonloc,&
-                                             give_scr_fnonloc
+  USE fnonloc_utils,                   ONLY: fnonloc
   USE kinds,                           ONLY: real_8
   USE perturbation_p_utils,            ONLY: restrain_ngw_zero
   USE response_pmod,                   ONLY: dmbi,&
@@ -70,17 +69,10 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
     INTEGER                                  :: nstate
 
-    INTEGER                                  :: l_auxc, l_ddia, &
-                                                lv0psi1
-    LOGICAL                                  :: tfor
+    INTEGER                                  :: lv0psi1
 
-    tfor = (response1%phonon .OR. response1%tlanphon .OR. response1%teigens .OR.\
-    cntl%tinr .OR. response1%tvoa)
-
-    CALL give_scr_fnonloc(l_auxc,l_ddia,nstate)
     lv0psi1 = 2*maxfft
 
-    l_h0psi1 = MAX(l_auxc+l_ddia,lv0psi1)
     RETURN
   END SUBROUTINE give_scr_h0psi1
   ! ==================================================================

@@ -29,10 +29,8 @@ MODULE atomwf_utils
   USE kinds,                           ONLY: real_8
   USE kpclean_utils,                   ONLY: c_clean
   USE kpts,                            ONLY: tkpts
-  USE ksmat_dist_utils,                ONLY: dist_ksmat,&
-                                             give_scr_dist_ksmat
-  USE ksmat_utils,                     ONLY: give_scr_ksmat,&
-                                             ksmat
+  USE ksmat_dist_utils,                ONLY: dist_ksmat
+  USE ksmat_utils,                     ONLY: ksmat
   USE mp_interface,                    ONLY: mp_bcast,&
                                              mp_sum
   USE nlcc,                            ONLY: corel
@@ -539,7 +537,7 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
     INTEGER                                  :: nstate
 
-    INTEGER                                  :: latrho, lcopot, lksmat, &
+    INTEGER                                  :: latrho, lcopot, &
                                                 lvofrho, &
                                                 ngso, nleft
     LOGICAL                                  :: tlsd2, tlse2
@@ -549,7 +547,6 @@ CONTAINS
     tlse2=lspin2%tlse
     lspin2%tlse=.FALSE.
     lcopot=0
-    lksmat=0
     ! 
     CALL give_scr_atrho(latrho,tag)
     ! COPOT
@@ -558,11 +555,6 @@ CONTAINS
     ENDIF
     ! VOFRHO
     CALL give_scr_vofrho(lvofrho,tag)
-    IF (cntl%tdmal) THEN
-       CALL give_scr_dist_ksmat(lksmat,tag)
-    ELSE
-       CALL give_scr_ksmat(lksmat,tag)
-    ENDIF
     IF (cntl%tdmal) THEN
        latomwf=imagp*atwp%nattot +           & ! OBSOLETE: XMATAT or ZMATAT
             imagp*atwp%nattot+                    & ! EIVAT
@@ -578,7 +570,7 @@ CONTAINS
        ngso=MAX(nleft**2,nleft*atwp%nattot)+nleft
        latomwf=MAX(latomwf,ngso)
     ENDIF
-    latomwf=MAX(latrho,latomwf,lcopot,lvofrho,lksmat)
+    latomwf=MAX(latrho,latomwf,lcopot,lvofrho)
     ! 
     cntl%tlsd=tlsd2
     lspin2%tlse=tlse2

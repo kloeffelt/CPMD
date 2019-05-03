@@ -6,8 +6,7 @@ MODULE hpsi_utils
                                              give_scr_hubbardu,&
                                              add_hubbardu
   USE fft_maxfft,                      ONLY: maxfft
-  USE fnonloc_utils,                   ONLY: fnonloc,&
-                                             give_scr_fnonloc
+  USE fnonloc_utils,                   ONLY: fnonloc
   USE geq0mod,                         ONLY: geq0
   USE kinds,                           ONLY: real_8
   USE kpts,                            ONLY: tkpts
@@ -67,8 +66,8 @@ CONTAINS
     CHARACTER(*), PARAMETER                  :: procedureN = 'hpsi'
 
     CHARACTER(len=30)                        :: tag
-    COMPLEX(real_8), ALLOCATABLE             :: auxc(:), pab(:)
-    INTEGER                                  :: i, ierr, il_auxc, il_ddia, &
+    COMPLEX(real_8), ALLOCATABLE             :: pab(:)
+    INTEGER                                  :: i, ierr, &
                                                 il_pab, isub
     REAL(real_8), ALLOCATABLE                :: foc(:)
     COMPLEX(real_8), ALLOCATABLE             :: C2U(:,:)
@@ -120,7 +119,6 @@ CONTAINS
     ! == to the non-local part of the potential, and add it to the    ==
     ! == other piece, coming from the local contribution.             ==
     ! ==--------------------------------------------------------------==
-    CALL give_scr_fnonloc(il_auxc,il_ddia,nstate)
     CALL fnonloc(c2,foc,nstate,ikind,ispin,.TRUE.)
     ! kpt  Seems to be unnecessary.
     IF (geq0) THEN
@@ -149,13 +147,9 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
     INTEGER                                  :: nstate
 
-    INTEGER                                  :: il_auxc, il_ddia
     INTEGER                                  :: lhubbu
 
-    CALL give_scr_fnonloc(il_auxc,il_ddia,nstate)
     lhpsi=nstate+             & ! FOC
-         il_ddia+             & ! DDIA
-         il_auxc+  & ! AUXC and SCR
          100                  ! SCRATCH tool
     IF (lspin2%tlse) lhpsi=lhpsi+2*maxfft
   
