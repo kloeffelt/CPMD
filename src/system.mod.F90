@@ -563,6 +563,7 @@ MODULE system
      LOGICAL :: thubb  = .FALSE.
      LOGICAL :: use_mts = .FALSE.
      LOGICAL :: use_scaled_hfx = .FALSE.
+     LOGICAL :: overlapp_comm_comp = .FALSE.
   END TYPE cntl_t
   TYPE(cntl_t), SAVE, PUBLIC :: cntl
   ! ==================================================================
@@ -615,6 +616,8 @@ MODULE system
   ! == NASPC  : Number of corrector steps when using ASPC           ==
   ! == NSTBLK : CPU block size for dist. linalg                     ==
   ! == IPRNG   : seed for pseudo-random number generator            ==
+  ! == rnlsm*_bc: blockcounts for rnlsm                             ==
+  ! == rnlsm_autotune_maxit: enable autotuning for >0               ==
   ! ==--------------------------------------------------------------==
   TYPE, PUBLIC :: cnti_t
      INTEGER :: nomore = HUGE(0)
@@ -672,6 +675,9 @@ MODULE system
      INTEGER :: lfit = HUGE(0) !vw not initialized at all
      INTEGER :: isocs = HUGE(0) !vw not initialized at all
      INTEGER :: jsoct = HUGE(0) !vw not initialized at all
+     INTEGER :: rnlsm1_bc
+     INTEGER :: rnlsm2_bc
+     INTEGER :: rnlsm_autotune_maxit = HUGE(0)
      INTEGER :: disortho_bsize = HUGE(0)
   END TYPE cnti_t
   TYPE(cnti_t), SAVE, PUBLIC :: cnti
@@ -734,6 +740,7 @@ MODULE system
   ! == ASIC   : alpha parameter for Hartree SIC correction          ==
   ! == BSIC   : beta parameter for XC SIC correction                ==
   ! == NOSPT0 : Temperature at which Nose velocities are initialized==
+  ! == rnlsm*_b*: blocksizes in rnlsm1/2                            ==
   ! ==--------------------------------------------------------------==
   TYPE, PUBLIC :: cntr_t
      REAL(real_8) :: delt_elec = HUGE(0.0_real_8)
@@ -790,6 +797,10 @@ MODULE system
      REAL(real_8) :: dampge = HUGE(0.0_real_8)
      REAL(real_8) :: dampgc = HUGE(0.0_real_8)
      REAL(real_8) :: gfreq = HUGE(0.0_real_8) !vw not initialized at all
+     REAL(real_8) :: rnlsm1_b1 = HUGE(0.0_real_8)
+     REAL(real_8) :: rnlsm1_b2 = HUGE(0.0_real_8)
+     REAL(real_8) :: rnlsm2_b1 = HUGE(0.0_real_8)
+     REAL(real_8) :: rnlsm2_b2 = HUGE(0.0_real_8)
   END TYPE cntr_t
   TYPE(cntr_t), SAVE, PUBLIC :: cntr
   ! strings

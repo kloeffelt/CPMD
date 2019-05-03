@@ -27,6 +27,8 @@ MODULE reshaper
      MODULE PROCEDURE reshape_inplace_r1_c1
      MODULE PROCEDURE reshape_inplace_r3_r2
      MODULE PROCEDURE reshape_inplace_r2_r3
+     MODULE PROCEDURE reshape_inplace_r5_r3
+     MODULE PROCEDURE reshape_inplace_r6_r4
      MODULE PROCEDURE reshape_inplace_r3_r4
      MODULE PROCEDURE reshape_inplace_r2_r1
      MODULE PROCEDURE reshape_inplace_r2_c1
@@ -393,6 +395,32 @@ CONTAINS
     loc_x = C_LOC(tgt_x)
     CALL C_F_POINTER(loc_x, ptr_x, new_shape)
   END SUBROUTINE reshape_inplace_r3_r2
+
+  SUBROUTINE reshape_inplace_r5_r3(tgt_x, new_shape, ptr_x)
+    USE, INTRINSIC :: iso_c_binding
+    IMPLICIT NONE
+    REAL(real_8), TARGET, INTENT(in) :: tgt_x(1,1,1,1,*)
+    INTEGER, INTENT(in) :: new_shape(:)
+    REAL(real_8), POINTER, INTENT(out) :: ptr_x(:,:,:)
+
+    TYPE(c_ptr) :: loc_x
+
+    loc_x = C_LOC(tgt_x)
+    CALL C_F_POINTER(loc_x, ptr_x, new_shape)
+  END SUBROUTINE reshape_inplace_r5_r3
+
+  SUBROUTINE reshape_inplace_r6_r4(tgt_x, new_shape, ptr_x)
+    USE, INTRINSIC :: iso_c_binding
+    IMPLICIT NONE
+    REAL(real_8), TARGET, INTENT(in) :: tgt_x(1,1,1,1,1,*)
+    INTEGER, INTENT(in) :: new_shape(:)
+    REAL(real_8), POINTER, INTENT(out) :: ptr_x(:,:,:,:)
+
+    TYPE(c_ptr) :: loc_x
+
+    loc_x = C_LOC(tgt_x)
+    CALL C_F_POINTER(loc_x, ptr_x, new_shape)
+  END SUBROUTINE reshape_inplace_r6_r4
 
   SUBROUTINE reshape_inplace_r2_r1(tgt_x, new_shape, ptr_x)
     USE, INTRINSIC :: iso_c_binding

@@ -97,3 +97,9 @@
 #define __NVTX_TIMER_START( name )
 #define __NVTX_TIMER_STOP
 #endif
+
+!tk ------------------------------------------------------
+!tk INTEL MKL needs special setting for nested calls
+#if defined(__INTEL_MKL)
+#define _INTEL_MKL
+#endif

@@ -391,6 +391,21 @@ CONTAINS
     ! ==    TASKGROUPS {MAXIMUM,MINIMUM,CARTESIAN}                    ==
     ! ==      nogrp                                                   ==
     ! ==    DISTRIBUTE FNL [ON,OFF]                                   ==
+    ! ==    USE_OVERLAPPING_COMM_COMP                                 ==
+    ! ==    RNLSM1_BLOCKCOUT                                          ==
+    ! ==    rnlsm1_bc                                                 ==
+    ! ==    RNLSM1_BLOCKSIZE1                                         ==
+    ! ==    rnlsm1_b1                                                 ==
+    ! ==    RNLSM1_BLOCKSIZE2                                         ==
+    ! ==    rnlsm1_b2                                                 ==
+    ! ==    RNLSM2_BLOCKCOUNT                                         ==
+    ! ==    rnlsm2_bc                                                 ==
+    ! ==    RNLSM2_BLOCKSIZE1                                         ==
+    ! ==    rnlsm2_b1                                                 ==
+    ! ==    RNLSM2_BLOCKSIZE2                                         ==
+    ! ==    rnlsm2_b2                                                 ==
+    ! ==    RNLSM_AUTOTUNE                                            ==
+    ! ==    nint                                                      ==
     ! ==    SPLINE [POINTS QFUNCTION INIT RANGE]                      ==
     ! ==      nsplp qsrang                                            ==
     ! ==    REAL SPACE WFN [KEEP, SIZE]                               ==
@@ -3634,6 +3649,69 @@ CONTAINS
                 ELSE
                    cntr%memsize=-1._real_8
                 ENDIF
+             ELSEIF ( keyword_contains(line,'USE_OVERLAPPING_COMM_COMP') ) THEN
+                cntl%overlapp_comm_comp=.TRUE.
+             ELSEIF ( keyword_contains(line,'RNLSM1_BLOCKCOUNT') ) THEN
+                READ(iunit,'(A)',iostat=ierr) line
+                CALL readsi(line,1,last,cnti%rnlsm1_bc,erread)
+                IF (erread) THEN
+                   error_message        = "ERROR WHILE READING VALUE"
+                   something_went_wrong = .true.
+                   go_on_reading        = .false.
+                ENDIF
+             ELSEIF ( keyword_contains(line,'RNLSM2_BLOCKCOUNT') ) THEN
+                READ(iunit,'(A)',iostat=ierr) line
+                CALL readsi(line,1,last,cnti%rnlsm2_bc,erread)
+                IF (erread) THEN
+                   error_message        = "ERROR WHILE READING VALUE"
+                   something_went_wrong = .true.
+                   go_on_reading        = .false.
+                ENDIF
+             ELSEIF ( keyword_contains(line,'RNLSM2_BLOCKSIZE1') ) THEN
+                READ(iunit,'(A)',iostat=ierr) line
+                CALL readsr(line,1,last,cntr%rnlsm2_b1,erread)
+                IF (erread) THEN
+                   error_message        = "ERROR WHILE READING VALUE"
+                   something_went_wrong = .true.
+                   go_on_reading        = .false.
+                ENDIF
+
+             ELSEIF ( keyword_contains(line,'RNLSM2_BLOCKSIZE2') ) THEN
+                READ(iunit,'(A)',iostat=ierr) line
+                CALL readsr(line,1,last,cntr%rnlsm2_b2,erread)
+                IF (erread) THEN
+                   error_message        = "ERROR WHILE READING VALUE"
+                   something_went_wrong = .true.
+                   go_on_reading        = .false.
+                ENDIF
+
+             ELSEIF ( keyword_contains(line,'RNLSM1_BLOCKSIZE1') ) THEN
+                READ(iunit,'(A)',iostat=ierr) line
+                CALL readsr(line,1,last,cntr%rnlsm1_b1,erread)
+                IF (erread) THEN
+                   error_message        = "ERROR WHILE READING VALUE"
+                   something_went_wrong = .true.
+                   go_on_reading        = .false.
+                ENDIF
+
+             ELSEIF ( keyword_contains(line,'RNLSM1_BLOCKSIZE2') ) THEN
+                READ(iunit,'(A)',iostat=ierr) line
+                CALL readsr(line,1,last,cntr%rnlsm1_b2,erread)
+                IF (erread) THEN
+                   error_message        = "ERROR WHILE READING VALUE"
+                   something_went_wrong = .true.
+                   go_on_reading        = .false.
+                ENDIF
+
+             ELSEIF ( keyword_contains(line,'RNLSM_AUTOTUNE') ) THEN
+                READ(iunit,'(A)',iostat=ierr) line
+                CALL readsi(line,1,last,cnti%rnlsm_autotune_maxit,erread)
+                IF (erread) THEN
+                   error_message        = "ERROR WHILE READING VALUE"
+                   something_went_wrong = .true.
+                   go_on_reading        = .false.
+                ENDIF
+
              ELSEIF ( keyword_contains(line,'SPLINE') ) THEN
                 IF ( keyword_contains(line,'POINTS') ) THEN
                    ! Number of spline points

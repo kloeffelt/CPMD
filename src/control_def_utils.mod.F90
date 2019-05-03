@@ -665,6 +665,18 @@ CONTAINS
     iface1%intwrite = .FALSE.
     intfn = "interface.bin"
     ! ==--------------------------------------------------------------==
+    ! TK do not enable overlapping communication computation algorithms
+    ! by default
+    cntl%overlapp_comm_comp = .FALSE.
+    ! TK rnlsm blockcounts and sizes
+    cnti%rnlsm1_bc=3
+    cntr%rnlsm1_b1=0.5
+    cntr%rnlsm1_b2=0.3
+    cnti%rnlsm2_bc=3
+    cntr%rnlsm2_b1=0.5
+    cntr%rnlsm2_b2=0.3
+    ! TK rnlsm autotune disabled
+    cnti%rnlsm_autotune_maxit=0
     RETURN
   END SUBROUTINE control_def
   ! ==================================================================
