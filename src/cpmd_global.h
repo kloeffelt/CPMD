@@ -85,6 +85,11 @@
 #define _HAS_DGEMMT
 #endif
 
+!tk grimme lib for vdw
+#if defined(__HAS_LIBGRIMMEVDW)
+#define _HAS_LIBGRIMMEVDW
+#endif
+
 !vw ------------------------------------------------------
 !vw CUDA 
 

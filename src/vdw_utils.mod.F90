@@ -10,6 +10,7 @@ MODULE vdw_utils
                                              fileopen
   USE fileopenmod,                     ONLY: fo_def,&
                                              fo_old
+  USE gvec,                            ONLY: gvec_com
   USE ions,                            ONLY: ions0,&
                                              ions1
   USE kinds,                           ONLY: real_8
@@ -37,7 +38,7 @@ MODULE vdw_utils
   USE vdwcmod,                         ONLY: &
        boadwf, icontfragw, icontfragwi, ifragdata, ifragw, iwfcref, natwfcx, &
        nfrags, nfragx, npt12, nwfcx, radfrag, rwann, rwfc, spr, swann, &
-       taufrag, tauref, twannupx, vdwi, vdwr, vdwwfi, vdwwfl, vdwwfr, wwfcref, &
+       taufrag, tauref, twannupx, vdwi,vdwl, vdwr, vdwwfi, vdwwfl, vdwwfr, wwfcref, &
        tdftd3
   USE wrgeo_utils,                     ONLY: wrgeof
   USE zeroing_utils,                   ONLY: zeroing
@@ -52,16 +53,114 @@ MODULE vdw_utils
   PUBLIC :: rwannier
 
 CONTAINS
-
+#ifdef _HAS_LIBGRIMMEVDW
   SUBROUTINE vdw(tau0,nvdw,idvdw,ivdw,jvdw,vdwst,vdwrm,vdwbe,&
        VDWEPS,S6GRIM,NXVDW,NYVDW,NZVDW,EVDW,FION,DEVDW)
+    REAL(real_8),INTENT(IN) __CONTIGUOUS     :: tau0(:,:,:)
+    INTEGER                                  :: nvdw
+    INTEGER, ALLOCATABLE                     :: idvdw(:), ivdw(:), jvdw(:)
+    REAL(real_8), ALLOCATABLE                :: vdwst(:), vdwrm(:), vdwbe(:)
+    REAL(real_8)                             :: VDWEPS, S6GRIM
+    INTEGER                                  :: nxvdw, nyvdw, nzvdw
+    REAL(real_8), INTENT(OUT)                :: evdw
+    REAL(real_8), INTENT(INOUT) __CONTIGUOUS :: fion(:,:,:)
+    REAL(real_8), INTENT(OUT) __CONTIGUOUS   :: devdw(:)
+
+
+! ==--------------------------------------------------------------==
+     ! switch between the GRIMME lib and the old cpmd implementation
+      IF(vdwl%grimme) THEN
+       CALL vdw_grimme(tau0,evdw,fion,devdw)
+      ELSE
+         CALL vdw_cpmd(tau0,nvdw,idvdw,ivdw,jvdw,vdwst,vdwrm,vdwbe,&
+                       VDWEPS,S6GRIM,NXVDW,NYVDW,NZVDW,EVDW,FION,DEVDW)
+      ENDIF
+
+  END SUBROUTINE
+
+  SUBROUTINE vdw_grimme(tau0,evdw,fion,devdw)
+    REAL(real_8), INTENT(IN) __CONTIGUOUS    :: tau0(:,:,:)
+    REAL(real_8), INTENT(OUT)                :: evdw
+    REAL(real_8), INTENT(INOUT) __CONTIGUOUS :: fion(:,:,:)
+    REAL(real_8), INTENT(OUT) __CONTIGUOUS   :: devdw(:)
+! Local variables
+    INTEGER                                  :: ia,is,isa,iat2is(ions1%nat),isub,ierr
+    REAL(real_8)                             :: alat_dummy,avec(3,3),bvec(3,3),&
+                                                coorat(3,ions1%nat),&
+                                                forces_d3(3,ions1%nat),stress_d3(3,3)
+    CHARACTER(*),PARAMETER                   :: procedureN='VDW_GRIMME'
+!     ==--------------------------------------------------------------==
+    CALL tiset(procedureN,ISUB)
+!    ==--------------------------------------------------------------==
+      ALAT_DUMMY=1.d0
+      AVEC(1:3,1)=parm%A1(1:3)
+      AVEC(1:3,2)=parm%A2(1:3)
+      AVEC(1:3,3)=parm%A3(1:3)
+      BVEC(1:3,1)=gvec_com%B1(1:3)/parm%ALAT
+      BVEC(1:3,2)=gvec_com%B2(1:3)/parm%ALAT
+      BVEC(1:3,3)=gvec_com%B3(1:3)/parm%ALAT
+!
+      !$OMP parallel do private(isa,ia,is)
+      DO ISA=1, ions1%NAT
+        IA=IATPT(1,ISA)
+        IS=IATPT(2,ISA)
+        COORAT(1:3,ISA)=TAU0(1:3,IA,IS)
+        IAT2IS(ISA) = IS
+      ENDDO
+
+      CALL vdw_grimme_calc_energy_forces_stress(ALAT_DUMMY,AVEC,BVEC,1.0D0,ions1%nat,&
+           iat2is,coorat,evdw,forces_d3,stress_d3,parai%cp_me,parai%cp_nproc,&
+           parai%cp_grp,ierr)
+      IF(ierr/=0) CALL stopgm(procedureN,'error from vdw_grimme_calc_energy_forces_stress',&
+               __LINE__,__FILE__)
+      ! sum partial energies from workers
+      CALL mp_sum(evdw,parai%cp_grp)
+      IF(parai%cp_nogrp.GT.1) THEN
+         CALL mp_sum(forces_d3,3*ions1%nat,parai%cp_inter_grp)
+         CALL mp_sum(stress_d3,3*3,parai%cp_inter_grp)
+      ENDIF
+!
+!  Convert Rydberg to Hartree units:
+!
+      IF (paral%parent) THEN
+        EVDW=0.5D0*EVDW
+      ELSE
+        EVDW=0.0D0
+      END IF
+      !  Add FORCES_D3 to FION
+      !$OMP parallel do private(isa,ia,is)
+      DO ISA=1, ions1%NAT
+        IA=IATPT(1,ISA)
+        IS=IATPT(2,ISA)
+        FION(1,IA,IS)=FION(1,IA,IS)+0.5D0*FORCES_D3(1,ISA)
+        FION(2,IA,IS)=FION(2,IA,IS)+0.5D0*FORCES_D3(2,ISA)
+        FION(3,IA,IS)=FION(3,IA,IS)+0.5D0*FORCES_D3(3,ISA)
+      ENDDO
+      !  Add STRESS_D3 to DEVDW
+      DEVDW(1)=-0.5D0*STRESS_D3(1,1)
+      DEVDW(2)=-0.5D0*STRESS_D3(1,2)
+      DEVDW(3)=-0.5D0*STRESS_D3(1,3)
+      DEVDW(4)=-0.5D0*STRESS_D3(2,2)
+      DEVDW(5)=-0.5D0*STRESS_D3(2,3)
+      DEVDW(6)=-0.5D0*STRESS_D3(3,3)
+
+      CALL tihalt(procedureN,isub)
+    RETURN
+  END SUBROUTINE
+
+  SUBROUTINE vdw_cpmd(tau0,nvdw,idvdw,ivdw,jvdw,vdwst,vdwrm,vdwbe,&
+       VDWEPS,S6GRIM,NXVDW,NYVDW,NZVDW,EVDW,FION,DEVDW)
+#else
+  SUBROUTINE vdw(tau0,nvdw,idvdw,ivdw,jvdw,vdwst,vdwrm,vdwbe,&
+       VDWEPS,S6GRIM,NXVDW,NYVDW,NZVDW,EVDW,FION,DEVDW)
+#endif
     ! ==--------------------------------------------------------------==
     ! ==                        COMPUTES                              ==
-    ! == THE EMPIRICAL VAN DER WAALS CORRECTION TO THE TOTAL ENERGY,  == 
+    ! == THE EMPIRICAL VAN DER WAALS CORRECTION TO THE TOTAL ENERGY,  ==
     ! == IONIC FORCE, AND STRESS TENSOR ACCORDING TO THE FORMUALTION  ==
     ! == OF R. LE SAR, J. PHYS. CHEM. 88, p. 4272 (1984)              ==
     ! ==               J. CHEM. PHYS. 86, p. 1485 (1987)              ==
-    ! == Modified as in:                                              == 
+    ! == Modified as in:                                              ==
     ! ==   M. Elstner et al. J. Chem. Phys. 114, p. 5149 (2001)       ==
     ! ==   or Grimme, J. Comput. Chem. 27, 1787, 2006 (IDVDW=3)       ==
     ! == Present release: Munich/Philadelphia/Tsukuba, 11 May 2010    ==
@@ -75,14 +174,15 @@ CONTAINS
     REAL(real_8)                             :: EVDW, fion(:,:,:), devdw(:)
 
     INTEGER                                  :: iv, jv, l, l_upper, m, &
-                                                m_upper, n, nx, ny, nz
+                                                m_upper, n, nx, ny, nz,isub
     REAL(real_8)                             :: aexp, ffac, &
                                                 reps = 1.0e-2_real_8, rexp, &
                                                 rfac, rlm1, rlm2, rlm6, &
                                                 rlp(3), rphi, rpow, xlm, ylm, &
                                                 zlm, xlm_, ylm_, zlm_
-
-! ==--------------------------------------------------------------==
+    CHARACTER(*),PARAMETER                   :: procedureN='VDW'
+!     ==--------------------------------------------------------------==
+    CALL tiset(procedureN,ISUB)
 
     evdw=0.0_real_8
     CALL zeroing(devdw)!,6)
@@ -190,9 +290,10 @@ CONTAINS
           ENDDO
        ENDIF
     ENDIF
+    CALL tihalt(procedureN,isub)
     ! ==================================================================
     RETURN
-  END SUBROUTINE vdw
+  END SUBROUTINE
   ! ==================================================================
   ! ==     Next part = Wannier Functions/Centers Stuff for vdW      ==
   ! ==================================================================
