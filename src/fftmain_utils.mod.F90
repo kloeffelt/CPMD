@@ -19,7 +19,7 @@ MODULE fftmain_utils
   USE fft,                             ONLY: &
        lfrm, lmsq, lr1, lr1m, lr1s, lr2s, lr3s, lrxpl, lsrm, mfrays, msqf, &
        msqs, msrays, qr1, qr1s, qr2s, qr3max, qr3min, qr3s, sp5, sp8, sp9, &
-       xf, yf
+       xf, yf,fft_residual,fft_total,fft_numbatches,fft_batchsize
   USE fft_maxfft,                      ONLY: maxfftn
   USE fftcu_methods,                   ONLY: fftcu_frw_full_1,&
                                              fftcu_frw_full_2,&
@@ -36,7 +36,14 @@ MODULE fftmain_utils
                                              phasen,&
                                              putz,&
                                              unpack_x2y,&
-                                             unpack_y2x
+                                             unpack_y2x,&
+                                             putz_n,&
+                                             getz_n,&
+                                             pack_y2x_n,&
+                                             unpack_x2y_n,&
+                                             pack_x2y_n,&
+                                             unpack_y2x,&
+                                             unpack_y2x_n
   USE kinds,                           ONLY: real_8
   USE mltfft_utils,                    ONLY: mltfft_cuda,&
                                              mltfft_default,&
@@ -44,13 +51,14 @@ MODULE fftmain_utils
                                              mltfft_fftw,&
                                              mltfft_hp
   USE parac,                           ONLY: parai
-  USE system,                          ONLY: cntl
+  USE system,                          ONLY: cntl,&
+                                             fpar
   USE thread_view_types,               ONLY: thread_view_t
   USE timer,                           ONLY: tihalt,&
                                              tiset
 
-  !$ USE omp_lib, ONLY: omp_in_parallel, omp_get_thread_num
-
+  !$ USE omp_lib, ONLY: omp_in_parallel, omp_get_thread_num, &
+  !$ omp_set_num_threads, omp_set_nested
 
   USE, INTRINSIC :: ISO_C_BINDING,     ONLY: C_PTR, C_NULL_PTR
 
@@ -61,6 +69,8 @@ MODULE fftmain_utils
   PUBLIC :: mltfft
   PUBLIC :: invfftn
   PUBLIC :: fwfftn
+  PUBLIC :: invfftn_batch
+  PUBLIC :: fwfftn_batch
   !public :: fftnew
 
 
@@ -155,6 +165,275 @@ CONTAINS
     ENDIF
     ! ==--------------------------------------------------------------==
   END SUBROUTINE fftnew
+
+  ! ==================================================================
+  SUBROUTINE fftnew_batch(isign,f_in,f_out,comm)
+    ! ==--------------------------------------------------------------==
+    ! Author:
+    ! Tobias Kloeffel, CCC,FAU Erlangen-Nuernberg tobias.kloeffel@fau.de
+    ! Gerald Mathias, LRZ, Garching Gerald.Mathias@lrz.de
+    ! Bernd Meyer, CCC, FAU Erlangen-Nuernberg bernd.meyer@fau.de
+    ! Date March 2019
+    ! Special FFT driver that operates on batches of FFTs of multiple
+    ! states
+    ! This works fine because the 3D-FFT is anyway split into multiple
+    ! 1D FFTs
+    ! overlapping communication with computation possible and effective
+    ! Full performance only with saved arrays or external scratch_library
+    ! TODO:
+    ! Try MPI_IALLTOALL
+    ! Write version for FULL ffts, usefull for transforming batches of
+    ! pair densities during HFX calculations!
+
+    IMPLICIT NONE
+    INTEGER, INTENT(IN)                      :: isign
+    COMPLEX(real_8),INTENT(IN)               :: f_in(:,:)
+    COMPLEX(real_8),INTENT(OUT)              :: f_out(:,:)
+    INTEGER, INTENT(IN)                      :: comm
+
+    CHARACTER(*), PARAMETER                  :: procedureN = 'fftnew_batch'
+
+    REAL(real_8)                             :: scale
+    INTEGER                                  :: n, buff, methread, nthreads, nested_threads,&
+                                                swap, loop, lda, m, mm, n1o, n1u ,i, is, j, &
+                                                ierr
+    !$ LOGICAL                                  :: locks(fft_numbatches+1,2)
+    ! use 'own, handmade' locks as with omp inbuilt locks very strange things happen
+
+    IF(cntl%overlapp_comm_comp)THEN
+       nthreads=MIN(2,parai%ncpus)
+       nested_threads=(MAX(parai%ncpus-1,1))
+#if !defined(_INTEL_MKL)
+       CALL stopgm(procedureN, 'Overlapping communication and computation: Behavior of BLAS &
+            routine inside parallel region not checked',&
+            __LINE__,__FILE__)
+#endif
+    ELSE
+       nthreads=1
+       nested_threads=parai%ncpus
+    END IF
+    methread=0
+    !$ locks=.true.
+    !$OMP parallel IF(nthreads.eq.2) num_threads(nthreads) &
+    !$omp private(loop,methread,buff,swap,m,lda,mm,n,scale) shared(locks) proc_bind(close)
+    !$ methread = omp_get_thread_num()
+    !$ IF (methread.EQ.1) THEN
+    !$    CALL omp_set_num_threads(nested_threads)
+#ifdef _INTEL_MKL
+    !$    CALL mkl_set_dynamic(0)
+#endif
+    !$    CALL dfftw_plan_with_nthreads(nested_threads)
+    !$    CALL omp_set_nested(.TRUE.)
+    !$ END IF
+
+    !$OMP barrier
+
+    LDA=HUGE(0);MM=HUGE(0);N1U=HUGE(0);N1O=HUGE(0);M=HUGE(0)
+    scale=HUGE(0.0_real_8)
+    IF (isign.EQ.-1) THEN
+       scale=1._real_8
+       !interleave 2 batchs of ffts and 2 batchs of alltoalls - reduces memory footprint
+       !last batch may be differnt in size: fft_numbatches+1 -> n=fft_residual
+       !for better overlapp second phase of fft start at loop.EQ.2!
+       !loop.EQ.fft_numbatches+2 has no other meaning and no related data!
+       DO loop=1,fft_numbatches+2
+          IF(methread.EQ.1.OR.nthreads.EQ.1)THEN
+             ! for fft_numbatches+2 only fftyz are needed
+             IF(loop.LT.fft_numbatches+2)THEN
+                IF(loop.LE.fft_numbatches)THEN
+                   n=fft_batchsize
+                ELSE
+                   n=fft_residual
+                END IF
+                IF(n.NE.0)THEN
+                   swap=mod(loop,2)+1
+                   m=msrays*n
+                   CALL mltfft('N','T',f_in(:,(loop-1)*fft_batchsize+1),qr1s,m,xf(:,swap),&
+                        m,qr1s,lr1s,m,isign,scale )
+                   lda=lsrm*lr1m
+                   m=msrays
+                   CALL pack_x2y_n(xf(:,swap),yf(:,swap),m,lda,lrxpl,sp5,maxfftn,&
+                        parai%nproc,cntl%tr4a2a,n)
+                   !$ locks(loop,1) = .FALSE.
+                   !$omp flush(locks)
+                END IF
+             END IF
+          END IF
+          IF (methread.EQ.0.OR.nthreads.EQ.1)THEN
+             IF(loop.LT.fft_numbatches+2)THEN
+                IF(loop.LE.fft_numbatches)THEN
+                   n=fft_batchsize
+                ELSE
+                   n=fft_residual
+                END IF
+                IF (n.NE.0) THEN
+                   swap=mod(loop,2)+1
+                   lda=lsrm*lr1m*n
+                   !$omp flush(locks)
+                   !$ DO WHILE ( locks(loop,1) )
+                   !$omp flush(locks)
+                   !$ END DO
+                   !$ locks(loop,1) = .TRUE.
+                   !$omp flush(locks)
+                   CALL fft_comm(yf(:,swap),xf(:,swap),lda,cntl%tr4a2a,comm)
+                   !$ locks(loop,1)=.FALSE.
+                   !$omp flush(locks)
+                   !$ locks(loop,2)=.FALSE.
+                   !$omp flush(locks)
+                END IF
+             END IF
+          END IF
+          IF (methread.EQ.1.OR.nthreads.EQ.1) THEN
+             ! fftyz begin in loop=2, data is related to loop-1...
+             IF (loop.GT.1) THEN
+                IF (loop-1 .LE. fft_numbatches) THEN
+                   n=fft_batchsize
+                ELSE
+                   n=fft_residual
+                END IF
+                IF (n.NE.0) THEN
+                   swap=mod(loop-1,2)+1
+                   lda=lsrm*lr1m
+                   mm=qr2s*(qr3max-qr3min+1)
+                   m=(qr3max-qr3min+1)*qr1*qr2s
+                   !$omp flush(locks)
+                   !$ DO WHILE ( locks(loop-1,2) )
+                   !$omp flush(locks)
+                   !$ END DO
+                   !$omp flush(locks)
+                   !$ DO WHILE ( locks(loop-1,1) )
+                   !$omp flush(locks)
+                   !$ END DO
+                   CALL unpack_x2y_n(xf(:,swap),yf(:,swap),mm,lr1,lda,msqs,lmsq,sp9,&
+                        fpar%nnr1,parai%nproc,cntl%tr4a2a,n,m)
+                   m=(qr3max-qr3min+1)*qr1*n
+                   CALL mltfft('N','T',yf(:,swap),qr2s,m,xf(:,swap),m,qr2s,lr2s,m,isign,&
+                        scale)
+                   m=qr1*qr2s
+                   CALL putz_n(xf(:,swap),yf(:,swap),qr3min,qr3max,qr3s,qr1,qr2s,n)
+                   m=qr1*qr2s*n
+                   !copy_out copies the wavefcuntion out in order
+                   !this is a very time consuming process
+                   !we better live with mixed order of the wavefunctions and
+                   !offload that logic into vpsi/rhoofr
+                   !IF (n.gt.1) THEN
+                   !   CALL mltfft('N','T',yf(:,swap),qr3s,m,xf(:,swap),m,qr3s,lr3s,m,isign,scale)
+                   !   lda=qr1*qr2s
+                   !   m=(loop-1)*fft_batchsize+1
+                   !   call copy_out(xf(:,swap),lda,qr3s,n,f_out,m)
+                   !ELSE
+                   CALL mltfft('N','T',yf(:,swap),qr3s,m,f_out(:,loop-1),m,&
+                        qr3s,lr3s,m,isign,scale)
+                   !END IF
+                END IF
+             END IF
+          END IF
+       END DO
+
+    ELSE
+
+       DO loop=1,fft_numbatches+2
+          IF(methread.EQ.1.OR.nthreads.EQ.1)THEN
+             IF(loop.LT.fft_numbatches+2)THEN
+                IF(loop.LE.fft_numbatches+1)THEN
+                   IF(loop.LE.fft_numbatches)THEN
+                      n=fft_batchsize
+                   ELSE
+                      n=fft_residual
+                   END IF
+                   IF(n.NE.0)THEN
+                      swap=mod(loop,2)+1
+                      scale=1._real_8
+                      lda=qr1*qr2s
+                      m=qr1*qr2s*n
+                      CALL mltfft('T','N',f_in(:,loop),m,qr3s,yf(:,swap),&
+                           qr3s,m,lr3s,m,isign,scale )
+                      CALL getz_n(yf(:,swap),xf(:,swap),qr3min,qr3max,qr3s,qr1,qr2s,n)
+                      m=(qr3max-qr3min+1)*qr1*n
+                      CALL mltfft('T','N',xf(:,swap),m,qr2s,yf(:,swap),qr2s,m,lr2s,m,isign,&
+                           scale )
+                      lda=lsrm*lr1m
+                      mm=qr2s*(qr3max-qr3min+1)
+                      m=(qr3max-qr3min+1)*qr1*qr2s
+                      CALL pack_y2x_n(xf(:,swap),yf(:,swap),mm,lr1,lda,msqs,lmsq,sp9,&
+                           maxfftn,parai%nproc,cntl%tr4a2a,n,m)
+                      !$ locks(loop,1) = .FALSE.
+                      !$omp flush(locks)
+                   END IF
+                END IF
+             END IF
+          END IF
+          IF(methread.EQ.0.OR.nthreads.EQ.1)THEN
+             IF(loop.LT.fft_numbatches+2)THEN
+                IF(loop.LE.fft_numbatches+1)THEN
+                   IF(loop.LE.fft_numbatches)THEN
+                      n=fft_batchsize
+                   ELSE
+                      n=fft_residual
+                   END IF
+                   IF(n.NE.0)THEN
+                      swap=mod(loop,2)+1
+                      lda=lsrm*lr1m*n
+                      !$omp flush(locks)
+                      !$ DO WHILE ( locks(loop,1) )
+                      !$omp flush(locks)
+                      !$ END DO
+                      !$ locks(loop,1) = .TRUE.
+                      !$omp flush(locks)
+                      CALL fft_comm(xf(:,swap),yf(:,swap),lda,cntl%tr4a2a,comm)
+                      !$ locks(loop,1)=.FALSE.
+                      !$omp flush(locks)
+                      !$ locks(loop,2)=.FALSE.
+                      !$omp flush(locks)
+                   END IF
+                END IF
+             END IF
+          END IF
+          IF (methread.EQ.1.OR.nthreads.EQ.1)THEN
+             IF(loop.GT.1)THEN
+                IF (loop-1.LE.fft_numbatches+1)THEN
+                   IF (loop-1.LE.fft_numbatches)THEN
+                      n=fft_batchsize
+                   ELSE
+                      n=fft_residual
+                   END IF
+                   IF(n.NE.0)THEN
+                      swap=mod(loop-1,2)+1
+                      !                      ti(9)=m_walltime()
+                      !$omp flush(locks)
+                      !$ DO WHILE ( locks(loop-1,2) )
+                      !$omp flush(locks)
+                      !$ END DO
+                      !$omp flush(locks)
+                      !$ DO WHILE ( locks(loop-1,1) )
+                      !$omp flush(locks)
+                      !$ END DO
+                      lda=lsrm*lr1m
+                      CALL unpack_y2x_n(xf(:,swap),yf(:,swap),mm,msrays,lda,lrxpl,sp5,&
+                           maxfftn,parai%nproc,cntl%tr4a2a,n)
+                      scale=1._real_8/REAL(lr1s*lr2s*lr3s,kind=real_8)
+                      m=msrays*n
+                      CALL mltfft('T','N',xf(:,swap),m,qr1s,&
+                           f_out(:,(loop-2)*fft_batchsize+1),qr1s,m,lr1s,m,isign,scale )
+                   END IF
+                END IF
+             END IF
+          END IF
+       END DO
+    END IF
+    !$omp barrier
+    !$ IF (methread.EQ.1) THEN
+    !$    CALL omp_set_num_threads(parai%ncpus)
+    !$    CALL dfftw_plan_with_nthreads(parai%ncpus)
+#ifdef _INTEL_MKL
+    !$    CALL mkl_set_dynamic(1)
+#endif
+    !$    CALL omp_set_nested(.FALSE.)
+    !$ END IF
+
+    !$omp  END parallel
+    ! ==--------------------------------------------------------------==
+  END SUBROUTINE fftnew_batch
 
 
   ! ==================================================================
@@ -430,5 +709,43 @@ CONTAINS
     ! ==--------------------------------------------------------------==
   END SUBROUTINE fwfftn
   ! ==================================================================
+
+  SUBROUTINE fwfftn_batch(f_in,f_out)
+    ! ==--------------------------------------------------------------==
+    ! == COMPUTES THE FORWARD FOURIER TRANSFORM OF A COMPLEX          ==
+    ! == FUNCTION F_IN. THE FOURIER TRANSFORM IS                      ==
+    ! == RETURNED IN F_OUT                                            ==
+    ! ==--------------------------------------------------------------==
+    COMPLEX(real_8),intent(in)               :: f_in(:,:)
+    COMPLEX(real_8),intent(out)              :: f_out(:,:)
+    CHARACTER(*), PARAMETER                  :: procedureN = 'fwfftn_batch'
+
+    INTEGER                                  :: isign, isub
+
+    CALL tiset(procedureN,isub)
+    isign=1
+    CALL fftnew_batch(isign,f_in,f_out, parai%allgrp)
+    CALL tihalt(procedureN,isub)
+    ! ==--------------------------------------------------------------==
+  END SUBROUTINE fwfftn_batch
+  ! ==================================================================
+  SUBROUTINE invfftn_batch(f_in,f_out)
+    ! ==--------------------------------------------------------------==
+    ! == COMPUTES THE INVERSE FOURIER TRANSFORM OF A COMPLEX          ==
+    ! == FUNCTION F_IN. THE FOURIER TRANSFORM IS                      ==
+    ! == RETURNED IN F_OUT                                            ==
+    ! ==--------------------------------------------------------------==
+    COMPLEX(real_8),INTENT(IN)               :: f_in(:,:)
+    COMPLEX(real_8),INTENT(OUT)              :: f_out(:,:)
+    CHARACTER(*), PARAMETER                  :: procedureN = 'invfftn_batch'
+
+    INTEGER                                  :: isign, isub
+
+    CALL tiset(procedureN,isub)
+    isign=-1
+    CALL fftnew_batch(isign,f_in,f_out,parai%allgrp)
+    CALL tihalt(procedureN,isub)
+    ! ==--------------------------------------------------------------==
+  END SUBROUTINE invfftn_batch
 
 END MODULE fftmain_utils

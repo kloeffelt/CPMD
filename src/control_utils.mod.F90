@@ -27,6 +27,7 @@ MODULE control_utils
                                              fint5,&
                                              maxbetap,&
                                              maxtrot
+  USE fft,                             ONLY: a2a_msgsize,batch_fft
   USE g_loc,                           ONLY: gloc_list,&
                                              glocal,&
                                              gloci,&
@@ -3660,6 +3661,11 @@ CONTAINS
                    something_went_wrong = .true.
                    go_on_reading        = .false.
                 ENDIF
+             ELSEIF ( keyword_contains(line,'USE_BATCHFFT') ) THEN
+                batch_fft=.TRUE.
+             ELSEIF ( keyword_contains(line,'ALL2ALL_BATCHSIZE') ) THEN
+                READ(iunit,'(A)',iostat=ierr) line
+                CALL readsi(line,1,last,a2a_msgsize,erread)
              ELSEIF ( keyword_contains(line,'RNLSM1_BLOCKCOUNT') ) THEN
                 READ(iunit,'(A)',iostat=ierr) line
                 CALL readsi(line,1,last,cnti%rnlsm1_bc,erread)

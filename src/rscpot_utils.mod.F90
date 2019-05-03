@@ -7,6 +7,7 @@ MODULE rscpot_utils
                                              ener_com,&
                                              ener_d
   USE epr_efg_utils,                   ONLY: save_rho
+  USE fft,                             ONLY: batch_fft
   USE hubbardu,                        ONLY: c2u0,hubbu
   USE hubbardu_utils,                  ONLY: hubbardUcorrection
   USE kinds,                           ONLY: real_8
@@ -19,7 +20,8 @@ MODULE rscpot_utils
                                              paral
   USE prop,                            ONLY: prop5
   USE rhoofr_c_utils,                  ONLY: rhoofr_c
-  USE rhoofr_utils,                    ONLY: rhoofr
+  USE rhoofr_utils,                    ONLY: rhoofr,&
+                                             rhoofr_batchfft
   USE rnlfor_utils,                    ONLY: rnlfor
   USE rnlrh_utils,                     ONLY: rnlrh
   USE ropt,                            ONLY: iteropt
@@ -110,7 +112,11 @@ CONTAINS
        dorho=.NOT.lqmmm%qmmm .OR. (lqmmm%qmmm.AND.cntl%bsymm)&
             .OR.(lqmmm%qmmm .AND. iqmmm%coupl_model.EQ.0)
        IF (dorho) THEN
-          CALL rhoofr(c0,rhoe,psi(:,1),nstate)
+          IF(batch_fft)THEN
+             CALL rhoofr_batchfft(c0,rhoe,psi(:,1),nstate)
+          ELSE
+             CALL rhoofr(c0,rhoe,psi(:,1),nstate)
+          END IF
        ENDIF
     ENDIF
 

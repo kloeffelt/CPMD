@@ -18,7 +18,8 @@ MODULE vpsi_utils
   USE cp_cuwfn_types,                  ONLY: cp_cuwfn,&
                                              cp_cuwfn_device_get_ptrs,&
                                              cp_cuwfn_get
-  USE cp_grp_utils,                    ONLY: cp_grp_redist
+  USE cp_grp_utils,                    ONLY: cp_grp_redist,&
+                                             cp_grp_redist_array
   USE cppt,                            ONLY: gk,&
                                              hg,&
                                              indzs,&
@@ -41,9 +42,18 @@ MODULE vpsi_utils
                                              jhg,&
                                              llr1,&
                                              ngrm,&
-                                             nzff
+                                             nzff,&
+                                             msrays,&
+                                             wfn_r,&
+                                             wfn_g,&
+                                             fft_batchsize,&
+                                             fft_numbatches,&
+                                             fft_residual,&
+                                             fft_total
   USE fftmain_utils,                   ONLY: fwfftn,&
-                                             invfftn
+                                             invfftn,&
+                                             fwfftn_batch,&
+                                             invfftn_batch
   USE fftnew_utils,                    ONLY: setfftn
   USE geq0mod,                         ONLY: geq0
   USE kinds,                           ONLY: real_8
@@ -106,6 +116,7 @@ MODULE vpsi_utils
   PRIVATE
 
   PUBLIC :: vpsi
+  PUBLIC :: vpsi_batchfft
   PUBLIC :: vpsimt
   !public :: movepsid
 
@@ -984,5 +995,482 @@ CONTAINS
     RETURN
   END SUBROUTINE movepsid
   ! ==================================================================
+  ! ==================================================================
+  SUBROUTINE vpsi_batchfft(c0,c2,f,vpot,psi,nstate,ikind,ispin,redist_c2)
+    ! ==================================================================
+    ! == K-POINT AND NOT K-POINT VERSION OF VPSI.                     ==
+    ! ==--------------------------------------------------------------==
+    ! == VPOT:   IN INPUT POTENTIAL                                   ==
+    ! == ISPIN:  Need with LSD option for diagonalization scheme      ==
+    ! ==         dimension of VPOT(NNR1,ISPIN)                        ==
+    ! ==--------------------------------------------------------------==
+    ! EHR[
+    ! EHR]
+    ! Modified: Tobias Kloeffel, Erlangen
+    ! Date May 2019
+    ! special version of vpsi to use the batch fft driver
+    ! TODO
+    ! move communication phase into vpsi:
+    ! benefits: reduces memory footprint as only two batches are needed
+    ! in memory; expands the time for the communication phase as also
+    ! the decobination phase of the wf's can take place during
+    ! communication phse
+    ! cons: code complexity will increase, e.g. calling alltoall from here?
+    ! Full performance only with saved arrays or scratch_library
+
+    COMPLEX(real_8)                          :: c0(:,:), c2(:,:)
+    REAL(real_8)                             :: f(:)
+    REAL(real_8), TARGET __CONTIGUOUS        :: vpot(:,:)
+    COMPLEX(real_8), TARGET __CONTIGUOUS     :: psi(:)
+    INTEGER                                  :: nstate, ikind, ispin
+    LOGICAL                                  :: redist_c2
+    LOGICAL                                  :: lg_vpotx3a, lg_vpotx3b
+    CHARACTER(*), PARAMETER                  :: procedureN = 'vpsi_batchfft'
+    COMPLEX(real_8), PARAMETER               :: zone = (1.0_real_8,0.0_real_8)
+
+    COMPLEX(real_8)                          :: fm, fp, psii, psin
+    INTEGER :: i, iclpot = 0, id, ierr, ig, &
+      ir, is1, is2, isub, isub2, isub3, iwf, ixx, ixxs, iyy, izz, jj, &
+      leadx, lspin(2,fft_batchsize), njump, nnrx, nostat, nrxyz1s, nrxyz2, stream_idx, &
+      ist,states_fft,il_wfng(2),il_wfnr1(4), bsize, ibatch, istate,ir1,first_state,il_wfnr(2), offset
+    REAL(real_8)                             :: chksum, csmult, fi, fip1, g2, &
+                                                xskin
+    REAL(real_8), ALLOCATABLE                :: vpotx3a(:,:,:), vpotx3b(:,:,:)
+    REAL(real_8), POINTER __CONTIGUOUS       :: VPOTX(:),vpotdg(:,:,:),extf_p(:,:)
+    COMPLEX(real_8), POINTER __CONTIGUOUS    :: wfn_r1(:,:,:,:)
+
+    ! ==--------------------------------------------------------------==
+
+    CALL tiset(procedureN,isub)
+
+    IF (group%nogrp.GT.1)CALL stopgm(procedureN,&
+         'OLD TASK GROUPS NOT SUPPORTED ANYMORE ',&
+         __LINE__,__FILE__)
+    IF (tdgcomm%tdg) &
+         CALL stopgm(procedureN,'DOUBLE GRID NOT SUPPORTED', &
+               __LINE__,__FILE__)
+    CALL setfftn(0)
+
+    IF (lspin2%tlse.AND.lspin2%tlsets.AND.(lspin2%tross.OR.lspin2%tcas22.OR.lspin2%tpenal.OR.lspin2%troot)) THEN
+       CALL stopgm(procedureN,&
+            'NO SLATER TS WITH ROSS, CAS22, PENALTY, ROOTHAAN',&
+            __LINE__,__FILE__)
+    ENDIF
+
+    IF(td_prop%td_extpot) CALL reshape_inplace(extf, (/fpar%kr1*fpar%kr2s,fpar%kr3s/), extf_p)
+    CALL reshape_inplace(vpot, (/fpar%kr1*fpar%kr2s,fpar%kr3s,ispin/), vpotdg)
+    !
+    !vpotx(1:SIZE(vpotdg)) => vpotdg
+    CALL reshape_inplace(vpot, (/fpar%nnr1*ispin/), vpotx)
+
+    il_wfng(1)=fpar%kr1s*msrays
+    il_wfng(2)=fft_total
+    il_wfnr(1)=fpar%kr1*fpar%kr2s*fpar%kr3s*fft_batchsize
+    il_wfnr(2)=fft_numbatches
+    IF (fft_residual .gt. 0) il_wfnr(2)=fft_numbatches+1
+    IF (.NOT.rsactive) THEN !still allocated if rsactive=.true.
+       ALLOCATE(wfn_r(il_wfnr(1),il_wfnr(2)),STAT=ierr)
+       IF(ierr/=0) CALL stopgm(procedureN,'cannot allocate wfn_r1', &
+            __LINE__,__FILE__)
+       ALLOCATE(wfn_g(il_wfng(1),il_wfng(2)),STAT=ierr)
+       IF(ierr/=0) CALL stopgm(procedureN,'cannot allocate wfn_g', &
+            __LINE__,__FILE__)
+    END IF
+    leadx = fpar%nnr1
+    nnrx  = llr1
+
+    njump=2
+    IF (tkpts%tkpnt) njump=1
+    IF (lspin2%tlse) THEN
+       nostat = clsd%ialpha-1
+    ELSE
+       nostat = nstate
+    ENDIF
+
+    IF (cntl%cdft)THEN
+       IF (.NOT.cdftlog%tcall)THEN
+          csmult=cdftcom%cdft_v(1)
+       ELSE
+          csmult=cdftcom%cdft_v(1)+cdftcom%cdft_v(2)
+       ENDIF
+       !$omp parallel do private(IR)
+       DO ir=1,fpar%nnr1
+          vpotdg(ir,1,1)=vpotdg(ir,1,1)+csmult*wdiff(ir)
+       ENDDO
+       IF (.NOT.cdftlog%tcall)THEN
+          IF (cdftlog%tspinc) THEN
+             csmult=-cdftcom%cdft_v(1)
+          ELSE
+             csmult=cdftcom%cdft_v(1)
+          ENDIF
+       ELSE
+          csmult=cdftcom%cdft_v(1)-cdftcom%cdft_v(2)
+       ENDIF
+       IF (cntl%tlsd.AND.ispin.EQ.2) THEN
+          !$omp parallel do private(IR)
+          DO ir=1,fpar%nnr1
+             vpotdg(ir,2,1)=vpotdg(ir,2,1)+csmult*wdiff(ir)
+          ENDDO
+       ENDIF
+    ENDIF
+    CALL reshape_inplace(vpot, (/fpar%kr1*fpar%kr2s,fpar%kr3s,ispin/), vpotdg)
+
+    IF(.NOT.rsactive) THEN
+       ! Loop over the electronic states
+       ist=0
+       DO i = 1,part_1d_nbr_el_in_blk(nstate,parai%cp_inter_me,parai%cp_nogrp),2
+          is1 = part_1d_get_el_in_blk(i,nstate,parai%cp_inter_me,parai%cp_nogrp)
+          is2 = nstate+1
+          IF (i+1.LE.part_1d_nbr_el_in_blk(nstate,parai%cp_inter_me,parai%cp_nogrp))&
+               is2 = part_1d_get_el_in_blk(i+1,nstate,parai%cp_inter_me,parai%cp_nogrp)
+
+          ist=ist+1
+
+          !$omp parallel do private(ir)
+          do ir=1,il_wfng(1)
+             wfn_g(ir,ist)=CMPLX(0.0_real_8,0.0_real_8,kind=real_8)
+          end do
+
+          IF (is2.GT.nstate) THEN
+             CALL set_psi_1_state_g(zone,c0(:,is1),wfn_g(:,ist))
+          ELSE
+             CALL set_psi_2_states_g(c0(:,is1),c0(:,is2),wfn_g(:,ist))
+          ENDIF
+       END DO
+       ! ==--------------------------------------------------------------==
+       ! ==  Fourier transform the wave functions to real space.         ==
+       ! ==  In the array PSI was used also the fact that the wave       ==
+       ! ==  functions at Gamma are real, to form a complex array (PSI)  ==
+       ! ==  with the wave functions corresponding to two different      ==
+       ! ==  states (i and i+1) as the real and imaginary part. This     ==
+       ! ==  allows to call the FFT routine 1/2 of the times and save    ==
+       ! ==  time.                                                       ==
+       ! ==--------------------------------------------------------------==
+       CALL invfftn_batch(wfn_g,wfn_r)
+    END IF
+
+    il_wfnr1(1)=fpar%kr1*fpar%kr2s
+    il_wfnr1(2)=fft_batchsize
+    il_wfnr1(3)=fpar%kr3s
+    il_wfnr1(4)=fft_numbatches
+    IF (fft_residual .gt. 0) il_wfnr1(4)=fft_numbatches+1
+    CALL reshape_inplace(wfn_r, (/il_wfnr1(1),il_wfnr1(2),il_wfnr1(3),il_wfnr1(4)/), wfn_r1)
+    ! ==--------------------------------------------------------------==
+    ist=0
+    first_state= part_1d_get_el_in_blk(1,nostat,parai%cp_inter_me,parai%cp_nogrp)
+    DO ibatch = 1,fft_numbatches +1
+       IF ( fft_residual .EQ. 0 .AND. ibatch .GT. fft_numbatches ) CYCLE
+       bsize=fft_batchsize
+       IF ( ibatch .GT. fft_numbatches) bsize=fft_residual
+       ! ==------------------------------------------------------------==
+       ! == Apply the potential (V), which acts in real space.         ==
+       IF ( ibatch .LE. fft_numbatches) THEN
+          lspin=1
+          offset=first_state-1+(ibatch-1)*fft_batchsize*njump
+          DO ist=1,bsize
+             offset=offset+1
+             is1=offset
+             IF (njump.EQ.2) THEN
+                offset=offset+1
+                is2=offset
+             ELSE
+                is2=0
+             END IF
+             IF (cntl%tlsd.AND.ispin.EQ.2) THEN
+                IF (is1.GT.spin_mod%nsup) lspin(1,ist)=2
+                IF (is2.GT.spin_mod%nsup) lspin(2,ist)=2
+             END IF
+             !njump states per single fft
+          END DO
+          !$omp parallel do private(ir1,ist,ir)
+          DO ir1=1,fpar%kr3s
+             DO ist=1,bsize
+                DO ir=1,fpar%kr1*fpar%kr2s
+                   wfn_r1(ir,ist,ir1,ibatch)=&
+                        vpotdg(ir,ir1,lspin(1,ist))*REAL(wfn_r1(ir,ist,ir1,ibatch),KIND=real_8)&
+                        +uimag*vpotdg(ir,ir1,lspin(2,ist))*AIMAG(wfn_r1(ir,ist,ir1,ibatch))
+                ENDDO
+             END DO
+          END DO
+          IF (td_prop%td_extpot.AND.cntl%tlsd.AND.ispin.EQ.2) THEN
+             !add extf only to is1=nsup??
+             offset=first_state-1+(ibatch-1)*fft_batchsize*njump
+             DO ist=1,bsize
+                offset=offset+njump
+                is1=offset
+                IF (is1.EQ.spin_mod%nsup) EXIT
+                !njump states per fft
+             END DO
+             !ist is now set so that is .eq. spin_mod%nsup or is bsize+1
+             IF (ist .LE. bsize) THEN
+                !$omp parallel do private(ir1,ir)
+                DO ir1=1,fpar%kr3s
+                   DO ir=1,fpar%kr1*fpar%kr2s
+                      wfn_r1(ir,ist,ir1,ibatch)=&
+                           extf_p(ir,ir1)*REAL(wfn_r1(ir,ist,ir1,ibatch),KIND=real_8)&
+                           +uimag*extf_p(ir,ir1)*AIMAG(wfn_r1(ir,ist,ir1,ibatch))
+                   END DO
+                END DO
+             END IF
+          END IF
+       ELSE
+          !handle the remaining states
+          !=> ibatch = fft_numbatches+1
+          il_wfnr1(1)=fpar%kr1*fpar%kr2s
+          il_wfnr1(2)=fft_batchsize*fpar%kr3s
+          il_wfnr1(3)=fft_numbatches+1
+          il_wfnr1(4)=1
+          CALL reshape_inplace(wfn_r, (/il_wfnr1(1),il_wfnr1(2),il_wfnr1(3),il_wfnr1(4)/), wfn_r1)
+          lspin=1
+          offset=first_state-1+(ibatch-1)*fft_batchsize*njump
+          DO ist=1,bsize
+             offset=offset+1
+             is1=offset
+             IF (njump.EQ.2) THEN
+                offset=offset+1
+                is2=offset
+             ELSE
+                is2=0
+             END IF
+             IF (cntl%tlsd.AND.ispin.EQ.2) THEN
+                IF (is1.GT.spin_mod%nsup) lspin(1,ist)=2
+                IF (is2.GT.spin_mod%nsup) lspin(2,ist)=2
+             END IF
+             !njump states per single fft
+          END DO
+          !$omp parallel do private(ir1,ist,IR)
+          DO ir1=1,fpar%kr3s
+             DO ist=1,bsize
+                DO ir=1,fpar%kr1*fpar%kr2s
+                   wfn_r1(ir,ist+(ir1-1)*bsize,ibatch,1)=&
+                        vpotdg(ir,ir1,lspin(1,ist))*REAL(wfn_r1(ir,ist+(ir1-1)*bsize,ibatch,1),KIND=real_8)&
+                        +uimag*vpotdg(ir,ir1,lspin(2,ist))*AIMAG(wfn_r1(ir,ist+(ir1-1)*bsize,ibatch,1))
+                END DO
+             END DO
+          END DO
+          IF (td_prop%td_extpot.AND.cntl%tlsd.AND.ispin.EQ.2) THEN
+             !add extf only to is1=nsup??
+             offset=first_state-1+(ibatch-1)*fft_batchsize*njump
+             DO ist=1,bsize
+                offset=offset+njump
+                is1=offset
+                IF (is1.EQ.spin_mod%nsup) EXIT
+                !njump states per fft
+             END DO
+             !ist is now set so that is .eq. spin_mod%nsup or ist .eq. bsize+1
+             IF (ist .LE. bsize) THEN
+                !$omp parallel do private(ir1,ir)
+                DO ir1=1,fpar%kr3s
+                   DO ir=1,fpar%kr1*fpar%kr2s
+                      wfn_r1(ir,ist+(ir1-1)*bsize,ibatch,1)=&
+                           extf_p(ir,ir1)*REAL(wfn_r1(ir,ist+(ir1-1)*bsize,ibatch,1),KIND=real_8)&
+                           +uimag*extf_p(ir,ir1)*AIMAG(wfn_r1(ir,ist+(ir1-1)*bsize,ibatch,1))
+                   END DO
+                END DO
+             END IF
+          END IF
+       END IF
+    END DO
+    ! kk-mb === print local potential (start) ===
+    IF (locpot2%tlpot) THEN
+       iclpot=iclpot+1
+       nrxyz1s=spar%nr1s*spar%nr2s*spar%nr3s
+       nrxyz2=0
+       IF (iclpot .EQ. 1) THEN
+          ALLOCATE(vpotx3a(spar%nr1s,spar%nr2s,spar%nr3s),STAT=ierr)
+          IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+               __LINE__,__FILE__)
+          CALL zeroing(vpotx3a)!,nrxyz1s)
+          lg_vpotx3a=.TRUE.
+          lg_vpotx3b=.FALSE.
+       ELSE
+          IF (lg_vpotx3a) THEN
+             ALLOCATE(vpotx3b(spar%nr1s,spar%nr2s,spar%nr3s),STAT=ierr)
+             IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+                  __LINE__,__FILE__)
+             CALL zeroing(vpotx3b)!,nrxyz1s)
+             DEALLOCATE(vpotx3a,STAT=ierr)
+             IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
+                  __LINE__,__FILE__)
+             lg_vpotx3a=.FALSE.
+             lg_vpotx3b=.TRUE.
+          ELSE IF (lg_vpotx3b) THEN
+             ALLOCATE(vpotx3a(spar%nr1s,spar%nr2s,spar%nr3s),STAT=ierr)
+             IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+                  __LINE__,__FILE__)
+             CALL zeroing(vpotx3a)!,nrxyz1s)
+             DEALLOCATE(vpotx3b,STAT=ierr)
+             IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
+                  __LINE__,__FILE__)
+             lg_vpotx3a=.TRUE.
+             lg_vpotx3b=.FALSE.
+          ENDIF
+       ENDIF
+       DO ir=1,nnrx
+          IF (vpotx(ir) .NE. 0) THEN
+             nrxyz2=nrxyz2+1
+             ixx=MOD(nrxyz2-1,parm%nr1)+1
+             jj=(nrxyz2-1)/parm%nr1+1
+             iyy=MOD(jj-1,spar%nr2s)+1
+             izz=(nrxyz2-1)/(parm%nr1*spar%nr2s)+1
+             ixxs=ixx+parap%nrxpl(1,parai%mepos)-1
+             IF (lg_vpotx3a) THEN
+                vpotx3a(ixxs,iyy,izz)=vpotx(ir)
+             ELSE IF (lg_vpotx3b) THEN
+                vpotx3b(ixxs,iyy,izz)=vpotx(ir)
+             ENDIF
+          ENDIF
+       ENDDO
+    ENDIF
+
+    ! ==------------------------------------------------------------==
+    ! == Back transform to reciprocal space the product V.PSI       ==
+    ! ==------------------------------------------------------------==
+
+    CALL fwfftn_batch(wfn_r,wfn_g)
+    ist=0
+    DO i = 1,part_1d_nbr_el_in_blk(nostat,parai%cp_inter_me,parai%cp_nogrp),njump
+       is1 = part_1d_get_el_in_blk(i,nostat,parai%cp_inter_me,parai%cp_nogrp)
+       is2 = nostat+1
+       IF (njump.EQ.2) THEN
+          IF (i+1.LE.part_1d_nbr_el_in_blk(nostat,parai%cp_inter_me,parai%cp_nogrp))&
+               is2 = part_1d_get_el_in_blk(i+1,nostat,parai%cp_inter_me,parai%cp_nogrp)
+       ENDIF
+       ist=ist+1
+       ! ==------------------------------------------------------------==
+       ! == Decode the combination of wavefunctions (now multiplied by ==
+       ! == the potential), back to those of states i and i+1. Multiply==
+       ! == also by the occupation numbers f(i) and other constants in ==
+       ! == order to obtain the force on the electronic degrees of     ==
+       ! == freedom, stored in array FC.                               ==
+       ! == Here we also add the force from the kinetic energy.        ==
+       ! ==------------------------------------------------------------==
+       IF (tkpts%tkpnt) THEN
+          fi=f(is1)
+          IF (fi.EQ.0._real_8) fi=2._real_8
+          ! EHR[
+          IF (cntl%tgaugep.OR.cntl%tgaugef) THEN
+             IF (gndir.EQ.0) THEN
+                DO ig=1,ncpw%ngw
+                   fp=wfn_g(nzhs(ig),ist)
+                   fm=wfn_g(indzs(ig),ist)
+                   C2(ig,is1)=-fi*&
+                        (0.5_real_8*parm%tpiba2*hgkp(ig,ikind)*c0(ig,is1)+fp)
+                   C2(ig+ncpw%ngw,is1)=-fi*&
+                        (0.5_real_8*parm%tpiba2*hgkm(ig,ikind)*c0(ig+ncpw%ngw,is1)+fm)
+                   C2(ig,is1)=c2(ig,is1)&
+                        -fi*gpot*(rk(td_prop%pertdir,1)&
+                        +gk(td_prop%pertdir,ig))*parm%tpiba*c0(ig ,is1)&
+                        -fi*0.5_real_8*(gpot**2)*              c0(ig,is1)
+                   C2(ig+ncpw%ngw,is1)=c2(ig+ncpw%ngw,is1)&
+                        -fi*gpot*(rk(td_prop%pertdir,1)&
+                        -gk(td_prop%pertdir,ig))*parm%tpiba*c0(ig+ncpw%ngw,is1)&
+                        -fi*0.5_real_8*(gpot**2)*              c0(ig+ncpw%ngw,is1)
+                ENDDO
+             ELSE
+                DO ig=1,ncpw%ngw
+                   fp=wfn_g(nzhs(ig),ist)
+                   fm=wfn_g(indzs(ig),ist)
+                   C2(ig,is1)=-fi*&
+                        (0.5_real_8*parm%tpiba2*hgkp(ig,ikind)*c0(ig,is1)+fp)
+                   C2(ig+ncpw%ngw,is1)=-fi*&
+                        (0.5_real_8*parm%tpiba2*hgkm(ig,ikind)*c0(ig+ncpw%ngw,is1)+fm)
+                   ! elisa
+                   DO id=1,3
+                      IF (gampl(id).NE.0._real_8) THEN
+                         C2(ig,is1)=c2(ig,is1)&
+                              -fi*gpotv(id)*(rk(id,1)&
+                              +gk(id,ig))*parm%tpiba*c0(ig ,is1)&
+                              -fi*0.5_real_8*(gpotv(id)**2)*   c0(ig,is1)
+                         C2(ig+ncpw%ngw,is1)=c2(ig+ncpw%ngw,is1)&
+                              -fi*gpotv(id)*(rk(id,1)&
+                              -gk(id,ig))*parm%tpiba*c0(ig+ncpw%ngw,is1)&
+                              -fi*0.5_real_8*(gpotv(id)**2)*   c0(ig+ncpw%ngw,is1)
+                      ENDIF
+                   ENDDO
+                   ! elisa
+                ENDDO
+             ENDIF
+
+          ELSE
+             !$omp parallel do private(IG,FP,FM)
+             DO ig=1,ncpw%ngw
+                fp=wfn_g(nzhs(ig),ist)
+                fm=wfn_g(indzs(ig),ist)
+                C2(ig,    is1)=-fi*&
+                     (0.5_real_8*parm%tpiba2*hgkp(ig,ikind)*c0(ig,    is1)+fp)
+                C2(ig+ncpw%ngw,is1)=-fi*&
+                     (0.5_real_8*parm%tpiba2*hgkm(ig,ikind)*c0(ig+ncpw%ngw,is1)+fm)
+             ENDDO
+          ENDIF
+          ! EHR]
+          IF (geq0)C2(1+ncpw%ngw,is1)=CMPLX(0._real_8,0._real_8,kind=real_8)
+       ELSE
+          fi=f(is1)*0.5_real_8
+          IF (fi.EQ.0._real_8.AND..NOT.cntl%tksham) fi=1._real_8
+          IF (fi.EQ.0._real_8.AND.cntl%tksham) fi=0.5_real_8
+          fip1=0._real_8
+          IF (is2.LE.nostat) fip1=f(is2)*0.5_real_8
+          IF (fip1.EQ.0._real_8.AND..NOT.cntl%tksham) fip1=1._real_8
+          IF (fip1.EQ.0._real_8.AND.cntl%tksham) fip1=0.5_real_8
+          IF (prcp_com%akin.GT.1.e-10_real_8) THEN
+             xskin=1._real_8/prcp_com%gskin
+             !$omp parallel do private(IG,FP,FM,G2,psin,psii)
+             DO ig=1,jgw
+                psin=wfn_g(nzhs(ig),ist)! access only once
+                psii=wfn_g(indzs(ig),ist)! these mem locations
+                fp=psin+psii
+                fm=psin-psii
+                g2=parm%tpiba2*(hg(ig)+&
+                     prcp_com%gakin*(1._real_8+cp_erf((hg(ig)-prcp_com%gckin)*xskin)))
+                C2(ig,is1)=-fi*(g2*c0(ig,is1)+&
+                     CMPLX(REAL(fp),AIMAG(fm),kind=real_8))
+                IF (is2.LE.nostat) C2(ig,is2)=-fip1*(g2*c0(ig,is2)+&
+                     CMPLX(AIMAG(fp),-REAL(fm),kind=real_8))
+             ENDDO
+          ELSE
+             !$omp parallel do private(IG,FP,FM,psin,psii)
+             DO ig=1,jgw
+                psin=wfn_g(nzhs(ig),ist)! access only once
+                psii=wfn_g(indzs(ig),ist)! these mem locations
+                fp=psin+psii
+                fm=psin-psii
+                C2(ig,is1)=-fi*((parm%tpiba2*hg(ig))*c0(ig,is1)+&
+                     CMPLX(REAL(fp),AIMAG(fm),kind=real_8))
+                IF (is2.LE.nostat) C2(ig,is2)=-fip1*&
+                     ((parm%tpiba2*hg(ig))*&
+                     c0(ig,is2)+CMPLX(AIMAG(fp),-REAL(fm),kind=real_8))
+             ENDDO
+          ENDIF
+       ENDIF
+    ENDDO
+    !
+    ! redistribute C2 over the groups if needed
+    !
+    IF (redist_c2) THEN
+       CALL tiset(procedureN//'_grps_b',isub3)
+       CALL cp_grp_redist_array(C2,nkpt%ngwk,nstate)
+       CALL tihalt(procedureN//'_grps_b',isub3)
+    ENDIF
+
+    !free wfn_g,and wfn_r
+    IF(.NOT.rsactive)THEN
+       DEALLOCATE(wfn_g,STAT=ierr)
+       IF(ierr/=0) CALL stopgm(procedureN,'cannot deallocate wfn_g', &
+            __LINE__,__FILE__)
+       DEALLOCATE(wfn_r,STAT=ierr)
+       IF(ierr/=0) CALL stopgm(procedureN,'cannot deallocate wfn_r', &
+            __LINE__,__FILE__)
+    END IF
+    IF (tkpts%tkpnt) CALL c_clean(c2,nstate,ikind)
+    ! SPECIAL TERMS FOR LSE METHODS
+    IF (lspin2%tlse) CALL vpsi_lse(c0,c2,f,vpot,psi,nstate,.TRUE.)
+    ! META FUNCTIONALS NEED SPECIAL TERM
+    IF (cntl%ttau) CALL vtaupsi(c0,c2,f,psi,nstate,ispin)
+    !
+    CALL tihalt(procedureN,isub)
+    ! ==--------------------------------------------------------------==
+    RETURN
+  END SUBROUTINE vpsi_batchfft
 
 END MODULE vpsi_utils

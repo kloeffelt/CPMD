@@ -495,10 +495,16 @@ CONTAINS
 ! KR2=NR2+MOD(NR2,2)
 ! KR3=NR3+MOD(NR3,2)
 ! instead off that
-
+    !TK kr[123]=nr[123] seems to be much faster on Intel architectures...
+#ifdef _INTEL_MKL
+    kr1=nr1
+    kr2=nr2
+    kr3=nr3
+#else
     kr1=nr1+MOD(nr1+1,2)
     kr2=nr2+MOD(nr2+1,2)
     kr3=nr3+MOD(nr3+1,2)
+#endif
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE leadim

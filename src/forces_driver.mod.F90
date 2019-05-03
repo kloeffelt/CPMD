@@ -11,6 +11,7 @@ MODULE forces_driver
   USE ener,                            ONLY: ener_com
   USE error_handling,                  ONLY: stopgm
   USE fft_maxfft,                      ONLY: maxfft
+  USE fft,                             ONLY: batch_fft
   USE fnonloc_utils,                   ONLY: fnonloc,&
                                              give_scr_fnonloc
   USE func,                            ONLY: func1
@@ -73,7 +74,8 @@ MODULE forces_driver
                                              tiset
   USE utils,                           ONLY: zclean,&
                                              zclean_k
-  USE vpsi_utils,                      ONLY: vpsi
+  USE vpsi_utils,                      ONLY: vpsi,&
+                                             vpsi_batchfft
 !!use rotate_utils, only : rotate_c
 !!use ovlap_utils, only : ovlap_c
   USE zeroing_utils,                   ONLY: zeroing
@@ -294,7 +296,13 @@ CONTAINS
     ENDIF
 
     DO ik=1,nkpoint
-       CALL vpsi(c0_ptr(:,:,ik),c2,crge%f(:,1),rhoe,psi(:,1),nstate,ik,clsd%nlsd,redist_c2)
+       IF(batch_fft.AND..NOT.tkpts%tkpnt)THEN
+          CALL vpsi_batchfft(c0_ptr(:,:,ik),c2,crge%f(:,1),rhoe,psi(:,1),nstate,ik,&
+               clsd%nlsd,redist_c2)
+       ELSE
+          CALL vpsi(c0_ptr(:,:,ik),c2,crge%f(:,1),rhoe,psi(:,1),nstate,ik,clsd%nlsd,&
+               redist_c2)
+       END IF
        ! c2u0 is calculated in uprho or rscpot
        IF (hubbu%debug) THEN
             IF (paral%io_parent) write(6,*) procedureN,"| starting add_hubbardu"

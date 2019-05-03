@@ -14,6 +14,7 @@ MODULE control_bcast_utils
   USE cotr,                            ONLY: sdpl
   USE cp_cuda_types,                   ONLY: cp_cuda_env
   USE error_handling,                  ONLY: stopgm
+  USE fft,                             ONLY: batch_fft, a2a_msgsize
   USE fileopenmod,                     ONLY: fo_info
   USE g_loc,                           ONLY: gloc_list,&
                                              glocal,&
@@ -297,6 +298,9 @@ CONTAINS
     !]EXACT FACTORIZATION
     CALL mp_bcast_byte(cp_cuda_env,size_in_bytes_of(cp_cuda_env),parai%io_source,parai%cp_grp)
     ! ==--------------------------------------------------------------==
+    !BLOCKING FFT
+    CALL mp_bcast(batch_fft,parai%io_source,parai%cp_grp)
+    CALL mp_bcast(a2a_msgsize,parai%io_source,parai%cp_grp)
     RETURN
   END SUBROUTINE control_bcast
   ! ==================================================================

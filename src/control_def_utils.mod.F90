@@ -18,6 +18,7 @@ MODULE control_def_utils
   USE fint,                            ONLY: fint1,&
                                              fint4,&
                                              fint5
+  USE fft,                             ONLY: batch_fft,a2a_msgsize
   USE g_loc,                           ONLY: glocal,&
                                              gloci,&
                                              glocr
@@ -671,14 +672,21 @@ CONTAINS
     ! by default
     cntl%overlapp_comm_comp = .FALSE.
     ! TK rnlsm blockcounts and sizes
+    !TK batch fft - defaults to no
+    batch_fft=.FALSE.
+    !TK minimum message size
+    a2a_msgsize=1000
+    !TK buffercounts of rnlsm1/2
     cnti%rnlsm1_bc=3
+    cnti%rnlsm2_bc=3
+    !TK fraction of work of first/last buffers of rnlsm1/2
     cntr%rnlsm1_b1=0.5
     cntr%rnlsm1_b2=0.3
-    cnti%rnlsm2_bc=3
     cntr%rnlsm2_b1=0.5
     cntr%rnlsm2_b2=0.3
-    ! TK rnlsm autotune disabled
+    !TK autotuning disabled
     cnti%rnlsm_autotune_maxit=0
+    !TK blockingfactor for new/rhov bigmem
     cnti%blocksize_uspp=1200
     RETURN
   END SUBROUTINE control_def

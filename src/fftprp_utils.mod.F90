@@ -19,7 +19,8 @@ MODULE fftprp_utils
   USE error_handling,                  ONLY: stopgm
   USE fft,                             ONLY: &
        fftpool, kr1m, kr2max, kr2min, kr3max, kr3min, lmsqmax, lnzf, lnzs, &
-       maxrpt, mg, ms, msp, mxy, mz, ngrm, nhrm, nr1m, nr3m, xf, yf
+       maxrpt, mg, ms, msp, mxy, mz, ngrm, nhrm, nr1m, nr3m, xf, yf,&
+       batch_fft, a2a_msgsize, fft_batchsize, fft_numbatches, fft_residual, fft_total
   USE fft_maxfft,                      ONLY: maxfft
   USE fftnew_utils,                    ONLY: addfftnset,&
                                              setfftn
@@ -27,9 +28,11 @@ MODULE fftprp_utils
   USE kinds,                           ONLY: real_8
   USE kpts,                            ONLY: tkpts
   USE mp_interface,                    ONLY: mp_max,&
-                                             mp_sum
+                                             mp_sum,&
+                                             mp_bcast
   USE parac,                           ONLY: parai,&
                                              paral
+  USE part_1d,                         ONLY: part_1d_get_blk_bounds
   USE prmem_utils,                     ONLY: prmem
   USE sizeof_kinds,                    ONLY: sizeof_complex_8
   USE reshaper,                        ONLY: reshape_inplace
@@ -119,7 +122,7 @@ CONTAINS
 
     INTEGER :: i, ierr, ig, ij, img, iny1, iny2, iny3, ip, ipp, ixf, j, jj, &
       jmg, ldim, len, mxrp, nclu, ngray, nh1, nh2, nh3, nhray, nl1, nl2, nn2, &
-      nr3i, nrx, nstate, ny1, ny2, ny3
+      nr3i, nrx, nstate, ny1, ny2, ny3, first, last, lda
     INTEGER, ALLOCATABLE                     :: my(:)
     REAL(real_8)                             :: rmem, rstate, xmpenm
 
@@ -367,7 +370,7 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     ! ARRAY TO KEEP THE REAL SPACE WAVEFUNCTIONS
     rsactive = .FALSE.
-    IF (cntl%krwfn) THEN
+    IF (cntl%krwfn.AND..NOT.batch_fft) THEN
        IF (tkpts%tkblock) CALL stopgm('FFTPRP',&
             'INCOMPATIBLE OPTIONS TKBLOCK AND KRWFN',&
             __LINE__,__FILE__)
@@ -424,6 +427,58 @@ CONTAINS
           IF (paral%io_parent)&
                WRITE(6,'(A,T51,F8.3,A)')&
                ' FFTPRP| WAVEFUNCTION TAKES IN REAL SPACE ',rmem,' MBYTES'
+       ENDIF
+    ENDIF
+    ! ==--------------------------------------------------------------==
+    ! INITIALIZE BATCH FFT ALGORITHM
+    IF(batch_fft)THEN
+       lwdim = fpar%nnr1
+       CALL mp_max(lwdim,parai%allgrp)
+
+       nstate = crge%n
+       CALL part_1d_get_blk_bounds(nstate,parai%cp_inter_me,parai%cp_nogrp,first,last)
+       nstate = last - first +1
+       IF(tkpts%tkpnt) nstate = nstate*nkpt%nkpnt
+       maxstates = nstate
+       rstate=1._real_8
+       ldim  = (maxstates+1)/2 * lwdim
+       IF (tkpts%tkpnt) ldim = ldim*2
+       if (lwdim .gt. 0 ) fft_total=ldim/lwdim
+       lda=ngrm*nr1m
+       !calculate blocking so that we get something less than a2a_msgsize to send per proc (sparse fft)
+       fft_batchsize=1
+       a2a_msgsize=a2a_msgsize*1024/parai%nproc/16
+       DO i=1,fft_total
+          IF (lda*i.LT.a2a_msgsize) fft_batchsize=fft_batchsize + 1
+       END DO
+       IF (fft_batchsize.GT.1) fft_batchsize=fft_batchsize - 1
+       fft_residual=MOD(fft_total,fft_batchsize)
+       fft_numbatches=(fft_total-fft_residual)/fft_batchsize
+       CALL mp_bcast(fft_numbatches,parai%io_source,parai%allgrp)
+       CALL mp_bcast(fft_residual,parai%io_source,parai%allgrp)
+       CALL mp_bcast(fft_batchsize,parai%io_source,parai%allgrp)
+       CALL mp_bcast(fft_total,parai%io_source,parai%allgrp)
+
+       IF(ALLOCATED(xf))THEN
+          DEALLOCATE(xf,STAT=ierr)
+          IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
+               __LINE__,__FILE__)
+       END IF
+       IF(ALLOCATED(YF))THEN
+          DEALLOCATE(yf,STAT=ierr)
+          IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
+               __LINE__,__FILE__)
+       END IF
+       ALLOCATE(xf(MAX(maxfft,fpar%nnr1*fft_batchsize),2),STAT=ierr)
+       IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', __LINE__,__FILE__)
+       ALLOCATE(yf(MAX(maxfft,fpar%nnr1*fft_batchsize),2),STAT=ierr)
+       IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', __LINE__,__FILE__)
+
+       IF (paral%io_parent) THEN
+          WRITE(6,*)&
+               ' FFTPRP| BLOCKING FFT NUMBER ALLTOALL CALLS ',fft_numbatches
+          WRITE(6,*)&
+               ' FFTPRP| BLOCKING FFT NUMBER OF STATES PER CALL ',fft_batchsize
        ENDIF
     ENDIF
     ! ==--------------------------------------------------------------==

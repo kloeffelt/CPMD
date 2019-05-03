@@ -71,6 +71,12 @@ MODULE fft
   INTEGER, ALLOCATABLE, TARGET :: inzhp(:,:,:)
 
   ! ==================================================================
+  ! ==================================================================
+  ! NEW SPARSE BATCH PARALLEL FFT CODE
+  ! ==================================================================
+  INTEGER :: a2a_msgsize,fft_batchsize,fft_numbatches,fft_residual,fft_total
+  LOGICAL :: batch_fft
+  COMPLEX(real_8), ALLOCATABLE, SAVE       :: wfn_r(:,:),wfn_g(:,:)
 
 END MODULE fft
 
