@@ -16,7 +16,6 @@ MODULE forces_prop_utils
   USE kpts,                            ONLY: tkpts
   USE machine,                         ONLY: m_cputime
   USE mp_interface,                    ONLY: mp_bcast
-  USE nlforce_utils,                   ONLY: give_scr_nlforce
   USE parac,                           ONLY: parai,&
                                              paral
   USE ropt,                            ONLY: infi,&
@@ -67,16 +66,14 @@ CONTAINS
     CHARACTER(*), PARAMETER                  :: procedureN = 'forces_prop'
 
     CHARACTER(len=30)                        :: tag
-    COMPLEX(real_8), ALLOCATABLE             :: auxc(:), gde(:)
+    COMPLEX(real_8), ALLOCATABLE             :: gde(:)
     INTEGER                                  :: freq_diag, i, ierr, ik, &
-                                                il_auxc, il_ddia, il_gam, &
                                                 infr, isub, nhpsi, &
                                                 update_pot
     INTEGER, SAVE                            :: icall = -1
     LOGICAL                                  :: calcrho
     REAL(real_8)                             :: detot, etot0, tcpu, thl(2), &
                                                 time1
-    REAL(real_8), ALLOCATABLE                :: ddia(:)
 
     CALL tiset(procedureN,isub)
 
@@ -85,14 +82,6 @@ CONTAINS
     ik=1
     ! ==--------------------------------------------------------------==
     time1 = m_cputime()
-    CALL give_scr_nlforce(il_gam,il_auxc,il_ddia,nstate)
-    il_auxc=MAX(il_auxc,nstate**2)
-    ALLOCATE(auxc(il_auxc),STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
-         __LINE__,__FILE__)
-    ALLOCATE(ddia(2*il_ddia),STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
-         __LINE__,__FILE__) ! TODO check why IL_DDIA*2 ?
     ! =`=--------------------------------------------------------------==
     ener_com%ecnstr=0.0_real_8
     ropt_mod%convwf=.FALSE.
@@ -183,12 +172,6 @@ CONTAINS
        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
             __LINE__,__FILE__)
     ENDIF
-    DEALLOCATE(auxc,STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
-         __LINE__,__FILE__)
-    DEALLOCATE(ddia,STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
-         __LINE__,__FILE__)
     ! ==--------------------------------------------------------------==
     CALL tihalt(procedureN,isub)
     RETURN

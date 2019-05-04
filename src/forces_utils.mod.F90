@@ -2,7 +2,6 @@ MODULE forces_utils
   USE fft_maxfft,                      ONLY: maxfft
   USE fnonloc_utils,                   ONLY: give_scr_fnonloc
   USE jrotation_utils,                 ONLY: set_orbdist
-  USE nlforce_utils,                   ONLY: give_scr_nlforce
   USE nlps,                            ONLY: imagp
   USE opeigr_utils,                    ONLY: give_scr_opeigr
   USE parac,                           ONLY: parai
@@ -40,7 +39,9 @@ CONTAINS
     CALL give_scr_rscpot(lrscpot,tag,ropt_mod%calste)
     il_auxc=0
     IF (pslo_com%tivan .AND. lproj .AND. cnti%iproj.NE.0) THEN
-       CALL give_scr_nlforce(il_gam,il_auxc,il_ddia,nstate)
+       il_gam = imagp*nstate*nstate
+       il_auxc=0
+       il_ddia=0
     ELSE
        CALL give_scr_fnonloc(il_auxc,il_ddia,nstate)
        IF (cntl%tdmal) THEN

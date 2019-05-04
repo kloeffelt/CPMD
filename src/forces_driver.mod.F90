@@ -26,8 +26,7 @@ MODULE forces_driver
   USE kinds,                           ONLY: real_8
   USE kpts,                            ONLY: tkpts
   USE mp_interface,                    ONLY: mp_sum
-  USE nlforce_utils,                   ONLY: give_scr_nlforce,&
-                                             nlforce
+  USE nlforce_utils,                   ONLY: nlforce
   USE nlps,                            ONLY: imagp
   USE nlsl_utils,                      ONLY: nlsl
   USE norm,                            ONLY: cnorm,&
@@ -49,9 +48,13 @@ MODULE forces_driver
   USE rnlsm_utils,                     ONLY: rnlsm
   USE ropt,                            ONLY: ropt_mod
   USE rotate_utils,                    ONLY: rotate,&
-                                             rottr
+                                             rottr,&
+                                             rotate_fnl,&
+                                             rotate_c0_fnl
   USE rscpot_utils,                    ONLY: rscpot
   USE rswfmod,                         ONLY: rsactive
+  USE sfac,                            ONLY: fnl_packed,&
+                                             il_fnl_packed
   USE spin,                            ONLY: clsd,&
                                              lspin2,&
                                              lspin3,&
@@ -119,7 +122,7 @@ CONTAINS
     REAL(real_8)                             :: ee, ehfx, fi, fj, vhfx
     REAL(real_8), ALLOCATABLE                :: a1mat(:,:), a2mat(:,:), &
                                                 a3mat(:,:), ddia(:), fsc(:), &
-                                                scrdip(:), smat(:,:)
+                                                scrdip(:), smat(:,:), fnlgam_packed(:,:)
     REAL(real_8), ALLOCATABLE, TARGET        :: gam(:,:)
     REAL(real_8), EXTERNAL                   :: dasum
     REAL(real_8), POINTER                    :: aux(:)
@@ -172,11 +175,12 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     debug=.FALSE.
     IF (pslo_com%tivan .AND. lproj .AND. cnti%iproj.NE.0) THEN
-       CALL give_scr_nlforce(il_gam,il_auxc,il_ddia,nstate)
+       il_auxc=0
+       il_ddia=0
     ELSE
        CALL give_scr_fnonloc(il_auxc,il_ddia,nstate)
-       il_gam = imagp*nstate*nstate
     ENDIF
+    il_gam = imagp*nstate*nstate
     IF (cntl%tfield) CALL give_scr_opeigr(il_scrdip,tag,nstate)
     IF (cntl%tdmal) THEN
        ALLOCATE(NWA12_grp(0:parai%cp_nproc-1,2),stat=ierr)
@@ -279,28 +283,30 @@ CONTAINS
        IF (pslo_com%tivan) THEN
           IF (tkpts%tkpnt) CALL stopgm(procedureN,'K-POINTS NOT IMPLEMENTED',&
                __LINE__,__FILE__)
-          IF ((lproj.OR.cntl%nonort).AND.cnti%iproj.NE.0) THEN
-             CALL ovlap(nstate,gam,c2,c0_ptr(:,:,ik),redist=.FALSE.,full=.FALSE.)
-             CALL hnlmat(gam,crge%f,nstate)
-             CALL summat(gam,nstate,lsd=.TRUE.,gid=parai%cp_grp)
-             IF (tfor) CALL rnlfl(fion,gam,nstate,nkpoint)
-             IF (cnti%iproj.EQ.1) THEN
-                DO i=1,nstate
-                   CALL daxpy(2*nkpt%ngwk,-gam(i,i),c0_ptr(1,i,ik),1,c2(1,1),1)
-                ENDDO
-             ELSEIF (cnti%iproj.EQ.2) THEN
-                CALL rotate(-1.0_real_8,c0_ptr(:,:,ik),1.0_real_8,c2,gam,&
-                     nstate,2*nkpt%ngwk,cntl%tlsd,spin_mod%nsup,spin_mod%nsdown)
-             ENDIF
-             CALL nlforce(c2,crge%f,gam,auxc,ddia,nstate)
-             IF (ropt_mod%calste) CALL nlsl(gam,nstate)
-             IF (ropt_mod%prteig.AND.paral%io_parent) THEN
-                CALL dscal(nstate*nstate,-1.0_real_8,gam,1)
-                CALL reigs(nstate,gam,crge%f)
-                CALL dscal(nstate*nstate,-1.0_real_8,gam,1)
-             ENDIF
+          CALL ovlap(nstate,gam,c2,c0_ptr(:,:,ik),redist=.FALSE.,full=.FALSE.)
+          CALL hnlmat(gam,crge%f,nstate)
+          CALL summat(gam,nstate,lsd=.TRUE.,gid=parai%cp_grp)
+          IF (tfor) CALL rnlfl(fion,gam,nstate,nkpoint)
+          ALLOCATE(fnlgam_packed(il_fnl_packed(1),il_fnl_packed(2)),STAT=ierr)
+          IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+               __LINE__,__FILE__)
+          IF(cntl%distribute_fnl_rot)THEN
+             CALL rotate_c0_fnl(ncpw%ngw,c0_ptr(:,:,ik),c2,il_fnl_packed(1),fnl_packed,&
+                  fnlgam_packed,nstate,gam,redist=.TRUE.)
           ELSE
-             CALL fnonloc(c2,crge%f,nstate,ik,clsd%nlsd,.TRUE.)
+             CALL rotate(-1.0_real_8,c0_ptr(:,:,ik),1.0_real_8,c2,gam,&
+                  nstate,2*nkpt%ngwk,cntl%tlsd,spin_mod%nsup,spin_mod%nsdown,)
+             CALL rotate_fnl(il_fnl_packed(1),fnl_packed,fnlgam_packed,nstate,gam)
+          ELSE
+          CALL nlforce(c2,crge%f,fnl_packed,fnlgam_packed,nstate,redist=.TRUE.)
+          DEALLOCATE(fnlgam_packed, STAT=ierr)
+          IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+               __LINE__,__FILE__)
+          IF (ropt_mod%calste) CALL nlsl(gam,nstate)
+          IF (ropt_mod%prteig.AND.paral%io_parent) THEN
+             CALL dscal(nstate*nstate,-1.0_real_8,gam,1)
+             CALL reigs(nstate,gam,crge%f)
+             CALL dscal(nstate*nstate,-1.0_real_8,gam,1)
           ENDIF
        ELSEIF (lspin2%tlse) THEN
           CALL fnonloc(c2,crge%f,nstate,ik,clsd%nlsd,.TRUE.)

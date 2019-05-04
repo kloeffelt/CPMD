@@ -27,8 +27,7 @@ MODULE k_forces_driver
   USE kpts,                            ONLY: tkpts
   USE mp_interface,                    ONLY: mp_max,&
                                              mp_sum
-  USE nlforce_utils,                   ONLY: give_scr_nlforce,&
-                                             nlforce
+  USE nlforce_utils,                   ONLY: nlforce
   USE nlps,                            ONLY: imagp
   USE norm,                            ONLY: cnorm,&
                                              gemax,&
@@ -141,11 +140,12 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     debug=.FALSE.
     IF (pslo_com%tivan .AND. lproj .AND. cnti%iproj.NE.0) THEN
-       CALL give_scr_nlforce(il_gam,il_auxc,il_ddia,nstate)
+       il_auxc=0
+       il_ddia=0
     ELSE
        CALL give_scr_fnonloc(il_auxc,il_ddia,nstate)
-       il_gam = imagp*nstate*nstate
     ENDIF
+    il_gam = imagp*nstate*nstate
     il_auxc=MAX(il_auxc,nstate**2)  ! AUXC space for OVLAP (Laio A.)
     il_fsc=nstate
     ! ==--------------------------------------------------------------==
@@ -243,66 +243,66 @@ CONTAINS
           IF (tkpts%tkpnt)  CALL stopgm('K_FORCES',&
                'VANDERBILT AND K-POINTS NOT IMPLEMENTED',& 
                __LINE__,__FILE__)
-          IF (ropt_mod%convwf) THEN
-             CALL fnonloc(c2,crge%f,nstate,ik,clsd%nlsd,.TRUE.)
-
-             IF (geq0) THEN
-                CALL zclean(c2,nstate,ncpw%ngw)
-             ENDIF
-
-             DEALLOCATE(gam,STAT=ierr)
-             IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-                  __LINE__,__FILE__)
-             DEALLOCATE(auxc,STAT=ierr)
-             IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-                  __LINE__,__FILE__)
-             DEALLOCATE(ddia,STAT=ierr)
-             IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-                  __LINE__,__FILE__)
-             DEALLOCATE(fsc,STAT=ierr)
-             IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-                  __LINE__,__FILE__)
-
-             IF (cntl%tlsd) THEN
-                CALL ev_ksener(c0(1,1,ik),c2,sc0,eigv(1,ik),fnl,&
-                     ik,spin_mod%nsup,bottom,ener_com%amu,calcrho)
-                ib = spin_mod%nsup+1
-                CALL ev_ksener(c0(1,ib,ik),c2(1,ib),sc0,eigv(ib,ik),fnl,&
-                     ik,spin_mod%nsdown,bottom,ener_com%amu,calcrho)
-             ELSE
-                CALL ev_ksener(c0(1,1,ik),c2,sc0,eigv(1,ik),fnl,&
-                     ik,nstate,bottom,ener_com%amu,calcrho)
-             ENDIF
-             GOTO 100
-          ENDIF
-
-          IF (lproj.AND.cnti%iproj.NE.0) THEN
-             CALL ovlap(nstate,gam,c2,c0(:,:,ik))
-             CALL hnlmat(gam,crge%f,nstate)
-             CALL mp_sum(gam,nstate*nstate,parai%allgrp)
-
-             ! H TRACE
-             ee  = 0.0_real_8
-             !$omp parallel do private(I) reduction(+:EE)
-             DO i=1,nstate
-                ee=ee+(-gam(i,i))
-             ENDDO
-             ener_com%etot = ener_com%etot + ee
-
-             IF (tfor .AND. calcrho)&
-                  CALL rnlfl(fion,gam,nstate,nkpoint)
-             IF (cnti%iproj.EQ.1 .AND. .NOT. ropt_mod%convwf) THEN
-                DO i=1,nstate
-                   CALL daxpy(2*nkpt%ngwk,-gam(i,i),c0(1,i,ik),1,c2(1,i),1)
-                ENDDO
-             ELSEIF (cnti%iproj.EQ.2 .AND. .NOT. ropt_mod%convwf) THEN
-                CALL rotate(-1.0_real_8,c0(:,:,ik),1.0_real_8,c2,gam,&
-                     nstate,2*nkpt%ngwk,cntl%tlsd,spin_mod%nsup,spin_mod%nsdown)
-             ENDIF
-             CALL nlforce(c2,crge%f,gam,auxc,ddia,nstate)
-          ELSE
-             CALL fnonloc(c2,crge%f,nstate,ik,clsd%nlsd,.TRUE.)
-          ENDIF
+!          IF (ropt_mod%convwf) THEN
+!             CALL fnonloc(c2,crge%f,nstate,ik,clsd%nlsd,.TRUE.)
+!
+!             IF (geq0) THEN
+!                CALL zclean(c2,nstate,ncpw%ngw)
+!             ENDIF
+!
+!             DEALLOCATE(gam,STAT=ierr)
+!             IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+!                  __LINE__,__FILE__)
+!             DEALLOCATE(auxc,STAT=ierr)
+!             IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+!                  __LINE__,__FILE__)
+!             DEALLOCATE(ddia,STAT=ierr)
+!             IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+!                  __LINE__,__FILE__)
+!             DEALLOCATE(fsc,STAT=ierr)
+!             IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+!                  __LINE__,__FILE__)
+!
+!             IF (cntl%tlsd) THEN
+!                CALL ev_ksener(c0(1,1,ik),c2,sc0,eigv(1,ik),fnl,&
+!                     ik,spin_mod%nsup,bottom,ener_com%amu,calcrho)
+!                ib = spin_mod%nsup+1
+!                CALL ev_ksener(c0(1,ib,ik),c2(1,ib),sc0,eigv(ib,ik),fnl,&
+!                     ik,spin_mod%nsdown,bottom,ener_com%amu,calcrho)
+!             ELSE
+!                CALL ev_ksener(c0(1,1,ik),c2,sc0,eigv(1,ik),fnl,&
+!                     ik,nstate,bottom,ener_com%amu,calcrho)
+!             ENDIF
+!             GOTO 100
+!          ENDIF
+!
+!          IF (lproj.AND.cnti%iproj.NE.0) THEN
+!             CALL ovlap(nstate,gam,c2,c0(:,:,ik))
+!             CALL hnlmat(gam,crge%f,nstate)
+!             CALL mp_sum(gam,nstate*nstate,parai%allgrp)
+!
+!             ! H TRACE
+!             ee  = 0.0_real_8
+!             !$omp parallel do private(I) reduction(+:EE)
+!             DO i=1,nstate
+!                ee=ee+(-gam(i,i))
+!             ENDDO
+!             ener_com%etot = ener_com%etot + ee
+!
+!             IF (tfor .AND. calcrho)&
+!                  CALL rnlfl(fion,gam,nstate,nkpoint)
+!             IF (cnti%iproj.EQ.1 .AND. .NOT. ropt_mod%convwf) THEN
+!                DO i=1,nstate
+!                   CALL daxpy(2*nkpt%ngwk,-gam(i,i),c0(1,i,ik),1,c2(1,i),1)
+!                ENDDO
+!             ELSEIF (cnti%iproj.EQ.2 .AND. .NOT. ropt_mod%convwf) THEN
+!                CALL rotate(-1.0_real_8,c0(:,:,ik),1.0_real_8,c2,gam,&
+!                     nstate,2*nkpt%ngwk,cntl%tlsd,spin_mod%nsup,spin_mod%nsdown)
+!             ENDIF
+!             CALL nlforce(c2,crge%f,gam,nstate)
+!          ELSE
+!             CALL fnonloc(c2,crge%f,nstate,ik,clsd%nlsd,.TRUE.)
+!          ENDIF
        ELSE
           CALL fnonloc(c2,crge%f,nstate,ik,clsd%nlsd,.TRUE.)
           IF (ropt_mod%convwf) THEN

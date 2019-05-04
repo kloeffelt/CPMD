@@ -1,7 +1,6 @@
 MODULE k_forces_utils
   USE fft_maxfft,                      ONLY: maxfft
   USE fnonloc_utils,                   ONLY: give_scr_fnonloc
-  USE nlforce_utils,                   ONLY: give_scr_nlforce
   USE nlps,                            ONLY: imagp
   USE ortho_utils,                     ONLY: give_scr_ortho
   USE pslo,                            ONLY: pslo_com
@@ -36,11 +35,12 @@ CONTAINS
     ENDIF
     CALL give_scr_rscpot(lrscpot,tag,ropt_mod%calste)
     IF (pslo_com%tivan .AND. lproj .AND. cnti%iproj.NE.0) THEN
-       CALL give_scr_nlforce(il_gam,il_auxc,il_ddia,nstate)
+       il_auxc=0
+       il_ddia=0
     ELSE
        CALL give_scr_fnonloc(il_auxc,il_ddia,nstate)
-       il_gam = imagp*nstate*nstate
     ENDIF
+    il_gam = imagp*nstate*nstate
     il_fsc=nstate
     il_psiab=2
     IF (lspin2%tlse) il_psiab=2*maxfft
