@@ -308,7 +308,8 @@ CONTAINS
              CALL fnl_set('SAVE')
              CALL fnlalloc(atwp%nattot,.FALSE.,.FALSE.)
              CALL rnlsm(catom,atwp%nattot,ikpt,ikind,.FALSE.)
-             CALL csmat(xsmat,catom,fnl,atwp%nattot,ikind)
+             CALL csmat(xsmat,catom,atwp%nattot,ikind,full=.TRUE.,store_nonort=.FALSE.,&
+                  only_parent=.TRUE.)
              CALL summat(xxmat,atwp%nattot)
              CALL fnldealloc(.FALSE.,.FALSE.)
              CALL fnl_set('RECV')
@@ -326,7 +327,7 @@ CONTAINS
           ! XMATAT,EIVAT,WORKAT and ZORKAT are needed only here
           CALL zeroing(xmatat)!,il_xmatat)
           iopt=1
-          IF (paral%parent) THEN
+          IF (paral%io_parent) THEN
              IF (tkpts%tkpnt) THEN
                 CALL zsygvx(iopt,zxmat,atwp%nattot,zsmat,atwp%nattot,eivat,&
                      zmatat,atwp%nattot,atwp%nattot,zorkat,3*atwp%nattot,workat)

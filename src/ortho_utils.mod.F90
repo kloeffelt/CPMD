@@ -31,7 +31,6 @@ MODULE ortho_utils
   USE rgs_utils,                       ONLY: rgs,&
                                              rgs_c
   USE rgsvan_utils,                    ONLY: rgsvan
-  USE sfac,                            ONLY: fnl
   USE spin,                            ONLY: spin_mod
   USE system,                          ONLY: cnti,&
                                              cntl,&
@@ -193,28 +192,14 @@ CONTAINS
        CALL lowdin(c0,cscr,nstate)
     ELSE
        IF (pslo_com%tivan) THEN
-          IF (cntl%tlsd) THEN
-             lsmat=MAX(spin_mod%nsup,spin_mod%nsdown)**2
-             ALLOCATE(smat(lsmat),STAT=ierr)
-             IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
-                  __LINE__,__FILE__)
-             CALL rgsvan(c0(:,1:spin_mod%nsup),  &
-                  fnl(:,:,:,1:spin_mod%nsup,1),spin_mod%nsup,  smat)
-             CALL rgsvan(c0(:,spin_mod%nsup+1:spin_mod%nsup+spin_mod%nsdown),&
-                  fnl(:,:,:,spin_mod%nsup+1:,1),spin_mod%nsdown,smat)
-             DEALLOCATE(smat,STAT=ierr)
-             IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-                  __LINE__,__FILE__)
-          ELSE
-             lsmat=nstate*nstate
-             ALLOCATE(smat(lsmat),STAT=ierr)
-             IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
-                  __LINE__,__FILE__)
-             CALL rgsvan(c0,fnl(:,:,:,:,1),nstate,smat)
-             DEALLOCATE(smat,STAT=ierr)
-             IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-                  __LINE__,__FILE__)
-          ENDIF
+          lsmat=nstate*nstate
+          ALLOCATE(smat(lsmat),STAT=ierr)
+          IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+               __LINE__,__FILE__)
+          CALL rgsvan(c0,nstate,smat,store_nonort=.FALSE.)
+          DEALLOCATE(smat,STAT=ierr)
+          IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+               __LINE__,__FILE__)
        ELSE
           IF (cntl%tlsd) THEN
              IF (tkpts%tkpnt) THEN

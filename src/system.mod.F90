@@ -564,6 +564,7 @@ MODULE system
      LOGICAL :: use_mts = .FALSE.
      LOGICAL :: use_scaled_hfx = .FALSE.
      LOGICAL :: overlapp_comm_comp = .FALSE.
+     LOGICAL :: distribute_fnl_rot = .FALSE.
   END TYPE cntl_t
   TYPE(cntl_t), SAVE, PUBLIC :: cntl
   ! ==================================================================

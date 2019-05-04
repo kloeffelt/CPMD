@@ -1254,6 +1254,14 @@ CONTAINS
     DO is=1,ions1%nsp
        pslo_com%tivan=pslo_com%tivan.OR.pslo_com%tvan(is)
     ENDDO
+    ! TK determine if there are both, Vanderbilt and NC PPs
+    pslo_com%mixed_psp=.FALSE.
+    IF(pslo_com%tivan)THEN
+       DO is=1,ions1%nsp
+          IF(pslo_com%tvan(is))CYCLE
+          pslo_com%mixed_psp=.TRUE.
+       END DO
+    END IF
     IF (lspin2%tlse) THEN
        IF (pslo_com%tivan) THEN
           WRITE(6,*) ' VANDERBILT NOT IMPLEMENTED WITH LSE'

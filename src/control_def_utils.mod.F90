@@ -665,6 +665,8 @@ CONTAINS
     iface1%intwrite = .FALSE.
     intfn = "interface.bin"
     ! ==--------------------------------------------------------------==
+    ! TK use distributed fnl_rotation by default
+    cntl%distribute_fnl_rot = .TRUE.
     ! TK do not enable overlapping communication computation algorithms
     ! by default
     cntl%overlapp_comm_comp = .FALSE.

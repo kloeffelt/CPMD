@@ -391,6 +391,7 @@ CONTAINS
     ! ==    TASKGROUPS {MAXIMUM,MINIMUM,CARTESIAN}                    ==
     ! ==      nogrp                                                   ==
     ! ==    DISTRIBUTE FNL [ON,OFF]                                   ==
+    ! ==    DISTRIBUTE FNL ROT [ON,OFF]                               ==
     ! ==    USE_OVERLAPPING_COMM_COMP                                 ==
     ! ==    RNLSM1_BLOCKCOUT                                          ==
     ! ==    rnlsm1_bc                                                 ==
@@ -3798,11 +3799,16 @@ CONTAINS
                 ! fake read; CP_GROUPS are initialised at the very beginning
                 previous_line = line
                 READ(iunit,'(A)',iostat=ierr) line
-             ELSEIF ( keyword_contains(line,'DISTRIBUTE',and='FNL') .OR. &
-                      keyword_contains(line,'DISTRIBUTED',and='FNL') ) THEN
+             ELSEIF ( keyword_contains(line,'DISTRIBUTE',and='FNL',but_not='ROT') .OR. &
+                      keyword_contains(line,'DISTRIBUTED',and='FNL',but_not='ROT') ) THEN
                 ! storage form of fnl
                 IF ( keyword_contains(line,'ON')) cntl%tfdist=.TRUE.
                 IF ( keyword_contains(line,'OFF')) cntl%tfdist=.FALSE.
+             ELSEIF ( keyword_contains(line,'DISTRIBUTE',and='ROT') .OR. &
+                      keyword_contains(line,'DISTRIBUTED',and='ROT') ) THEN
+                ! fnl distributed rotation or nodelocal
+                IF ( keyword_contains(line,'ON')) cntl%distribute_fnl_rot=.TRUE.
+                IF ( keyword_contains(line,'OFF')) cntl%distribute_fnl_rot=.FALSE.
              ELSEIF ( keyword_contains(line,'FILEPATH') ) THEN
                 ! Path to the restart files (all the line)
                 READ(iunit,'(A)',iostat=ierr) fo_info%fpath

@@ -20,7 +20,8 @@ MODULE forces_driver
   USE hfxmod,                          ONLY: hfxc3
   USE hnlmat_utils,                    ONLY: hnlmat
   USE hubbardu,                        ONLY: c2u0,hubbu
-  USE hubbardu_utils,                  ONLY: add_hubbardu 
+  USE hubbardu_utils,                  ONLY: add_hubbardu
+  USE ions,                            ONLY: ions1
   USE jrotation_utils,                 ONLY: set_orbdist
   USE kinds,                           ONLY: real_8
   USE kpts,                            ONLY: tkpts
@@ -28,6 +29,7 @@ MODULE forces_driver
   USE nlforce_utils,                   ONLY: give_scr_nlforce,&
                                              nlforce
   USE nlps,                            ONLY: imagp
+  USE nlsl_utils,                      ONLY: nlsl
   USE norm,                            ONLY: cnorm,&
                                              gemax,&
                                              gnmax,&
@@ -40,11 +42,14 @@ MODULE forces_driver
                                              paral
   USE pslo,                            ONLY: pslo_com
   USE puttau_utils,                    ONLY: taucl
+  USE reigs_utils,                     ONLY: reigs
   USE reshaper,                        ONLY: reshape_inplace
+  USE rgsvan_utils,                    ONLY: rgsvan
   USE rnlfl_utils,                     ONLY: rnlfl
   USE rnlsm_utils,                     ONLY: rnlsm
   USE ropt,                            ONLY: ropt_mod
-  USE rotate_utils,                    ONLY: rotate
+  USE rotate_utils,                    ONLY: rotate,&
+                                             rottr
   USE rscpot_utils,                    ONLY: rscpot
   USE rswfmod,                         ONLY: rsactive
   USE spin,                            ONLY: clsd,&
@@ -88,36 +93,73 @@ CONTAINS
     ! ==                  THE FORCES ON THE IONS                      ==
     ! ==--------------------------------------------------------------==
 
-    COMPLEX(real_8)                          :: c0(:,:,:), c2(:,:)
-    REAL(real_8)                             :: tau0(:,:,:), fion(:,:,:), &
+    COMPLEX(real_8),INTENT(IN), TARGET&
+                               __CONTIGUOUS  :: c0(:,:,:)
+    COMPLEX(real_8),INTENT(OUT) __CONTIGUOUS :: c2(:,:)
+    REAL(real_8),INTENT(IN) __CONTIGUOUS     :: tau0(:,:,:)
+    REAL(real_8),INTENT(OUT) __CONTIGUOUS    :: fion(:,:,:), &
                                                 rhoe(:,:)
-    COMPLEX(real_8)                          :: psi(:,:)
-    INTEGER                                  :: nstate, nkpoint
-    LOGICAL                                  :: lproj, tfor
+    COMPLEX(real_8),INTENT(OUT) __CONTIGUOUS :: psi(:,:)
+    INTEGER,INTENT(IN)                       :: nstate, nkpoint
+    LOGICAL,INTENT(IN)                       :: lproj, tfor
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'forces'
 
     CHARACTER(len=30)                        :: tag
     COMPLEX(real_8)                          :: zee
     COMPLEX(real_8), ALLOCATABLE             :: psiab(:)
-    COMPLEX(real_8), ALLOCATABLE, TARGET     :: auxc(:)
+    COMPLEX(real_8), ALLOCATABLE, TARGET     :: auxc(:), c0_ort(:,:,:)
     COMPLEX(real_8), EXTERNAL                :: zdotc
-    COMPLEX(real_8), POINTER                 :: cgam(:)
+    COMPLEX(real_8), POINTER __CONTIGUOUS    :: cgam(:), c0_ptr(:,:,:)
     INTEGER :: first_g, i, ierr, ik, ikind, il_auxc, il_ddia, il_fsc, il_gam, &
       il_psiab, il_scrdip, ipp, isub, isub2, isub3, j, jj, last_g,  &
-      naa, ngw_l, nstx, NSTX_grp
+      naa, ngw_l, nstx, NSTX_grp, is,  il_c0_ort(3), il_smat(2)
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: NWA12_grp
     LOGICAL                                  :: debug, redist_c2
     REAL(real_8)                             :: ee, ehfx, fi, fj, vhfx
     REAL(real_8), ALLOCATABLE                :: a1mat(:,:), a2mat(:,:), &
                                                 a3mat(:,:), ddia(:), fsc(:), &
-                                                scrdip(:)
+                                                scrdip(:), smat(:,:)
     REAL(real_8), ALLOCATABLE, TARGET        :: gam(:,:)
     REAL(real_8), EXTERNAL                   :: dasum
     REAL(real_8), POINTER                    :: aux(:)
 
     CALL tiset(procedureN,isub)
     CALL tiset(procedureN//'_a',isub2)
+    !TK noforce goes here:
+    !differces to forces:
+    !orthogonolize c0 in the beginning
+    !rotate c2 into nonorthogonal basis in the end
+    !lrpoj is ignored == always .true.
+    !for pure ncpp nonort is not different at all (smat.EQ.I)
+    IF (tkpts%tkpnt.AND.pslo_com%tivan) &
+         CALL stopgm(procedureN,'K-POINTS NOT IMPLEMENTED',&
+         __LINE__,__FILE__)
+    IF(cntl%nonort.AND.pslo_com%tivan)THEN
+       IF (lspin2%tlse) CALL stopgm('NOFORCE','NO LSE ALLOWED HERE',&
+            __LINE__,__FILE__)
+       IF (imagp.EQ.2) CALL stopgm('NOFORCE','K-POINT NOT IMPLEMENTED',&
+            __LINE__,__FILE__)
+       il_c0_ort(1)=ncpw%ngw
+       il_c0_ort(2)=nstate
+       il_c0_ort(3)=1
+       il_smat(1)=nstate
+       il_smat(2)=nstate
+       ALLOCATE(c0_ort(il_c0_ort(1),il_c0_ort(2),il_c0_ort(3)),stat=ierr)
+       IF (ierr.NE.0) CALL stopgm(procedureN,'Allocation problem',&
+            __LINE__,__FILE__)
+       ALLOCATE(smat(il_smat(1),il_smat(2)),stat=ierr)
+       IF (ierr.NE.0) CALL stopgm(procedureN,'Allocation problem',&
+            __LINE__,__FILE__)
+       CALL dcopy(2*ncpw%ngw*nstate,c0,1,c0_ort,1)
+       c0_ptr=> c0_ort
+       IF(pslo_com%tivan) CALL rnlsm(c0_ptr(:,:,1),nstate,1,1,.FALSE.,&
+            unpack_dfnl_fnl=.FALSE.)
+       CALL rgsvan(c0_ptr(:,:,1),nstate,smat,store_nonort=.TRUE.)
+    ELSE
+       c0_ptr=>c0
+    END IF
+
     gnmax=0.0_real_8
     gnorm=0.0_real_8
     ehfx =0.0_real_8
@@ -138,7 +180,7 @@ CONTAINS
     IF (cntl%tfield) CALL give_scr_opeigr(il_scrdip,tag,nstate)
     IF (cntl%tdmal) THEN
        ALLOCATE(NWA12_grp(0:parai%cp_nproc-1,2),stat=ierr)
-       IF (ierr.NE.0) CALL stopgm(procedureN,'Allocation problem',& 
+       IF (ierr.NE.0) CALL stopgm(procedureN,'Allocation problem',&
             __LINE__,__FILE__)
        CALL set_orbdist(nstate,cnti%nstblk,parai%cp_nproc,NSTX_grp)
        NWA12_grp(0:parai%cp_nproc-1,1:2)=paraw%nwa12(0:parai%cp_nproc-1,1:2)
@@ -155,11 +197,11 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     DO ikind=1,nkpoint
        IF (nstate >0 ) THEN
-          CALL rnlsm(c0(:,:,ikind),nstate,1,ikind,tfor)
+          CALL rnlsm(c0_ptr(:,:,ikind),nstate,1,ikind,tfor)
        ENDIF
     ENDDO
     rsactive = cntl%krwfn
-    CALL rscpot(c0(:,:,1),tau0,fion,rhoe,psi,tfor,ropt_mod%calste,nstate,nkpoint)
+    CALL rscpot(c0_ptr(:,:,1),tau0,fion,rhoe,psi,tfor,ropt_mod%calste,nstate,nkpoint)
     CALL tihalt(procedureN//'_a',isub2)
     ! ==--------------------------------------------------------------==
     ! ==   CALCULATE THE ELECTRONIC FORCE                             ==
@@ -218,16 +260,16 @@ CONTAINS
     ENDIF
 
     DO ik=1,nkpoint
-       CALL vpsi(c0(:,:,ik),c2,crge%f(:,1),rhoe,psi(:,1),nstate,ik,clsd%nlsd,redist_c2)
+       CALL vpsi(c0_ptr(:,:,ik),c2,crge%f(:,1),rhoe,psi(:,1),nstate,ik,clsd%nlsd,redist_c2)
        ! c2u0 is calculated in uprho or rscpot
        IF (hubbu%debug) THEN
             IF (paral%io_parent) write(6,*) procedureN,"| starting add_hubbardu"
        ENDIF
        IF (cntl%thubb) CALL add_hubbardu(c2,c2u0,nstate)
-       CALL hfx(c0(:,:,ik),c2,crge%f(:,1),psi(:,1),nstate,ehfx,vhfx,redist_c2)
-       ! McB    IF (cntl%tfield) CALL EFIELD(TAU0,FION,C0,C2,SCRDIP,IL_SCRDIP,NSTATE)
+       CALL hfx(c0_ptr(:,:,ik),c2,crge%f(:,1),psi(:,1),nstate,ehfx,vhfx,redist_c2)
+       ! McB    IF (cntl%tfield) CALL EFIELD(TAU0,FION,C0_PTR,C2,SCRDIP,IL_SCRDIP,NSTATE)
        IF (cntl%tfield) THEN
-          CALL extfield(tau0,fion,c0,c2,nstate)
+          CALL extfield(tau0,fion,c0_ptr,c2,nstate)
        ENDIF
        ener_com%exc=ener_com%exc+ehfx
        ener_com%etot=ener_com%etot+ehfx
@@ -235,28 +277,34 @@ CONTAINS
        __NVTX_TIMER_START ( procedureN//'_b' )
 
        IF (pslo_com%tivan) THEN
-          IF (tkpts%tkpnt) CALL stopgm(procedureN,'K-POINTS NOT IMPLEMENTED',& 
+          IF (tkpts%tkpnt) CALL stopgm(procedureN,'K-POINTS NOT IMPLEMENTED',&
                __LINE__,__FILE__)
-          IF (lproj.AND.cnti%iproj.NE.0) THEN
-             CALL ovlap(nstate,gam,c2,c0(:,:,ik),redist=.FALSE.,full=.FALSE.)
+          IF ((lproj.OR.cntl%nonort).AND.cnti%iproj.NE.0) THEN
+             CALL ovlap(nstate,gam,c2,c0_ptr(:,:,ik),redist=.FALSE.,full=.FALSE.)
              CALL hnlmat(gam,crge%f,nstate)
              CALL summat(gam,nstate,lsd=.TRUE.,gid=parai%cp_grp)
              IF (tfor) CALL rnlfl(fion,gam,nstate,nkpoint)
              IF (cnti%iproj.EQ.1) THEN
                 DO i=1,nstate
-                   CALL daxpy(2*nkpt%ngwk,-gam(i,i),c0(1,i,ik),1,c2(1,1),1)
+                   CALL daxpy(2*nkpt%ngwk,-gam(i,i),c0_ptr(1,i,ik),1,c2(1,1),1)
                 ENDDO
              ELSEIF (cnti%iproj.EQ.2) THEN
-                CALL rotate(-1.0_real_8,c0(:,:,ik),1.0_real_8,c2,gam,&
+                CALL rotate(-1.0_real_8,c0_ptr(:,:,ik),1.0_real_8,c2,gam,&
                      nstate,2*nkpt%ngwk,cntl%tlsd,spin_mod%nsup,spin_mod%nsdown)
              ENDIF
              CALL nlforce(c2,crge%f,gam,auxc,ddia,nstate)
+             IF (ropt_mod%calste) CALL nlsl(gam,nstate)
+             IF (ropt_mod%prteig.AND.paral%io_parent) THEN
+                CALL dscal(nstate*nstate,-1.0_real_8,gam,1)
+                CALL reigs(nstate,gam,crge%f)
+                CALL dscal(nstate*nstate,-1.0_real_8,gam,1)
+             ENDIF
           ELSE
              CALL fnonloc(c2,crge%f,nstate,ik,clsd%nlsd,.TRUE.)
           ENDIF
        ELSEIF (lspin2%tlse) THEN
           CALL fnonloc(c2,crge%f,nstate,ik,clsd%nlsd,.TRUE.)
-          CALL ovlap(nstate,aux,c0(:,:,ik),c2)
+          CALL ovlap(nstate,aux,c0_ptr(:,:,ik),c2)
           IF (lspin2%tros) THEN
              CALL addup2(nstate,gam,aux)
           ELSE
@@ -272,13 +320,13 @@ CONTAINS
           lspin3%hbolse=dasum(clsd%ialpha-1,gam(1,clsd%ibeta),1)
           lspin3%rotab=0.5_real_8*ATAN(2._real_8*lspin3%hablse/&
                (gam(clsd%ialpha,clsd%ialpha)-gam(clsd%ibeta,clsd%ibeta)))
-          IF (lproj)&
-               CALL rotate(-0.5_real_8,c0(:,:,ik),1._real_8,c2,gam,&
+          IF (lproj.OR.cntl%nonort)&
+               CALL rotate(-0.5_real_8,c0_ptr(:,:,ik),1._real_8,c2,gam,&
                nstate,2*nkpt%ngwk,.FALSE.,spin_mod%nsup,spin_mod%nsdown)
        ELSE
           CALL fnonloc(c2,crge%f,nstate,ik,clsd%nlsd,redist_c2)
           IF (.NOT.redist_c2) CALL cp_grp_redist(c2,nkpt%ngwk,nstate)
-          IF (lproj) THEN
+          IF (lproj.OR.cntl%nonort) THEN
              DO i=1,nstate
                 IF (crge%f(i,ik).EQ.0._real_8) THEN
                    fsc(i)=0._real_8
@@ -291,44 +339,44 @@ CONTAINS
                 IF (tkpts%tkpnt) THEN
                    IF (nkpt%ngwk.GT.0) THEN
                       DO i=1,nstate
-                         zee=fsc(i)*zdotc(nkpt%ngwk,c0(1,i,ik),1,c2(1,1),1)
+                         zee=fsc(i)*zdotc(nkpt%ngwk,c0_ptr(1,i,ik),1,c2(1,1),1)
                          CALL mp_sum(zee,parai%allgrp)
-                         CALL zaxpy(nkpt%ngwk,-zee,c0(1,i,ik),1,c2(1,1),1)
+                         CALL zaxpy(nkpt%ngwk,-zee,c0_ptr(1,i,ik),1,c2(1,1),1)
                       ENDDO
                    ENDIF
                 ELSE
                    IF (ncpw%ngw.GT.0) THEN
                       DO i=1,nstate
-                         ee=fsc(i)*dotp(ncpw%ngw,c0(:,i,ik),c2(:,1))
+                         ee=fsc(i)*dotp(ncpw%ngw,c0_ptr(:,i,ik),c2(:,1))
                          CALL mp_sum(ee,parai%allgrp)
-                         CALL daxpy(2*ncpw%ngw,-ee,c0(1,i,ik),1,c2(1,1),1)
+                         CALL daxpy(2*ncpw%ngw,-ee,c0_ptr(1,i,ik),1,c2(1,1),1)
                       ENDDO
                    ENDIF
                 ENDIF
-             ELSEIF (cnti%iproj.EQ.2) THEN
+             ELSEIF (cnti%iproj.EQ.2.OR.cntl%nonort) THEN
                 IF (tkpts%tkpnt) THEN
                    IF (cntl%tlsd) THEN
                       naa=spin_mod%nsup+1
                       CALL zeroing(gam)!,2*nstate*nstate)
-                      CALL ovlap_c(spin_mod%nsup,gam,c2,c0(:,:,ik))
+                      CALL ovlap_c(spin_mod%nsup,gam,c2,c0_ptr(:,:,ik))
                       CALL ovlap_c(spin_mod%nsdown,gam(2*naa,naa),&
-                           c2(1,naa),c0(1,naa,ik))
+                           c2(1,naa),c0_ptr(1,naa,ik))
                    ELSE
-                      CALL ovlap_c(nstate,gam,c2,c0(:,:,ik))
+                      CALL ovlap_c(nstate,gam,c2,c0_ptr(:,:,ik))
                    ENDIF
                    ! AK FIXME: can this work? GAM is complex.
                    CALL mp_sum(gam,2*nstate*nstate,parai%allgrp)
                    CALL gscal_c(nstate,cgam,fsc)
-                   CALL rotate_c(CMPLX(-1.0_real_8,0._real_8,kind=real_8),c0(:,:,ik),&
+                   CALL rotate_c(CMPLX(-1.0_real_8,0._real_8,kind=real_8),c0_ptr(:,:,ik),&
                         CMPLX( 1.0_real_8,0._real_8,kind=real_8),c2,gam,nstate)
                 ELSE
                    IF (cntl%tdmal) THEN
 
-                      CALL ovlap2_dist( nstate, a1mat, c2, c0(:,:,ik) )
+                      CALL ovlap2_dist( nstate, a1mat, c2, c0_ptr(:,:,ik) )
 
                       ipp = cp_grp_get_cp_rank(parai%me,parai%cp_inter_me)
                       IF (parai%cp_me.NE.ipp) CALL stopgm(procedureN,&
-                           ' something wrong here',& 
+                           ' something wrong here',&
                            __LINE__,__FILE__)
                       DO i=1,nstate
                          fi= fsc(i)
@@ -337,12 +385,14 @@ CONTAINS
                             fj= fsc(j)
                             a1mat(i,jj)=(fi*fj)*a1mat(i,jj)
                             ! >>>>
-                            ! SDF the overlap above is not taking care of the 
+                            ! SDF the overlap above is not taking care of the
                             ! SDF orthogonality of the spins. So we do it here...
                             ! SDF some speedup could be gained in ovlap2 and rotate_da.
                             IF (cntl%tlsd) THEN
-                               IF (j.GT.spin_mod%nsup.AND.i.LE.spin_mod%nsup) a1mat(i,jj)=0.0_real_8
-                               IF (j.LE.spin_mod%nsup.AND.i.GT.spin_mod%nsup) a1mat(i,jj)=0.0_real_8
+                               IF (j.GT.spin_mod%nsup.AND.i.LE.spin_mod%nsup) &
+                                    a1mat(i,jj)=0.0_real_8
+                               IF (j.LE.spin_mod%nsup.AND.i.GT.spin_mod%nsup) &
+                                    a1mat(i,jj)=0.0_real_8
                             ENDIF
                             ! <<<
                          ENDDO
@@ -351,7 +401,7 @@ CONTAINS
                       CALL cp_grp_get_sizes(ngw_l=ngw_l,first_g=first_g,&
                            last_g=last_g)
 
-                      CALL rotate_da(-1._real_8,c0(first_g,1,ik),1._real_8,&
+                      CALL rotate_da(-1._real_8,c0_ptr(first_g,1,ik),1._real_8,&
                            c2(first_g,1),a1mat,2*ncpw%ngw,2*ngw_l,&
                            nstate,NWA12_grp(0,1),nwa12_grp(0,2),&
                            NSTX_grp,parai%cp_me,parap%pgroup,parai%cp_nproc,parai%cp_grp,&
@@ -361,24 +411,34 @@ CONTAINS
                       CALL cp_grp_redist(c2,nkpt%ngwk,nstate)
 
                    ELSE
-                      CALL ovlap(nstate,gam,c2,c0(:,:,ik))
+                      CALL ovlap(nstate,gam,c2,c0_ptr(:,:,ik))
                       CALL mp_sum(gam,nstate*nstate,parai%allgrp)
                       CALL gscal(nstate,gam,fsc)
-                      CALL rotate(-1.0_real_8,c0(:,:,ik),1.0_real_8,c2,gam,&
+                      CALL rotate(-1.0_real_8,c0_ptr(:,:,ik),1.0_real_8,c2,gam,&
                            nstate,2*nkpt%ngwk,cntl%tlsd,spin_mod%nsup,spin_mod%nsdown)
                    ENDIF
                 ENDIF
              ENDIF
           ENDIF
        ENDIF
-       IF (geq0) THEN
-          IF (tkpts%tkpnt) THEN
-             CALL zclean_k(c2,nstate,ncpw%ngw)
-          ELSE
-             CALL zclean(c2,nstate,ncpw%ngw)
+       IF(cntl%nonort.AND.pslo_com%tivan)THEN
+          ! ==--------------------------------------------------------------==
+          ! ==   ROTATE ELECTRONIC FORCE BACK INTO NONORTHOGONAL BASIS      ==
+          ! ==--------------------------------------------------------------==
+          CALL rottr(1._real_8,c2,smat,"T",nstate,ncpw%ngw,cntl%tlsd,spin_mod%nsup,&
+               spin_mod%nsdown)
+          IF (geq0) CALL zclean(c2,nstate,ncpw%ngw)
+       ELSE
+          IF (geq0) THEN
+             IF (tkpts%tkpnt) THEN
+                CALL zclean_k(c2,nstate,ncpw%ngw)
+             ELSE
+                CALL zclean(c2,nstate,ncpw%ngw)
+             ENDIF
           ENDIF
-       ENDIF
-       CALL csize(c2,nstate,gemax,cnorm)
+       END IF
+
+       CALL csize(c2,nstate,gemax,cnorm,use_cp_grps=.FALSE.,special=cntl%nonort)
 
        __NVTX_TIMER_STOP
        CALL tihalt(procedureN//'_b',isub3)
@@ -415,6 +475,14 @@ CONTAINS
        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
             __LINE__,__FILE__)
     ENDIF
+    IF(cntl%nonort.AND.pslo_com%tivan)THEN
+       DEALLOCATE(c0_ort,stat=ierr)
+       IF (ierr.NE.0) CALL stopgm(procedureN,'Deallocation problem',&
+            __LINE__,__FILE__)
+       DEALLOCATE(smat,stat=ierr)
+       IF (ierr.NE.0) CALL stopgm(procedureN,'Deallocation problem',&
+            __LINE__,__FILE__)
+    END IF
 
 2000 CONTINUE
     rsactive = .FALSE.
@@ -426,13 +494,13 @@ CONTAINS
           CALL gsize(fion,gnmax,gnorm)
        ENDIF
     ENDIF
-    ! 
+    !
     IF (ALLOCATED(NWA12_grp)) THEN
        DEALLOCATE(NWA12_grp,stat=ierr)
-       IF (ierr.NE.0) CALL stopgm(procedureN,'Deallocation problem',& 
+       IF (ierr.NE.0) CALL stopgm(procedureN,'Deallocation problem',&
             __LINE__,__FILE__)
     ENDIF
-    ! 
+    !
     CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==
 
