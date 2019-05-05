@@ -1,171 +1,225 @@
-SUBROUTINE mp_sum_root_int4_r0(data_in,data_out, root, comm)
+subroutine mp_sum_root_int4_r0(data_in,data_out, root, comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) ::  root, comm
-  INTEGER(int_4), INTENT(in)  :: data_in
-  INTEGER(int_4), INTENT(inout)  :: data_out
+  integer, intent(in) ::  root, comm
+  integer(int_4), intent(in)  :: data_in
+  integer(int_4), intent(inout)  :: data_out
   ! Variables
-  CHARACTER(*),PARAMETER :: procedureN='mp_sum_root_int4_r0'
+  character(*),parameter :: procedureN='mp_sum_root_int4_r0'
 #ifdef __PARALLEL
-  INTEGER :: ierr
-  CALL mpi_reduce(data_in,data_out,1,MPI_INTEGER,&
+  integer :: ierr
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_gsum)=cmcal(ipar_gsum)+1.0d0
+  cmlen(ipar_gsum)=cmlen(ipar_gsum)+1*mp_int4_in_bytes
+  tim1=m_walltime()      
+  call mpi_reduce(data_in,data_out,1,MPI_INTEGER,&
        MPI_SUM,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_gsum)=cmtim(ipar_gsum)+tim2-tim1
 #else
   data_out =data_in 
 #endif
-END SUBROUTINE mp_sum_root_int4_r0
-SUBROUTINE mp_sum_root_int4_r1(data_in,data_out,n, root, comm)
+end subroutine mp_sum_root_int4_r0
+subroutine mp_sum_root_int4_r1(data_in,data_out,n, root, comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) :: n, root, comm
-  INTEGER(int_4), INTENT(in) , DIMENSION(*) :: data_in
-  INTEGER(int_4), INTENT(inout) , DIMENSION(*) :: data_out
+  integer, intent(in) :: n, root, comm
+  integer(int_4), intent(in) , dimension(*) :: data_in
+  integer(int_4), intent(inout) , dimension(*) :: data_out
   ! Variables
-  CHARACTER(*),PARAMETER :: procedureN='mp_sum_root_int4_r1'
+  character(*),parameter :: procedureN='mp_sum_root_int4_r1'
 #ifdef __PARALLEL
-  INTEGER :: ierr
-  CALL mpi_reduce(data_in,data_out,n,MPI_INTEGER,&
+  integer :: ierr
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_gsum)=cmcal(ipar_gsum)+1.0d0
+  cmlen(ipar_gsum)=cmlen(ipar_gsum)+n*mp_int4_in_bytes
+  tim1=m_walltime()      
+  call mpi_reduce(data_in,data_out,n,MPI_INTEGER,&
        MPI_SUM,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_gsum)=cmtim(ipar_gsum)+tim2-tim1
 #else
   data_out (1:n)=data_in (1:n)
 #endif
-END SUBROUTINE mp_sum_root_int4_r1
-SUBROUTINE mp_sum_root_int4_r2(data_in,data_out,n, root, comm)
+end subroutine mp_sum_root_int4_r1
+subroutine mp_sum_root_int4_r2(data_in,data_out,n, root, comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) :: n, root, comm
-  INTEGER(int_4), INTENT(in) , DIMENSION(1,*) :: data_in
-  INTEGER(int_4), INTENT(inout) , DIMENSION(1,*) :: data_out
+  integer, intent(in) :: n, root, comm
+  integer(int_4), intent(in) , dimension(1,*) :: data_in
+  integer(int_4), intent(inout) , dimension(1,*) :: data_out
   ! Variables
-  CHARACTER(*),PARAMETER :: procedureN='mp_sum_root_int4_r2'
+  character(*),parameter :: procedureN='mp_sum_root_int4_r2'
 #ifdef __PARALLEL
-  INTEGER :: ierr
-  CALL mpi_reduce(data_in,data_out,n,MPI_INTEGER,&
+  integer :: ierr
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_gsum)=cmcal(ipar_gsum)+1.0d0
+  cmlen(ipar_gsum)=cmlen(ipar_gsum)+n*mp_int4_in_bytes
+  tim1=m_walltime()      
+  call mpi_reduce(data_in,data_out,n,MPI_INTEGER,&
        MPI_SUM,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_gsum)=cmtim(ipar_gsum)+tim2-tim1
 #else
   data_out (1,1:n)=data_in (1,1:n)
 #endif
-END SUBROUTINE mp_sum_root_int4_r2
-SUBROUTINE mp_sum_root_real8_r0(data_in,data_out, root, comm)
+end subroutine mp_sum_root_int4_r2
+subroutine mp_sum_root_real8_r0(data_in,data_out, root, comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) ::  root, comm
-  REAL(real_8), INTENT(in)  :: data_in
-  REAL(real_8), INTENT(inout)  :: data_out
+  integer, intent(in) ::  root, comm
+  real(real_8), intent(in)  :: data_in
+  real(real_8), intent(inout)  :: data_out
   ! Variables
-  CHARACTER(*),PARAMETER :: procedureN='mp_sum_root_real8_r0'
+  character(*),parameter :: procedureN='mp_sum_root_real8_r0'
 #ifdef __PARALLEL
-  INTEGER :: ierr
-  CALL mpi_reduce(data_in,data_out,1,MPI_DOUBLE_PRECISION,&
+  integer :: ierr
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_gsum)=cmcal(ipar_gsum)+1.0d0
+  cmlen(ipar_gsum)=cmlen(ipar_gsum)+1*mp_double_in_bytes
+  tim1=m_walltime()      
+  call mpi_reduce(data_in,data_out,1,MPI_DOUBLE_PRECISION,&
        MPI_SUM,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_gsum)=cmtim(ipar_gsum)+tim2-tim1
 #else
   data_out =data_in 
 #endif
-END SUBROUTINE mp_sum_root_real8_r0
-SUBROUTINE mp_sum_root_real8_r1(data_in,data_out,n, root, comm)
+end subroutine mp_sum_root_real8_r0
+subroutine mp_sum_root_real8_r1(data_in,data_out,n, root, comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) :: n, root, comm
-  REAL(real_8), INTENT(in) , DIMENSION(*) :: data_in
-  REAL(real_8), INTENT(inout) , DIMENSION(*) :: data_out
+  integer, intent(in) :: n, root, comm
+  real(real_8), intent(in) , dimension(*) :: data_in
+  real(real_8), intent(inout) , dimension(*) :: data_out
   ! Variables
-  CHARACTER(*),PARAMETER :: procedureN='mp_sum_root_real8_r1'
+  character(*),parameter :: procedureN='mp_sum_root_real8_r1'
 #ifdef __PARALLEL
-  INTEGER :: ierr
-  CALL mpi_reduce(data_in,data_out,n,MPI_DOUBLE_PRECISION,&
+  integer :: ierr
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_gsum)=cmcal(ipar_gsum)+1.0d0
+  cmlen(ipar_gsum)=cmlen(ipar_gsum)+n*mp_double_in_bytes
+  tim1=m_walltime()      
+  call mpi_reduce(data_in,data_out,n,MPI_DOUBLE_PRECISION,&
        MPI_SUM,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_gsum)=cmtim(ipar_gsum)+tim2-tim1
 #else
   data_out (1:n)=data_in (1:n)
 #endif
-END SUBROUTINE mp_sum_root_real8_r1
-SUBROUTINE mp_sum_root_real8_r2(data_in,data_out,n, root, comm)
+end subroutine mp_sum_root_real8_r1
+subroutine mp_sum_root_real8_r2(data_in,data_out,n, root, comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) :: n, root, comm
-  REAL(real_8), INTENT(in) , DIMENSION(1,*) :: data_in
-  REAL(real_8), INTENT(inout) , DIMENSION(1,*) :: data_out
+  integer, intent(in) :: n, root, comm
+  real(real_8), intent(in) , dimension(1,*) :: data_in
+  real(real_8), intent(inout) , dimension(1,*) :: data_out
   ! Variables
-  CHARACTER(*),PARAMETER :: procedureN='mp_sum_root_real8_r2'
+  character(*),parameter :: procedureN='mp_sum_root_real8_r2'
 #ifdef __PARALLEL
-  INTEGER :: ierr
-  CALL mpi_reduce(data_in,data_out,n,MPI_DOUBLE_PRECISION,&
+  integer :: ierr
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_gsum)=cmcal(ipar_gsum)+1.0d0
+  cmlen(ipar_gsum)=cmlen(ipar_gsum)+n*mp_double_in_bytes
+  tim1=m_walltime()      
+  call mpi_reduce(data_in,data_out,n,MPI_DOUBLE_PRECISION,&
        MPI_SUM,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_gsum)=cmtim(ipar_gsum)+tim2-tim1
 #else
   data_out (1,1:n)=data_in (1,1:n)
 #endif
-END SUBROUTINE mp_sum_root_real8_r2
-SUBROUTINE mp_sum_root_complex8_r0(data_in,data_out, root, comm)
+end subroutine mp_sum_root_real8_r2
+subroutine mp_sum_root_complex8_r0(data_in,data_out, root, comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) ::  root, comm
-  COMPLEX(real_8), INTENT(in)  :: data_in
-  COMPLEX(real_8), INTENT(inout)  :: data_out
+  integer, intent(in) ::  root, comm
+  complex(real_8), intent(in)  :: data_in
+  complex(real_8), intent(inout)  :: data_out
   ! Variables
-  CHARACTER(*),PARAMETER :: procedureN='mp_sum_root_complex8_r0'
+  character(*),parameter :: procedureN='mp_sum_root_complex8_r0'
 #ifdef __PARALLEL
-  INTEGER :: ierr
-  CALL mpi_reduce(data_in,data_out,1,MPI_DOUBLE_COMPLEX,&
+  integer :: ierr
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_gsum)=cmcal(ipar_gsum)+1.0d0
+  cmlen(ipar_gsum)=cmlen(ipar_gsum)+1*mp_double_complex_in_bytes
+  tim1=m_walltime()      
+  call mpi_reduce(data_in,data_out,1,MPI_DOUBLE_COMPLEX,&
        MPI_SUM,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_gsum)=cmtim(ipar_gsum)+tim2-tim1
 #else
   data_out =data_in 
 #endif
-END SUBROUTINE mp_sum_root_complex8_r0
-SUBROUTINE mp_sum_root_complex8_r1(data_in,data_out,n, root, comm)
+end subroutine mp_sum_root_complex8_r0
+subroutine mp_sum_root_complex8_r1(data_in,data_out,n, root, comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) :: n, root, comm
-  COMPLEX(real_8), INTENT(in) , DIMENSION(*) :: data_in
-  COMPLEX(real_8), INTENT(inout) , DIMENSION(*) :: data_out
+  integer, intent(in) :: n, root, comm
+  complex(real_8), intent(in) , dimension(*) :: data_in
+  complex(real_8), intent(inout) , dimension(*) :: data_out
   ! Variables
-  CHARACTER(*),PARAMETER :: procedureN='mp_sum_root_complex8_r1'
+  character(*),parameter :: procedureN='mp_sum_root_complex8_r1'
 #ifdef __PARALLEL
-  INTEGER :: ierr
-  CALL mpi_reduce(data_in,data_out,n,MPI_DOUBLE_COMPLEX,&
+  integer :: ierr
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_gsum)=cmcal(ipar_gsum)+1.0d0
+  cmlen(ipar_gsum)=cmlen(ipar_gsum)+n*mp_double_complex_in_bytes
+  tim1=m_walltime()      
+  call mpi_reduce(data_in,data_out,n,MPI_DOUBLE_COMPLEX,&
        MPI_SUM,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_gsum)=cmtim(ipar_gsum)+tim2-tim1
 #else
   data_out (1:n)=data_in (1:n)
 #endif
-END SUBROUTINE mp_sum_root_complex8_r1
-SUBROUTINE mp_sum_root_complex8_r2(data_in,data_out,n, root, comm)
+end subroutine mp_sum_root_complex8_r1
+subroutine mp_sum_root_complex8_r2(data_in,data_out,n, root, comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) :: n, root, comm
-  COMPLEX(real_8), INTENT(in) , DIMENSION(1,*) :: data_in
-  COMPLEX(real_8), INTENT(inout) , DIMENSION(1,*) :: data_out
+  integer, intent(in) :: n, root, comm
+  complex(real_8), intent(in) , dimension(1,*) :: data_in
+  complex(real_8), intent(inout) , dimension(1,*) :: data_out
   ! Variables
-  CHARACTER(*),PARAMETER :: procedureN='mp_sum_root_complex8_r2'
+  character(*),parameter :: procedureN='mp_sum_root_complex8_r2'
 #ifdef __PARALLEL
-  INTEGER :: ierr
-  CALL mpi_reduce(data_in,data_out,n,MPI_DOUBLE_COMPLEX,&
+  integer :: ierr
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_gsum)=cmcal(ipar_gsum)+1.0d0
+  cmlen(ipar_gsum)=cmlen(ipar_gsum)+n*mp_double_complex_in_bytes
+  tim1=m_walltime()      
+  call mpi_reduce(data_in,data_out,n,MPI_DOUBLE_COMPLEX,&
        MPI_SUM,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_gsum)=cmtim(ipar_gsum)+tim2-tim1
 #else
   data_out (1,1:n)=data_in (1,1:n)
 #endif
-END SUBROUTINE mp_sum_root_complex8_r2
+end subroutine mp_sum_root_complex8_r2

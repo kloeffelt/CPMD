@@ -4,14 +4,21 @@ subroutine mp_all2all_${NAME}(data_in, data_out, ${ARG_LEN_NAME} comm )
 #endif
   ! Arguments
   integer, intent(in) :: ${ARG_LEN_NAME} comm
-  ${TYPE}${KIND}, intent(inout) ${DIMENSION} :: data_out, data_in
+  ${TYPE}${KIND}, intent(in) ${DIMENSION} ::  data_in
+  ${TYPE}${KIND}, intent(out) ${DIMENSION} :: data_out
   ! Variables
-  integer :: ierr
+  integer :: ierr,nnodes
   character(*),parameter :: procedureN='mp_all2all_${NAME}'
-#ifdef __PARALLEL
-
+  real(real_8) :: tim1,tim2
+#ifdef __PARALLEL  
+  call mpi_comm_size ( comm, nnodes, ierr )
+  cmcal(ipar_aall)=cmcal(ipar_aall)+1.0d0
+  cmlen(ipar_aall)=cmlen(ipar_aall)+${MPI_LEN}*nnodes*${SIZE_IN_BYTES}
+  tim1=m_walltime()     
   CALL mpi_alltoall(data_in,${MPI_LEN},${MPI_TYPE},data_out,${MPI_LEN},${MPI_TYPE},comm,ierr)
   call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_aall)=cmtim(ipar_aall)+tim2-tim1
 #else
   data_out${COPY_ARG}=data_in${COPY_ARG}
 #endif

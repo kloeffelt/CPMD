@@ -22,8 +22,6 @@ MODULE mp_interface
   USE system,                          ONLY: cnti
   USE zeroing_utils,                   ONLY: zeroing
 
-  !$ USE omp_lib,                        ONLY: omp_in_parallel
-
   IMPLICIT NONE
 
   PRIVATE
@@ -45,6 +43,7 @@ MODULE mp_interface
   PUBLIC :: mp_sum
   PUBLIC :: mp_prod
   PUBLIC :: mp_max
+  PUBLIC :: mp_min
   PUBLIC :: mp_dims_create
   PUBLIC :: mp_split
   PUBLIC :: mp_group
@@ -197,6 +196,18 @@ MODULE mp_interface
      MODULE PROCEDURE mp_sum_root_complex8_r0
      MODULE PROCEDURE mp_sum_root_complex8_r1
      MODULE PROCEDURE mp_sum_root_complex8_r2
+     MODULE PROCEDURE mp_sum_root_in_place_int4_r1
+     MODULE PROCEDURE mp_sum_root_in_place_int4_r2
+     MODULE PROCEDURE mp_sum_root_in_place_int8_r1
+     MODULE PROCEDURE mp_sum_root_in_place_real8_r1
+     MODULE PROCEDURE mp_sum_root_in_place_real8_r2
+     MODULE PROCEDURE mp_sum_root_in_place_real8_r3
+     MODULE PROCEDURE mp_sum_root_in_place_real8_r4
+     MODULE PROCEDURE mp_sum_root_in_place_real8_r5
+     MODULE PROCEDURE mp_sum_root_in_place_complex8_r1
+     MODULE PROCEDURE mp_sum_root_in_place_complex8_r2
+     MODULE PROCEDURE mp_sum_root_in_place_complex8_r3
+     MODULE PROCEDURE mp_sum_root_in_place_complex8_r4
      MODULE PROCEDURE mp_sum_in_place_int1_r1
      MODULE PROCEDURE mp_sum_in_place_int4_r0
      MODULE PROCEDURE mp_sum_in_place_int4_r1
@@ -219,6 +230,7 @@ MODULE mp_interface
 
   INTERFACE mp_max
      MODULE PROCEDURE mp_max_int4_r0
+     MODULE PROCEDURE mp_max_int8_r0
      MODULE PROCEDURE mp_max_int4_r1
      MODULE PROCEDURE mp_max_real8_r0
      MODULE PROCEDURE mp_max_real8_r1
@@ -226,7 +238,15 @@ MODULE mp_interface
      MODULE PROCEDURE mp_max_complex8_r1
   END INTERFACE mp_max
 
-
+  INTERFACE mp_min
+     MODULE PROCEDURE mp_min_int4_r0
+     MODULE PROCEDURE mp_min_int4_r1
+     MODULE PROCEDURE mp_min_real8_r0
+     MODULE PROCEDURE mp_min_real8_r1
+     MODULE PROCEDURE mp_min_complex8_r0
+     MODULE PROCEDURE mp_min_complex8_r1     
+  END INTERFACE mp_min
+  
   INTERFACE mp_prod
      MODULE PROCEDURE mp_prod_int4_r0
      MODULE PROCEDURE mp_prod_int4_r1
@@ -361,6 +381,8 @@ CONTAINS
             cmlen(ipar_gmul)/cmcal(ipar_gmul),cmcal(ipar_gmul)
        WRITE(6,fformat1) ' ALL TO ALL COMM ',&
             cmlen(ipar_aall)/cmcal(ipar_aall),cmcal(ipar_aall)
+       WRITE(6,fformat1) ' ALLGATHERV ',&
+            cmlen(ipar_agav)/cmcal(ipar_agav),cmcal(ipar_agav)
        !   ==------------------------------------------------------------==
        WRITE(6,'(1X,"=",29X,A11,10X,A10,2X,"=")')&
             'PERFORMANCE','TOTAL TIME'
@@ -379,6 +401,9 @@ CONTAINS
        WRITE(6,fformat2) ' ALL TO ALL COMM ',&
             cmlen(ipar_aall)/cmtim(ipar_aall)*1.e-3_real_8,&
             cmtim(ipar_aall)*1.e-3_real_8
+       WRITE(6,fformat2) ' ALLGATHERV ',&
+            cmlen(ipar_agav)/cmtim(ipar_agav)*1.e-3_real_8,&
+            cmtim(ipar_agav)*1.e-3_real_8
        WRITE(6,'(1X,"=",A,17X,A,6X,F10.3,A,2X,"=")')&
             ' SYNCHRONISATION ','      ',cmtim(ipar_sync)*1.e-3_real_8,' SEC'
        WRITE(6,'(1X,64("="))')
@@ -1011,13 +1036,16 @@ CONTAINS
 
 #include "sum.inc"
 #include "sum_root.inc"
-#include "sum_scalar_in_place.inc"
+#include "sum_root_in_place.inc"
 #include "sum_in_place.inc"
+#include "sum_scalar_in_place.inc"
 
 #include "prod.inc"
 
 #include "max_scalar.inc"
 #include "max.inc"
+#include "min_scalar.inc"
+#include "min.inc"
 
 
 END MODULE mp_interface

@@ -1,315 +1,441 @@
-SUBROUTINE mp_bcast_char_r0(DATA,  root,comm)
+subroutine mp_bcast_char_r0(data,  root,comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) ::  root,comm
-  CHARACTER(*), INTENT(inout)  :: DATA
+  integer, intent(in) ::  root,comm
+  character(*), intent(inout)  :: data
   ! Variables
-  INTEGER :: ierr
-  CHARACTER(*),PARAMETER :: procedureN='mp_bcast_char_r0'
+  integer :: ierr
+  character(*),parameter :: procedureN='mp_bcast_char_r0'
 #ifdef __PARALLEL
-  CALL mpi_bcast(DATA,LEN(DATA),MPI_CHARACTER,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_cast)=cmcal(ipar_cast)+1.0d0
+  cmlen(ipar_cast)=cmlen(ipar_cast)+len(data)*mp_char_in_bytes
+  tim1=m_walltime()      
+  call mpi_bcast(data,len(data),MPI_CHARACTER,root,comm,ierr)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_cast)=cmtim(ipar_cast)+tim2-tim1
 #endif
-END SUBROUTINE mp_bcast_char_r0
-SUBROUTINE mp_bcast_char_r1(DATA, n, root,comm)
+end subroutine mp_bcast_char_r0
+subroutine mp_bcast_char_r1(data, n, root,comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) :: n, root,comm
-  CHARACTER(*), INTENT(inout) , DIMENSION(*) :: DATA
+  integer, intent(in) :: n, root,comm
+  character(*), intent(inout) , dimension(*) :: data
   ! Variables
-  INTEGER :: ierr
-  CHARACTER(*),PARAMETER :: procedureN='mp_bcast_char_r1'
+  integer :: ierr
+  character(*),parameter :: procedureN='mp_bcast_char_r1'
 #ifdef __PARALLEL
-  CALL mpi_bcast(DATA,LEN(DATA)*n,MPI_CHARACTER,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_cast)=cmcal(ipar_cast)+1.0d0
+  cmlen(ipar_cast)=cmlen(ipar_cast)+len(data)*n*mp_char_in_bytes
+  tim1=m_walltime()      
+  call mpi_bcast(data,len(data)*n,MPI_CHARACTER,root,comm,ierr)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_cast)=cmtim(ipar_cast)+tim2-tim1
 #endif
-END SUBROUTINE mp_bcast_char_r1
-SUBROUTINE mp_bcast_int4_r0(DATA,  root,comm)
+end subroutine mp_bcast_char_r1
+subroutine mp_bcast_int4_r0(data,  root,comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) ::  root,comm
-  INTEGER(int_4), INTENT(inout)  :: DATA
+  integer, intent(in) ::  root,comm
+  integer(int_4), intent(inout)  :: data
   ! Variables
-  INTEGER :: ierr
-  CHARACTER(*),PARAMETER :: procedureN='mp_bcast_int4_r0'
+  integer :: ierr
+  character(*),parameter :: procedureN='mp_bcast_int4_r0'
 #ifdef __PARALLEL
-  CALL mpi_bcast(DATA,1,MPI_INTEGER,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_cast)=cmcal(ipar_cast)+1.0d0
+  cmlen(ipar_cast)=cmlen(ipar_cast)+1*mp_int4_in_bytes
+  tim1=m_walltime()      
+  call mpi_bcast(data,1,MPI_INTEGER,root,comm,ierr)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_cast)=cmtim(ipar_cast)+tim2-tim1
 #endif
-END SUBROUTINE mp_bcast_int4_r0
-SUBROUTINE mp_bcast_int4_r1(DATA, n, root,comm)
+end subroutine mp_bcast_int4_r0
+subroutine mp_bcast_int4_r1(data, n, root,comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) :: n, root,comm
-  INTEGER(int_4), INTENT(inout) , DIMENSION(*) :: DATA
+  integer, intent(in) :: n, root,comm
+  integer(int_4), intent(inout) , dimension(*) :: data
   ! Variables
-  INTEGER :: ierr
-  CHARACTER(*),PARAMETER :: procedureN='mp_bcast_int4_r1'
+  integer :: ierr
+  character(*),parameter :: procedureN='mp_bcast_int4_r1'
 #ifdef __PARALLEL
-  CALL mpi_bcast(DATA,n,MPI_INTEGER,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_cast)=cmcal(ipar_cast)+1.0d0
+  cmlen(ipar_cast)=cmlen(ipar_cast)+n*mp_int4_in_bytes
+  tim1=m_walltime()      
+  call mpi_bcast(data,n,MPI_INTEGER,root,comm,ierr)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_cast)=cmtim(ipar_cast)+tim2-tim1
 #endif
-END SUBROUTINE mp_bcast_int4_r1
-SUBROUTINE mp_bcast_int4_r2(DATA, n, root,comm)
+end subroutine mp_bcast_int4_r1
+subroutine mp_bcast_int4_r2(data, n, root,comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) :: n, root,comm
-  INTEGER(int_4), INTENT(inout) , DIMENSION(1,*) :: DATA
+  integer, intent(in) :: n, root,comm
+  integer(int_4), intent(inout) , dimension(1,*) :: data
   ! Variables
-  INTEGER :: ierr
-  CHARACTER(*),PARAMETER :: procedureN='mp_bcast_int4_r2'
+  integer :: ierr
+  character(*),parameter :: procedureN='mp_bcast_int4_r2'
 #ifdef __PARALLEL
-  CALL mpi_bcast(DATA,n,MPI_INTEGER,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_cast)=cmcal(ipar_cast)+1.0d0
+  cmlen(ipar_cast)=cmlen(ipar_cast)+n*mp_int4_in_bytes
+  tim1=m_walltime()      
+  call mpi_bcast(data,n,MPI_INTEGER,root,comm,ierr)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_cast)=cmtim(ipar_cast)+tim2-tim1
 #endif
-END SUBROUTINE mp_bcast_int4_r2
-SUBROUTINE mp_bcast_int8_r0(DATA,  root,comm)
+end subroutine mp_bcast_int4_r2
+subroutine mp_bcast_int8_r0(data,  root,comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) ::  root,comm
-  INTEGER(int_8), INTENT(inout)  :: DATA
+  integer, intent(in) ::  root,comm
+  integer(int_8), intent(inout)  :: data
   ! Variables
-  INTEGER :: ierr
-  CHARACTER(*),PARAMETER :: procedureN='mp_bcast_int8_r0'
+  integer :: ierr
+  character(*),parameter :: procedureN='mp_bcast_int8_r0'
 #ifdef __PARALLEL
-  CALL mpi_bcast(DATA,1,MPI_INTEGER8,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_cast)=cmcal(ipar_cast)+1.0d0
+  cmlen(ipar_cast)=cmlen(ipar_cast)+1*mp_int8_in_bytes
+  tim1=m_walltime()      
+  call mpi_bcast(data,1,MPI_INTEGER8,root,comm,ierr)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_cast)=cmtim(ipar_cast)+tim2-tim1
 #endif
-END SUBROUTINE mp_bcast_int8_r0
-SUBROUTINE mp_bcast_int8_r1(DATA, n, root,comm)
+end subroutine mp_bcast_int8_r0
+subroutine mp_bcast_int8_r1(data, n, root,comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) :: n, root,comm
-  INTEGER(int_8), INTENT(inout) , DIMENSION(*) :: DATA
+  integer, intent(in) :: n, root,comm
+  integer(int_8), intent(inout) , dimension(*) :: data
   ! Variables
-  INTEGER :: ierr
-  CHARACTER(*),PARAMETER :: procedureN='mp_bcast_int8_r1'
+  integer :: ierr
+  character(*),parameter :: procedureN='mp_bcast_int8_r1'
 #ifdef __PARALLEL
-  CALL mpi_bcast(DATA,n,MPI_INTEGER8,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_cast)=cmcal(ipar_cast)+1.0d0
+  cmlen(ipar_cast)=cmlen(ipar_cast)+n*mp_int8_in_bytes
+  tim1=m_walltime()      
+  call mpi_bcast(data,n,MPI_INTEGER8,root,comm,ierr)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_cast)=cmtim(ipar_cast)+tim2-tim1
 #endif
-END SUBROUTINE mp_bcast_int8_r1
-SUBROUTINE mp_bcast_real8_r0(DATA,  root,comm)
+end subroutine mp_bcast_int8_r1
+subroutine mp_bcast_real8_r0(data,  root,comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) ::  root,comm
-  REAL(real_8), INTENT(inout)  :: DATA
+  integer, intent(in) ::  root,comm
+  real(real_8), intent(inout)  :: data
   ! Variables
-  INTEGER :: ierr
-  CHARACTER(*),PARAMETER :: procedureN='mp_bcast_real8_r0'
+  integer :: ierr
+  character(*),parameter :: procedureN='mp_bcast_real8_r0'
 #ifdef __PARALLEL
-  CALL mpi_bcast(DATA,1,MPI_DOUBLE_PRECISION,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_cast)=cmcal(ipar_cast)+1.0d0
+  cmlen(ipar_cast)=cmlen(ipar_cast)+1*mp_double_in_bytes
+  tim1=m_walltime()      
+  call mpi_bcast(data,1,MPI_DOUBLE_PRECISION,root,comm,ierr)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_cast)=cmtim(ipar_cast)+tim2-tim1
 #endif
-END SUBROUTINE mp_bcast_real8_r0
-SUBROUTINE mp_bcast_real8_r1(DATA, n, root,comm)
+end subroutine mp_bcast_real8_r0
+subroutine mp_bcast_real8_r1(data, n, root,comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) :: n, root,comm
-  REAL(real_8), INTENT(inout) , DIMENSION(*) :: DATA
+  integer, intent(in) :: n, root,comm
+  real(real_8), intent(inout) , dimension(*) :: data
   ! Variables
-  INTEGER :: ierr
-  CHARACTER(*),PARAMETER :: procedureN='mp_bcast_real8_r1'
+  integer :: ierr
+  character(*),parameter :: procedureN='mp_bcast_real8_r1'
 #ifdef __PARALLEL
-  CALL mpi_bcast(DATA,n,MPI_DOUBLE_PRECISION,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_cast)=cmcal(ipar_cast)+1.0d0
+  cmlen(ipar_cast)=cmlen(ipar_cast)+n*mp_double_in_bytes
+  tim1=m_walltime()      
+  call mpi_bcast(data,n,MPI_DOUBLE_PRECISION,root,comm,ierr)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_cast)=cmtim(ipar_cast)+tim2-tim1
 #endif
-END SUBROUTINE mp_bcast_real8_r1
-SUBROUTINE mp_bcast_real8_r2(DATA, n, root,comm)
+end subroutine mp_bcast_real8_r1
+subroutine mp_bcast_real8_r2(data, n, root,comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) :: n, root,comm
-  REAL(real_8), INTENT(inout) , DIMENSION(1,*) :: DATA
+  integer, intent(in) :: n, root,comm
+  real(real_8), intent(inout) , dimension(1,*) :: data
   ! Variables
-  INTEGER :: ierr
-  CHARACTER(*),PARAMETER :: procedureN='mp_bcast_real8_r2'
+  integer :: ierr
+  character(*),parameter :: procedureN='mp_bcast_real8_r2'
 #ifdef __PARALLEL
-  CALL mpi_bcast(DATA,n,MPI_DOUBLE_PRECISION,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_cast)=cmcal(ipar_cast)+1.0d0
+  cmlen(ipar_cast)=cmlen(ipar_cast)+n*mp_double_in_bytes
+  tim1=m_walltime()      
+  call mpi_bcast(data,n,MPI_DOUBLE_PRECISION,root,comm,ierr)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_cast)=cmtim(ipar_cast)+tim2-tim1
 #endif
-END SUBROUTINE mp_bcast_real8_r2
-SUBROUTINE mp_bcast_real8_r3(DATA, n, root,comm)
+end subroutine mp_bcast_real8_r2
+subroutine mp_bcast_real8_r3(data, n, root,comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) :: n, root,comm
-  REAL(real_8), INTENT(inout) , DIMENSION(1,1,*) :: DATA
+  integer, intent(in) :: n, root,comm
+  real(real_8), intent(inout) , dimension(1,1,*) :: data
   ! Variables
-  INTEGER :: ierr
-  CHARACTER(*),PARAMETER :: procedureN='mp_bcast_real8_r3'
+  integer :: ierr
+  character(*),parameter :: procedureN='mp_bcast_real8_r3'
 #ifdef __PARALLEL
-  CALL mpi_bcast(DATA,n,MPI_DOUBLE_PRECISION,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_cast)=cmcal(ipar_cast)+1.0d0
+  cmlen(ipar_cast)=cmlen(ipar_cast)+n*mp_double_in_bytes
+  tim1=m_walltime()      
+  call mpi_bcast(data,n,MPI_DOUBLE_PRECISION,root,comm,ierr)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_cast)=cmtim(ipar_cast)+tim2-tim1
 #endif
-END SUBROUTINE mp_bcast_real8_r3
-SUBROUTINE mp_bcast_real8_r4(DATA, n, root,comm)
+end subroutine mp_bcast_real8_r3
+subroutine mp_bcast_real8_r4(data, n, root,comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) :: n, root,comm
-  REAL(real_8), INTENT(inout) , DIMENSION(1,1,1,*) :: DATA
+  integer, intent(in) :: n, root,comm
+  real(real_8), intent(inout) , dimension(1,1,1,*) :: data
   ! Variables
-  INTEGER :: ierr
-  CHARACTER(*),PARAMETER :: procedureN='mp_bcast_real8_r4'
+  integer :: ierr
+  character(*),parameter :: procedureN='mp_bcast_real8_r4'
 #ifdef __PARALLEL
-  CALL mpi_bcast(DATA,n,MPI_DOUBLE_PRECISION,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_cast)=cmcal(ipar_cast)+1.0d0
+  cmlen(ipar_cast)=cmlen(ipar_cast)+n*mp_double_in_bytes
+  tim1=m_walltime()      
+  call mpi_bcast(data,n,MPI_DOUBLE_PRECISION,root,comm,ierr)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_cast)=cmtim(ipar_cast)+tim2-tim1
 #endif
-END SUBROUTINE mp_bcast_real8_r4
-SUBROUTINE mp_bcast_real8_r5(DATA, n, root,comm)
+end subroutine mp_bcast_real8_r4
+subroutine mp_bcast_real8_r5(data, n, root,comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) :: n, root,comm
-  REAL(real_8), INTENT(inout) , DIMENSION(1,1,1,1,*) :: DATA
+  integer, intent(in) :: n, root,comm
+  real(real_8), intent(inout) , dimension(1,1,1,1,*) :: data
   ! Variables
-  INTEGER :: ierr
-  CHARACTER(*),PARAMETER :: procedureN='mp_bcast_real8_r5'
+  integer :: ierr
+  character(*),parameter :: procedureN='mp_bcast_real8_r5'
 #ifdef __PARALLEL
-  CALL mpi_bcast(DATA,n,MPI_DOUBLE_PRECISION,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_cast)=cmcal(ipar_cast)+1.0d0
+  cmlen(ipar_cast)=cmlen(ipar_cast)+n*mp_double_in_bytes
+  tim1=m_walltime()      
+  call mpi_bcast(data,n,MPI_DOUBLE_PRECISION,root,comm,ierr)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_cast)=cmtim(ipar_cast)+tim2-tim1
 #endif
-END SUBROUTINE mp_bcast_real8_r5
-SUBROUTINE mp_bcast_complex8_r0(DATA,  root,comm)
+end subroutine mp_bcast_real8_r5
+subroutine mp_bcast_complex8_r0(data,  root,comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) ::  root,comm
-  COMPLEX(real_8), INTENT(inout)  :: DATA
+  integer, intent(in) ::  root,comm
+  complex(real_8), intent(inout)  :: data
   ! Variables
-  INTEGER :: ierr
-  CHARACTER(*),PARAMETER :: procedureN='mp_bcast_complex8_r0'
+  integer :: ierr
+  character(*),parameter :: procedureN='mp_bcast_complex8_r0'
 #ifdef __PARALLEL
-  CALL mpi_bcast(DATA,1,MPI_DOUBLE_COMPLEX,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_cast)=cmcal(ipar_cast)+1.0d0
+  cmlen(ipar_cast)=cmlen(ipar_cast)+1*mp_double_complex_in_bytes
+  tim1=m_walltime()      
+  call mpi_bcast(data,1,MPI_DOUBLE_COMPLEX,root,comm,ierr)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_cast)=cmtim(ipar_cast)+tim2-tim1
 #endif
-END SUBROUTINE mp_bcast_complex8_r0
-SUBROUTINE mp_bcast_complex8_r1(DATA, n, root,comm)
+end subroutine mp_bcast_complex8_r0
+subroutine mp_bcast_complex8_r1(data, n, root,comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) :: n, root,comm
-  COMPLEX(real_8), INTENT(inout) , DIMENSION(*) :: DATA
+  integer, intent(in) :: n, root,comm
+  complex(real_8), intent(inout) , dimension(*) :: data
   ! Variables
-  INTEGER :: ierr
-  CHARACTER(*),PARAMETER :: procedureN='mp_bcast_complex8_r1'
+  integer :: ierr
+  character(*),parameter :: procedureN='mp_bcast_complex8_r1'
 #ifdef __PARALLEL
-  CALL mpi_bcast(DATA,n,MPI_DOUBLE_COMPLEX,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_cast)=cmcal(ipar_cast)+1.0d0
+  cmlen(ipar_cast)=cmlen(ipar_cast)+n*mp_double_complex_in_bytes
+  tim1=m_walltime()      
+  call mpi_bcast(data,n,MPI_DOUBLE_COMPLEX,root,comm,ierr)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_cast)=cmtim(ipar_cast)+tim2-tim1
 #endif
-END SUBROUTINE mp_bcast_complex8_r1
-SUBROUTINE mp_bcast_complex8_r2(DATA, n, root,comm)
+end subroutine mp_bcast_complex8_r1
+subroutine mp_bcast_complex8_r2(data, n, root,comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) :: n, root,comm
-  COMPLEX(real_8), INTENT(inout) , DIMENSION(1,*) :: DATA
+  integer, intent(in) :: n, root,comm
+  complex(real_8), intent(inout) , dimension(1,*) :: data
   ! Variables
-  INTEGER :: ierr
-  CHARACTER(*),PARAMETER :: procedureN='mp_bcast_complex8_r2'
+  integer :: ierr
+  character(*),parameter :: procedureN='mp_bcast_complex8_r2'
 #ifdef __PARALLEL
-  CALL mpi_bcast(DATA,n,MPI_DOUBLE_COMPLEX,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_cast)=cmcal(ipar_cast)+1.0d0
+  cmlen(ipar_cast)=cmlen(ipar_cast)+n*mp_double_complex_in_bytes
+  tim1=m_walltime()      
+  call mpi_bcast(data,n,MPI_DOUBLE_COMPLEX,root,comm,ierr)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_cast)=cmtim(ipar_cast)+tim2-tim1
 #endif
-END SUBROUTINE mp_bcast_complex8_r2
-SUBROUTINE mp_bcast_complex8_r3(DATA, n, root,comm)
+end subroutine mp_bcast_complex8_r2
+subroutine mp_bcast_complex8_r3(data, n, root,comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) :: n, root,comm
-  COMPLEX(real_8), INTENT(inout) , DIMENSION(1,1,*) :: DATA
+  integer, intent(in) :: n, root,comm
+  complex(real_8), intent(inout) , dimension(1,1,*) :: data
   ! Variables
-  INTEGER :: ierr
-  CHARACTER(*),PARAMETER :: procedureN='mp_bcast_complex8_r3'
+  integer :: ierr
+  character(*),parameter :: procedureN='mp_bcast_complex8_r3'
 #ifdef __PARALLEL
-  CALL mpi_bcast(DATA,n,MPI_DOUBLE_COMPLEX,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_cast)=cmcal(ipar_cast)+1.0d0
+  cmlen(ipar_cast)=cmlen(ipar_cast)+n*mp_double_complex_in_bytes
+  tim1=m_walltime()      
+  call mpi_bcast(data,n,MPI_DOUBLE_COMPLEX,root,comm,ierr)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_cast)=cmtim(ipar_cast)+tim2-tim1
 #endif
-END SUBROUTINE mp_bcast_complex8_r3
-SUBROUTINE mp_bcast_complex8_r4(DATA, n, root,comm)
+end subroutine mp_bcast_complex8_r3
+subroutine mp_bcast_complex8_r4(data, n, root,comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) :: n, root,comm
-  COMPLEX(real_8), INTENT(inout) , DIMENSION(1,1,1,*) :: DATA
+  integer, intent(in) :: n, root,comm
+  complex(real_8), intent(inout) , dimension(1,1,1,*) :: data
   ! Variables
-  INTEGER :: ierr
-  CHARACTER(*),PARAMETER :: procedureN='mp_bcast_complex8_r4'
+  integer :: ierr
+  character(*),parameter :: procedureN='mp_bcast_complex8_r4'
 #ifdef __PARALLEL
-  CALL mpi_bcast(DATA,n,MPI_DOUBLE_COMPLEX,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_cast)=cmcal(ipar_cast)+1.0d0
+  cmlen(ipar_cast)=cmlen(ipar_cast)+n*mp_double_complex_in_bytes
+  tim1=m_walltime()      
+  call mpi_bcast(data,n,MPI_DOUBLE_COMPLEX,root,comm,ierr)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_cast)=cmtim(ipar_cast)+tim2-tim1
 #endif
-END SUBROUTINE mp_bcast_complex8_r4
-SUBROUTINE mp_bcast_logical_r0(DATA,  root,comm)
+end subroutine mp_bcast_complex8_r4
+subroutine mp_bcast_logical_r0(data,  root,comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) ::  root,comm
-  LOGICAL, INTENT(inout)  :: DATA
+  integer, intent(in) ::  root,comm
+  logical, intent(inout)  :: data
   ! Variables
-  INTEGER :: ierr
-  CHARACTER(*),PARAMETER :: procedureN='mp_bcast_logical_r0'
+  integer :: ierr
+  character(*),parameter :: procedureN='mp_bcast_logical_r0'
 #ifdef __PARALLEL
-  CALL mpi_bcast(DATA,1,MPI_LOGICAL,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_cast)=cmcal(ipar_cast)+1.0d0
+  cmlen(ipar_cast)=cmlen(ipar_cast)+1*mp_logical_in_bytes
+  tim1=m_walltime()      
+  call mpi_bcast(data,1,MPI_LOGICAL,root,comm,ierr)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_cast)=cmtim(ipar_cast)+tim2-tim1
 #endif
-END SUBROUTINE mp_bcast_logical_r0
-SUBROUTINE mp_bcast_logical_r1(DATA, n, root,comm)
+end subroutine mp_bcast_logical_r0
+subroutine mp_bcast_logical_r1(data, n, root,comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) :: n, root,comm
-  LOGICAL, INTENT(inout) , DIMENSION(*) :: DATA
+  integer, intent(in) :: n, root,comm
+  logical, intent(inout) , dimension(*) :: data
   ! Variables
-  INTEGER :: ierr
-  CHARACTER(*),PARAMETER :: procedureN='mp_bcast_logical_r1'
+  integer :: ierr
+  character(*),parameter :: procedureN='mp_bcast_logical_r1'
 #ifdef __PARALLEL
-  CALL mpi_bcast(DATA,n,MPI_LOGICAL,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_cast)=cmcal(ipar_cast)+1.0d0
+  cmlen(ipar_cast)=cmlen(ipar_cast)+n*mp_logical_in_bytes
+  tim1=m_walltime()      
+  call mpi_bcast(data,n,MPI_LOGICAL,root,comm,ierr)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_cast)=cmtim(ipar_cast)+tim2-tim1
 #endif
-END SUBROUTINE mp_bcast_logical_r1
-SUBROUTINE mp_bcast_logical_r2(DATA, n, root,comm)
+end subroutine mp_bcast_logical_r1
+subroutine mp_bcast_logical_r2(data, n, root,comm)
 #ifdef __PARALLEL
-  USE mpi
+  use mpi
 #endif
   ! Arguments
-  INTEGER, INTENT(in) :: n, root,comm
-  LOGICAL, INTENT(inout) , DIMENSION(1,*) :: DATA
+  integer, intent(in) :: n, root,comm
+  logical, intent(inout) , dimension(1,*) :: data
   ! Variables
-  INTEGER :: ierr
-  CHARACTER(*),PARAMETER :: procedureN='mp_bcast_logical_r2'
+  integer :: ierr
+  character(*),parameter :: procedureN='mp_bcast_logical_r2'
 #ifdef __PARALLEL
-  CALL mpi_bcast(DATA,n,MPI_LOGICAL,root,comm,ierr)
-  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  real(real_8) :: tim1,tim2
+  cmcal(ipar_cast)=cmcal(ipar_cast)+1.0d0
+  cmlen(ipar_cast)=cmlen(ipar_cast)+n*mp_logical_in_bytes
+  tim1=m_walltime()      
+  call mpi_bcast(data,n,MPI_LOGICAL,root,comm,ierr)
+  call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_cast)=cmtim(ipar_cast)+tim2-tim1
 #endif
-END SUBROUTINE mp_bcast_logical_r2
+end subroutine mp_bcast_logical_r2

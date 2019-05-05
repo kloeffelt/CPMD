@@ -6,6 +6,8 @@ SUBROUTINE mp_bcast_byte(DATA,n,root,comm)
   USE error_handling, ONLY: stopgm
   USE timer, ONLY: tiset, tihalt
   USE mp_interface, ONLY: mp_mpi_error_assert
+  USE pstat
+  USE machine, ONLY: m_walltime
 #ifdef __PARALLEL
   USE mpi
 #endif
@@ -17,9 +19,21 @@ SUBROUTINE mp_bcast_byte(DATA,n,root,comm)
   INTEGER :: ierr
   CHARACTER(*),PARAMETER :: procedureN='mp_bcast_byte'
 #ifdef __PARALLEL
+  INTEGER,SAVE :: size
+  LOGICAL :: first=.true.
+  REAL(real_8) :: tim1,tim2
   ! ==--------------------------------------------------------------==
+  IF(first)THEN
+    CALL mpi_type_size(mpi_byte,size,ierr)
+    first=.FALSE.
+  END IF
+  cmcal(ipar_cast)=cmcal(ipar_cast)+1.0d0
+  cmlen(ipar_cast)=cmlen(ipar_cast)+n*size
+  tim1=m_walltime()
   CALL mpi_bcast(DATA,n,mpi_byte,root,comm,ierr)
   CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_cast)=cmtim(ipar_cast)+tim2-tim1
 #endif
   ! ==--------------------------------------------------------------==
   RETURN
@@ -65,6 +79,8 @@ SUBROUTINE my_concat(outmsg,inmsg,blklen,gid)
   USE utils, ONLY : icopy
 #ifdef __PARALLEL
   USE mpi
+  USE pstat
+  USE machine, ONLY: m_walltime
 #endif
   IMPLICIT NONE
   ! Arguments
@@ -72,11 +88,25 @@ SUBROUTINE my_concat(outmsg,inmsg,blklen,gid)
   CHARACTER(*),PARAMETER::procedureN='my_concat'
 #ifdef __PARALLEL
   ! Variables
-  INTEGER :: ierr
+  INTEGER,SAVE :: size
+  LOGICAL :: first=.true.
+  INTEGER :: ierr,nnodes
+  REAL(real_8) :: tim1,tim2
+  ! ==--------------------------------------------------------------==
+  IF(first)THEN
+    CALL mpi_type_size(mpi_double_precision,size,ierr)
+    first=.FALSE.
+  END IF
+  CALL mpi_comm_size ( gid, nnodes, ierr )
+  cmcal(ipar_agav)=cmcal(ipar_agav)+1.0d0
+  cmlen(ipar_agav)=cmlen(ipar_agav)+nnodes*size*blklen
+  tim1=m_walltime()
   ! ==--------------------------------------------------------------==
   CALL mpi_allgather(outmsg,blklen,mpi_byte,inmsg,blklen,&
        mpi_byte,gid,ierr)
   CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_agav)=cmtim(ipar_agav)+tim2-tim1
 #else
   ! Variables
   INTEGER :: len
@@ -88,7 +118,106 @@ SUBROUTINE my_concat(outmsg,inmsg,blklen,gid)
   RETURN
 END SUBROUTINE my_concat
 ! ==================================================================
+SUBROUTINE my_concat_inplace(inmsg,blklen,gid)
+  ! ==--------------------------------------------------------------==
+  ! == Concat all OUTMSG from GID group_ processor into INMSG        ==
+  ! ==--------------------------------------------------------------==
+  USE kinds, ONLY: real_4, real_8, int_1, int_2, int_4, int_8
+  USE error_handling, ONLY: stopgm
+  USE timer, ONLY: tiset, tihalt
+  USE mp_interface, ONLY: mp_mpi_error_assert
+  USE utils, ONLY : icopy
+#ifdef __PARALLEL
+  USE mpi
+  USE pstat
+  USE machine, ONLY: m_walltime
+#endif
+  IMPLICIT NONE
+  ! Arguments
+  REAL(real_8) :: inmsg(*)
+  integer :: blklen,gid
+  CHARACTER(*),PARAMETER::procedureN='my_concat'
+#ifdef __PARALLEL
+  ! Variables
+  INTEGER :: ierr,nnodes
+  INTEGER,SAVE :: size
+  LOGICAL :: first=.true.
+  REAL(real_8) :: tim1,tim2
+  ! ==--------------------------------------------------------------==
+  IF(first)THEN
+    CALL mpi_type_size(mpi_double_precision,size,ierr)
+    first=.FALSE.
+  END IF
+  CALL mpi_comm_size ( gid, nnodes, ierr )
+  cmcal(ipar_agav)=cmcal(ipar_agav)+1.0d0
+  cmlen(ipar_agav)=cmlen(ipar_agav)+nnodes*size*blklen
+  tim1=m_walltime()
+  CALL mpi_allgather(mpi_in_place,0,MPI_DATATYPE_NULL,inmsg,blklen,&
+       mpi_double_precision,gid,ierr)
+  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_agav)=cmtim(ipar_agav)+tim2-tim1
+#else
+  ! Nothing to do, in=out
+#endif
+  ! ==--------------------------------------------------------------==
+  RETURN
+END SUBROUTINE my_concat_inplace
+! ==----------------------------------------------------------------==
 SUBROUTINE my_concatv(outmsg,inmsg,blklen,recvcnt,recvdispl,gid)
+  ! ==--------------------------------------------------------------==
+  ! == Concat all OUTMSG of different lengths from GID group_       ==
+  ! == processor into INMSG. NOTE DOUBLE PRECISION ARRAYS USED      ==
+  ! ==--------------------------------------------------------------==
+  USE kinds, ONLY: real_4, real_8, int_1, int_2, int_4, int_8
+  USE error_handling, ONLY: stopgm
+  USE timer, ONLY: tiset, tihalt
+  USE mp_interface, ONLY: mp_mpi_error_assert
+#ifdef __PARALLEL
+  USE mpi
+  USE pstat
+  USE machine, ONLY: m_walltime
+#endif
+  IMPLICIT NONE
+  ! Arguments
+  REAL(real_8) :: outmsg(*),inmsg(*)
+  INTEGER :: blklen,gid,recvcnt(*),recvdispl(*)
+  CHARACTER(*),PARAMETER::procedureN='my_concatv'
+#ifdef __PARALLEL
+  ! Variables
+  INTEGER :: ierr,nnodes,sum,i
+  INTEGER,SAVE :: size
+  LOGICAL :: first=.true.
+  REAL(real_8) :: tim1,tim2
+  ! ==--------------------------------------------------------------==
+  IF(first)THEN
+    CALL mpi_type_size(mpi_double_precision,size,ierr)
+    first=.FALSE.
+  END IF
+  CALL mpi_comm_size ( gid, nnodes, ierr )
+  cmcal(ipar_agav)=cmcal(ipar_agav)+1.0d0
+  sum=0
+  DO i=1,nnodes
+     sum=sum+recvcnt(i)
+  END DO
+  cmlen(ipar_agav)=cmlen(ipar_agav)+sum*size
+  tim1=m_walltime()
+  CALL mpi_allgatherv(outmsg,blklen,mpi_double_precision,inmsg,&
+       recvcnt,recvdispl,mpi_double_precision&
+       ,gid,ierr)
+  CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_agav)=cmtim(ipar_agav)+tim2-tim1
+#else
+  ! ==--------------------------------------------------------------==
+  CALL dcopy(blklen,outmsg,1,inmsg(1+recvdispl(1)),1)
+#endif
+  ! ==--------------------------------------------------------------==
+  RETURN
+END SUBROUTINE my_concatv
+  ! ==--------------------------------------------------------------==
+  ! ==--------------------------------------------------------------==
+SUBROUTINE my_concatv_inplace(inmsg,recvcnt,recvdispl,gid)
   ! ==--------------------------------------------------------------==
   ! == Concat all OUTMSG of different lengths from GID group_        ==
   ! == processor into INMSG. NOTE DOUBLE PRECISION ARRAYS USED      ==
@@ -99,27 +228,45 @@ SUBROUTINE my_concatv(outmsg,inmsg,blklen,recvcnt,recvdispl,gid)
   USE mp_interface, ONLY: mp_mpi_error_assert
 #ifdef __PARALLEL
   USE mpi
+  USE pstat
+  USE machine, ONLY: m_walltime
 #endif
   IMPLICIT NONE
   ! Arguments
-  REAL(real_8) :: outmsg(*),inmsg(*)
+  REAL(real_8) :: inmsg(*)
   INTEGER :: blklen,gid,recvcnt(*),recvdispl(*)
   CHARACTER(*),PARAMETER::procedureN='my_concatv'
 #ifdef __PARALLEL
   ! Variables
-  INTEGER :: ierr
+  INTEGER :: ierr,nnodes,sum,i
+  INTEGER,SAVE :: size
+  LOGICAL :: first=.true.
+  REAL(real_8) :: tim1,tim2
   ! ==--------------------------------------------------------------==
-  CALL mpi_allgatherv(outmsg,blklen,mpi_double_precision,inmsg,&
+  IF(first)THEN
+    CALL mpi_type_size(mpi_double_precision,size,ierr)
+    first=.FALSE.
+  END IF
+  CALL mpi_comm_size ( gid, nnodes, ierr )
+  cmcal(ipar_agav)=cmcal(ipar_agav)+1.0d0
+  sum=0
+  DO i=1,nnodes
+     sum=sum+recvcnt(i)
+  END DO
+  cmlen(ipar_agav)=cmlen(ipar_agav)+sum*size
+  tim1=m_walltime()
+  CALL mpi_allgatherv(mpi_in_place,0,MPI_DATATYPE_NULL,inmsg,&
        recvcnt,recvdispl,mpi_double_precision&
        ,gid,ierr)
   CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+  tim2=m_walltime()
+  cmtim(ipar_agav)=cmtim(ipar_agav)+tim2-tim1
 #else
-  ! ==--------------------------------------------------------------==
-  CALL dcopy(blklen,outmsg,1,inmsg(1+recvdispl(1)),1)
+  !nothing to do, in=out
 #endif
   ! ==--------------------------------------------------------------==
   RETURN
-END SUBROUTINE my_concatv
+END SUBROUTINE my_concatv_inplace
 ! ==================================================================
 ! ==================================================================
 SUBROUTINE my_source_concatv(outmsg,inmsg,blklen,recvcnt,&
