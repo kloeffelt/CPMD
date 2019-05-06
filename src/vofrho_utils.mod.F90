@@ -1,3 +1,5 @@
+#include "cpmd_global.h"
+
 MODULE vofrho_utils
   USE error_handling,                  ONLY: stopgm
   USE forcep_utils,                    ONLY: rhoe_psi_size
@@ -26,7 +28,10 @@ MODULE vofrho_utils
                                              vofrhos
   USE vofrhot_utils,                   ONLY: give_scr_vofrhot,&
                                              vofrhot
-
+#ifdef _USE_SCRATCHLIBRARY
+  USE scratch_interface,               ONLY: request_scratch,&
+                                             free_scratch
+#endif
   IMPLICIT NONE
 
   PRIVATE
@@ -50,15 +55,24 @@ CONTAINS
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'vofrho'
 
+#ifdef _USE_SCRATCHLIBRARY
+    COMPLEX(real_8), POINTER __CONTIGUOUS    :: vtemp(:,:)
+#else
     COMPLEX(real_8), ALLOCATABLE             :: vtemp(:,:)
+#endif
     INTEGER                                  :: ierr, il_rhoe_1d, il_rhoe_2d, &
-                                                isub
+                                                isub, il_vtemp(2)
 
     CALL tiset(procedureN,isub)
-
-    ALLOCATE(vtemp(ncpw%nhg, clsd%nlsd),STAT=ierr)
+    il_vtemp(1)=ncpw%nhg
+    il_vtemp(2)=clsd%nlsd
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_vtemp,vtemp,procedureN//'_vtemp')
+#else
+    ALLOCATE(vtemp(il_vtemp(1), il_vtemp(2)),STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
          __LINE__,__FILE__)
+#endif
     ! ==--------------------------------------------------------------==
     ! Allocation of POTR if SPOT and POTR not allocated.
     IF (store1%spot) THEN
@@ -95,9 +109,13 @@ CONTAINS
     ELSE
        CALL vofrhob(fion,rhoe,v,vtemp,tfor,tstress)
     ENDIF
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_vtemp,vtemp,procedureN//'_vtemp')
+#else
     DEALLOCATE(vtemp,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
+#endif
     ! ==--------------------------------------------------------------==
     IF (store1%spot) CALL dcopy(fpar%nnr1*clsd%nlsd,rhoe,1,potr,1)
     ! ==--------------------------------------------------------------==

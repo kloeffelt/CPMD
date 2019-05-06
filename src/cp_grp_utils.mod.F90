@@ -1,3 +1,5 @@
+#include "cpmd_global.h"
+
 MODULE cp_grp_utils
   USE error_handling,                  ONLY: stopgm
   USE geq0mod,                         ONLY: geq0
@@ -30,6 +32,10 @@ MODULE cp_grp_utils
                                              fnla
   USE timer,                           ONLY: tihalt,&
                                              tiset
+#ifdef _USE_SCRATCHLIBRARY
+  USE scratch_interface,               ONLY: request_scratch,&
+                                             free_scratch
+#endif
 
   IMPLICIT NONE
   PRIVATE
@@ -275,7 +281,11 @@ CONTAINS
     COMPLEX(real_8),INTENT(INOUT)            :: data(ld,*)
     INTEGER                                  :: ld_group(3,parai%cp_nogrp),&
                                                   revcnt,i,ig,ierr,group, il_buffer(3)
+#ifdef _USE_SCRATCHLIBRARY
+    COMPLEX(real_8), POINTER __CONTIGUOUS    :: buffer(:,:,:)
+#else
     COMPLEX(real_8), ALLOCATABLE             :: buffer(:,:,:)
+#endif
     CHARACTER(*), PARAMETER                  :: procedureN = 'cp_grp_redist_array_f'
     !  ==--------------------------------------------------------------==
     IF(parai%CP_NOGRP.EQ.1) RETURN
@@ -287,9 +297,13 @@ CONTAINS
     il_buffer(2)=n
     il_buffer(3)=parai%cp_nogrp
     revcnt=il_buffer(1)*n*2
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_buffer,buffer,procedureN//'_buffer')
+#else
     ALLOCATE(buffer(il_buffer(1),il_buffer(2),il_buffer(3)),stat=ierr)
     IF (ierr.NE.0) CALL stopgm(procedureN,'Allocation problem',&
          __LINE__,__FILE__)
+#endif
     group=parai%cp_inter_me+1
     !$omp parallel do private(i,ig)
     DO i=1,n
@@ -311,9 +325,13 @@ CONTAINS
        !$omp end do nowait
     END DO
     !$omp end parallel
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_buffer,buffer,procedureN//'_buffer')
+#else
     DEALLOCATE(buffer,stat=ierr)
     IF (ierr.NE.0) CALL stopgm(procedureN,'Deallocation problem',&
          __LINE__,__FILE__)
+#endif
     ! ==--------------------------------------------------------------==
     RETURN
     ! ==--------------------------------------------------------------==
@@ -439,7 +457,11 @@ CONTAINS
     INTEGER                                :: na_grp(2,ions1%nsp,parai%cp_nogrp),&
                                               worksum(parai%cp_nogrp), il_temp(3),&
                                               is, ierr, grp, sendcnt, isub, ii
+#ifdef _USE_SCRATCHLIBRARY
+    REAL(real_8), POINTER __CONTIGUOUS     :: temp(:,:,:)
+#else
     REAL(real_8), ALLOCATABLE              :: temp(:,:,:)
+#endif
     ! ==------------------------------------------------------------==
     ! redistributes dfnl and/or fnl arrays
     ! Author: Tobias Kloeffel, FAU Erlangen-Nuernberg April 2019
@@ -460,9 +482,13 @@ CONTAINS
        il_temp(1)=imagp*MAXVAL(worksum)
        il_temp(2)=nstate
        il_temp(3)=parai%cp_nogrp
+#ifdef _USE_SCRATCHLIBRARY
+       CALL request_scratch(il_temp,temp,procedureN//'_temp')
+#else
        ALLOCATE(temp(il_temp(1),il_temp(2),il_temp(3)), stat=ierr)
        IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate temp',&
             __LINE__,__FILE__)
+#endif
        !pack local fnl chunk
        grp=parai%cp_inter_me+1
        IF(tkpts%tkpnt)THEN
@@ -482,18 +508,26 @@ CONTAINS
              CALL unpack_fnl(na_grp(:,:,grp),temp(:,:,grp),unpacked=fnla)
           END IF
        END DO
+#ifdef _USE_SCRATCHLIBRARY
+       CALL free_scratch(il_temp,temp,procedureN//'_temp')
+#else
        DEALLOCATE(temp, stat=ierr)
        IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate temp',&
             __LINE__,__FILE__)
+#endif
     END IF
 
     IF(redist_dfnl)THEN
        il_temp(1)=imagp*MAXVAL(worksum)*3
        il_temp(2)=norbpe
        il_temp(3)=parai%cp_nogrp
+#ifdef _USE_SCRATCHLIBRARY
+       CALL request_scratch(il_temp,temp,procedureN//'_temp')
+#else
        ALLOCATE(temp(il_temp(1),il_temp(2),il_temp(3)), stat=ierr)
        IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate temp',&
             __LINE__,__FILE__)
+#endif
        !pack local dfnl chunk
        grp=parai%cp_inter_me+1
        IF(tkpts%tkpnt)THEN
@@ -513,9 +547,13 @@ CONTAINS
              CALL unpack_dfnl(na_grp(:,:,grp),temp(:,:,grp),unpacked=dfnla)
           END IF
        END DO
+#ifdef _USE_SCRATCHLIBRARY
+       CALL free_scratch(il_temp,temp,procedureN//'_temp')
+#else
        DEALLOCATE(temp, stat=ierr)
        IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate temp',&
             __LINE__,__FILE__)
+#endif
     END IF
 
     CALL tihalt(procedureN,isub)

@@ -20,7 +20,7 @@ MODULE fftmain_utils
        lfrm, lmsq, lr1, lr1m, lr1s, lr2s, lr3s, lrxpl, lsrm, mfrays, msqf, &
        msqs, msrays, qr1, qr1s, qr2s, qr3max, qr3min, qr3s, sp5, sp8, sp9, &
        xf, yf,fft_residual,fft_total,fft_numbatches,fft_batchsize
-  USE fft_maxfft,                      ONLY: maxfftn
+  USE fft_maxfft,                      ONLY: maxfftn, maxfft
   USE fftcu_methods,                   ONLY: fftcu_frw_full_1,&
                                              fftcu_frw_full_2,&
                                              fftcu_frw_sprs_1,&
@@ -61,6 +61,10 @@ MODULE fftmain_utils
   !$ omp_set_num_threads, omp_set_nested
 
   USE, INTRINSIC :: ISO_C_BINDING,     ONLY: C_PTR, C_NULL_PTR
+#ifdef _USE_SCRATCHLIBRARY
+  USE scratch_interface,               ONLY: request_scratch,&
+                                             free_scratch
+#endif
 
   IMPLICIT NONE
 
@@ -89,9 +93,15 @@ CONTAINS
 
     COMPLEX(real_8), DIMENSION(:), &
       POINTER __CONTIGUOUS                   :: xf_ptr, yf_ptr
-    INTEGER                                  :: lda, m, mm, n1o, n1u
+    INTEGER                                  :: lda, m, mm, n1o, n1u, il_xf(2)
     REAL(real_8)                             :: scale
 
+#ifdef _USE_SCRATCHLIBRARY
+    il_xf(1)=maxfft
+    il_xf(2)=1
+    CALL request_scratch(il_xf,xf,procedureN//'_xf')
+    CALL request_scratch(il_xf,yf,procedureN//'_yf')
+#endif
     xf_ptr => xf(:,1)
     yf_ptr => yf(:,1)
 
@@ -163,6 +173,10 @@ CONTAINS
           CALL mltfft('T','N',xf_ptr,m,qr1s,f,qr1s,m,lr1s,m,isign,scale )
        ENDIF
     ENDIF
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_xf,yf,procedureN//'_yf')
+    CALL free_scratch(il_xf,xf,procedureN//'_xf')
+#endif
     ! ==--------------------------------------------------------------==
   END SUBROUTINE fftnew
 
@@ -196,9 +210,15 @@ CONTAINS
     REAL(real_8)                             :: scale
     INTEGER                                  :: n, buff, methread, nthreads, nested_threads,&
                                                 swap, loop, lda, m, mm, n1o, n1u ,i, is, j, &
-                                                ierr
+                                                ierr, il_xf(2)
     !$ LOGICAL                                  :: locks(fft_numbatches+1,2)
     ! use 'own, handmade' locks as with omp inbuilt locks very strange things happen
+#ifdef _USE_SCRATCHLIBRARY
+    il_xf(1)=MAX(maxfft,fpar%nnr1*fft_batchsize)
+    il_xf(2)=2
+    CALL request_scratch(il_xf,xf,procedureN//'_xf')
+    CALL request_scratch(il_xf,yf,procedureN//'_yf')
+#endif
 
     IF(cntl%overlapp_comm_comp)THEN
        nthreads=MIN(2,parai%ncpus)
@@ -432,6 +452,10 @@ CONTAINS
     !$ END IF
 
     !$omp  END parallel
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_xf,yf,procedureN//'_yf')
+    CALL free_scratch(il_xf,xf,procedureN//'_xf')
+#endif
     ! ==--------------------------------------------------------------==
   END SUBROUTINE fftnew_batch
 

@@ -31,6 +31,11 @@ MODULE rgsvan_utils
                                              symmat_pack,&
                                              symmat_unpack
 
+#ifdef _USE_SCRATCHLIBRARY
+  USE scratch_interface,               ONLY: request_scratch,&
+                                             free_scratch
+#endif
+
   IMPLICIT NONE
 
   PRIVATE
@@ -52,7 +57,11 @@ CONTAINS
                                                 na_grp(2,ions1%nsp,0:parai%cp_nogrp-1)
     CHARACTER(*), PARAMETER                  :: procedureN = 'rgsvan'
     LOGICAL, INTENT(IN)                      :: store_nonort
+#ifdef _USE_SCRATCHLIBRARY
+    REAL(real_8), POINTER __CONTIGUOUS       :: smatpacked(:)
+#else
     REAL(real_8), ALLOCATABLE                :: smatpacked(:)
+#endif
 ! ==--------------------------------------------------------------==
     CALL tiset(procedureN,isub)
     CALL csmat(smat,c0,nstate,1,full=.FALSE.,store_nonort=store_nonort,only_parent=.TRUE.)
@@ -62,9 +71,13 @@ CONTAINS
     ELSE
        il_smatpacked=nstate*(nstate+1)/2
     END IF
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_smatpacked,smatpacked,procedureN//'_smatpacked')
+#else
     ALLOCATE(smatpacked(il_smatpacked(1)),STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
          __LINE__,__FILE__)
+#endif
     IF(paral%io_parent)THEN
        IF (cntl%tlsd) THEN
           CALL uinv('U',smat(1,1),nstate,spin_mod%nsup)
@@ -81,9 +94,13 @@ CONTAINS
     ELSE
        CALL symmat_unpack(smat,smatpacked,nstate,nstate,0,.FALSE.)
     END IF
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_smatpacked,smatpacked,procedureN//'_smatpacked')
+#else
     DEALLOCATE(smatpacked,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
+#endif
     IF(pslo_com%tivan)THEN
        IF(cntl%distribute_fnl_rot)THEN
           CALL rottr_c0_fnl(ncpw%ngw,c0,il_fnl_packed(1),fnl_packed,smat,nstate,redist=.TRUE.)

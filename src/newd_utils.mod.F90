@@ -40,6 +40,10 @@ MODULE newd_utils
   USE timer,                           ONLY: tihalt,&
                                              tiset
   USE zeroing_utils,                   ONLY: zeroing
+#ifdef _USE_SCRATCHLIBRARY
+  USE scratch_interface,               ONLY: request_scratch,&
+                                             free_scratch
+#endif
 
   IMPLICIT NONE
 
@@ -66,8 +70,6 @@ CONTAINS
     INTEGER                                  :: is, ia, isub, nst(2,0:parai%nproc-1), &
                                                 na_grp(2,ions1%nsp,0:parai%cp_nogrp-1), &
                                                 na(2,ions1%nsp), ig_start, nhg_loc
-    COMPLEX(real_8), ALLOCATABLE             :: qg1(:,:,:), vtmp(:)
-
 
     CHARACTER(*), PARAMETER                  :: procedureN='newd'
 
@@ -122,8 +124,14 @@ CONTAINS
     REAL(real_8),INTENT(IN)                  :: f(*), fnl_p(il_fnl_packed(1),*)
     LOGICAL,INTENT(IN)                       :: tfor
 
+#ifdef _USE_SCRATCHLIBRARY
+    COMPLEX(real_8), POINTER __CONTIGUOUS    :: qg1(:,:,:), vtmp(:)
+    REAL(real_8), POINTER __CONTIGUOUS       :: fnlt(:,:,:),gk_trans(:,:,:),ylm(:,:)
+#else
     REAL(real_8), ALLOCATABLE                :: fnlt(:,:,:),gk_trans(:,:,:),ylm(:,:)
     COMPLEX(real_8), ALLOCATABLE             :: qg1(:,:,:), vtmp(:)
+#endif
+
     INTEGER                                  :: i, is, ia, blocksize, blocks, last_block, &
                                                 isa0, nhh0, nhh, num_orb, &
                                                 offset_fnl0, il_qg1(3), il_ylm(2),&
@@ -171,6 +179,12 @@ CONTAINS
        il_gk_trans(3)=blocks
        IF(last_block.GT.0) il_gk_trans(3)=blocks+1
     END IF
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_fnlt,fnlt,procedureN//'_fnlt')
+    CALL request_scratch(il_gk_trans,gk_trans,procedureN//'_gk_trans')
+    CALL request_scratch(il_qg1,qg1,procedureN//'_qg1')
+    CALL request_scratch(il_ylm,ylm,procedureN//'_ylm')
+#else
     ALLOCATE(fnlt(il_fnlt(1),il_fnlt(2),il_fnlt(3)), stat=ierr)
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate fnlt)',&
          __LINE__,__FILE__)
@@ -183,6 +197,7 @@ CONTAINS
     ALLOCATE(ylm(il_ylm(1),il_ylm(2)), stat=ierr)
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate ylm)',&
          __LINE__,__FILE__)
+#endif
     IF(tfor) CALL transpose_gk(blocks,blocksize,last_block,ig_start,gk,gk_trans)
 
     isa0=0
@@ -200,7 +215,12 @@ CONTAINS
        isa0=isa0+ions0%na(is)
        offset_fnl0=offset_fnl0+(na(2,is)-na(1,is)+1)*nlps_com%ngh(is)
     END DO
-
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_ylm,ylm,procedureN//'_ylm')
+    CALL free_scratch(il_qg1,qg1,procedureN//'_qg1')
+    CALL free_scratch(il_gk_trans,gk_trans,procedureN//'_gk_trans')
+    CALL free_scratch(il_fnlt,fnlt,procedureN//'_fnlt')
+#else
     DEALLOCATE(fnlt, stat=ierr)
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate fnlt)',&
          __LINE__,__FILE__)
@@ -213,6 +233,7 @@ CONTAINS
     DEALLOCATE(ylm, stat=ierr)
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate ylm)',&
          __LINE__,__FILE__)
+#endif
 
   END SUBROUTINE prep_bigmem_newd
   ! ==================================================================

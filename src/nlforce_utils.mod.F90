@@ -40,6 +40,10 @@ MODULE nlforce_utils
   USE timer,                           ONLY: tihalt,&
                                              tiset
   USE zeroing_utils,                   ONLY: zeroing
+#ifdef _USE_SCRATCHLIBRARY
+  USE scratch_interface,               ONLY: request_scratch,&
+                                             free_scratch
+#endif
 
   IMPLICIT NONE
 
@@ -76,8 +80,13 @@ CONTAINS
                                                 na_fnl(2,ions1%nsp), il_t(1), nthreads, &
                                                 ibeg, ngw_local, methread, nested_threads
     REAL(real_8)                             :: ffi
-    REAL(real_8),ALLOCATABLE                 :: t(:),dai(:,:,:)
+#ifdef _USE_SCRATCHLIBRARY
+    COMPLEX(real_8),POINTER __CONTIGUOUS     :: eiscr(:,:)
+    REAL(real_8),POINTER __CONTIGUOUS        :: dai(:,:,:), t(:)
+#else
+    REAL(real_8),ALLOCATABLE                 :: dai(:,:,:), t(:)
     COMPLEX(real_8),ALLOCATABLE              :: eiscr(:,:)
+#endif
     LOGICAL                                  :: mixed_psp
 
     CALL tiset(procedureN,isub)
@@ -135,7 +144,11 @@ CONTAINS
        il_eiscr(1)=ngw_local
        il_eiscr(2)=MAXVAL(ld_grp)
        il_t(1)=ngw_local
-
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_dai,dai,procedureN//'_dai')
+    CALL request_scratch(il_eiscr,eiscr,procedureN//'_eiscr')
+    CALL request_scratch(il_t,t,procedureN//'_t')
+#else
        ALLOCATE(dai(il_dai(1),il_dai(2),il_dai(3)), stat=ierr)
        IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate dai',&
             __LINE__,__FILE__)
@@ -145,6 +158,7 @@ CONTAINS
        ALLOCATE(t(il_t(1)), stat=ierr)
        IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate t',&
             __LINE__,__FILE__)
+#endif
        !$omp parallel private (i,ffi,ispin,offset_fnl,offset_dai,isa0,is,ia_fnl,ia_sum,&
        !$omp start_isa)
        !$omp do
@@ -242,6 +256,11 @@ CONTAINS
           END DO
        END IF
     END IF
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_t,t,procedureN//'_t')
+    CALL free_scratch(il_eiscr,eiscr,procedureN//'_eiscr')
+    CALL free_scratch(il_dai,dai,procedureN//'_dai')
+#else
     DEALLOCATE(dai, stat=ierr)
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate dai',&
          __LINE__,__FILE__)
@@ -251,6 +270,7 @@ CONTAINS
     DEALLOCATE(eiscr, stat=ierr)
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate eiscr',&
          __LINE__,__FILE__)
+#endif
     CALL tihalt(procedureN,isub)
     !check for mixed psp and call nlforce old
     mixed_psp=.FALSE.

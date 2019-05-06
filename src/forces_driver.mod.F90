@@ -79,6 +79,10 @@ MODULE forces_driver
 !!use rotate_utils, only : rotate_c
 !!use ovlap_utils, only : ovlap_c
   USE zeroing_utils,                   ONLY: zeroing
+#ifdef _USE_SCRATCHLIBRARY
+  USE scratch_interface,               ONLY: request_scratch,&
+                                             free_scratch
+#endif
 
   IMPLICIT NONE
 
@@ -114,7 +118,11 @@ CONTAINS
     CHARACTER(len=30)                        :: tag
     COMPLEX(real_8)                          :: zee
     COMPLEX(real_8), ALLOCATABLE             :: psiab(:)
+#ifdef _USE_SCRATCHLIBRARY
+    COMPLEX(real_8), ALLOCATABLE, TARGET     :: auxc(:)
+#else
     COMPLEX(real_8), ALLOCATABLE, TARGET     :: auxc(:), c0_ort(:,:,:)
+#endif
     COMPLEX(real_8), EXTERNAL                :: zdotc
     COMPLEX(real_8), POINTER __CONTIGUOUS    :: cgam(:), c0_ptr(:,:,:)
     INTEGER :: first_g, i, ierr, ik, ikind, il_auxc, il_fsc, il_gam(2), &
@@ -127,8 +135,13 @@ CONTAINS
     REAL(real_8), ALLOCATABLE                :: a1mat(:,:), a2mat(:,:), &
                                                 a3mat(:,:), fsc(:), &
                                                 scrdip(:)
+#ifdef _USE_SCRATCHLIBRARY
+    REAL(real_8), POINTER __CONTIGUOUS       :: smat(:,:), fnlgam_packed(:,:), gam(:,:)
+    COMPLEX(real_8), POINTER __CONTIGUOUS    :: c0_ort(:,:,:)
+#else
     REAL(real_8), ALLOCATABLE                :: smat(:,:), fnlgam_packed(:,:)
     REAL(real_8), ALLOCATABLE, TARGET        :: gam(:,:)
+#endif
     REAL(real_8), EXTERNAL                   :: dasum
     REAL(real_8), POINTER                    :: aux(:)
 
@@ -174,12 +187,17 @@ CONTAINS
        il_c0_ort(3)=1
        il_smat(1)=nstate
        il_smat(2)=nstate
+#ifdef _USE_SCRATCHLIBRARY
+       CALL request_scratch(il_c0_ort,c0_ort,procedureN//'_c0_ort')
+       CALL request_scratch(il_smat,smat,procedureN//'_smat')
+#else
        ALLOCATE(c0_ort(il_c0_ort(1),il_c0_ort(2),il_c0_ort(3)),stat=ierr)
        IF (ierr.NE.0) CALL stopgm(procedureN,'Allocation problem',&
             __LINE__,__FILE__)
        ALLOCATE(smat(il_smat(1),il_smat(2)),stat=ierr)
        IF (ierr.NE.0) CALL stopgm(procedureN,'Allocation problem',&
             __LINE__,__FILE__)
+#endif
        CALL dcopy(2*ncpw%ngw*nstate,c0,1,c0_ort,1)
        IF(parai%cp_nogrp.GT.1) CALL cp_grp_redist_array_f(c0_ort,ncpw%ngw,nstate)
        c0_ptr=> c0_ort
@@ -270,9 +288,13 @@ CONTAINS
             __LINE__,__FILE__)
        CALL reshape_inplace(auxc, (/2*il_auxc/), aux)
     END IF
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_gam,gam,procedureN//'_gam')
+#else
     ALLOCATE(gam(il_gam(1), il_gam(2)),STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
          __LINE__,__FILE__)
+#endif
     IF(tkpts%tkpnt) CALL reshape_inplace(gam, (/nstate*nstate/), cgam)
 
     IF(.NOT.pslo_com%tivan)THEN
@@ -320,9 +342,13 @@ CONTAINS
           CALL hnlmat(gam,crge%f,nstate)
           CALL summat(gam,nstate,lsd=.TRUE.,gid=parai%cp_grp,symmetrization=&
                ropt_mod%prteig.OR.ropt_mod%calste)
+#ifdef _USE_SCRATCHLIBRARY
+          CALL request_scratch(il_fnl_packed,fnlgam_packed,procedureN//'_fnlgam_packed')
+#else
           ALLOCATE(fnlgam_packed(il_fnl_packed(1),il_fnl_packed(2)),STAT=ierr)
           IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
                __LINE__,__FILE__)
+#endif
           IF(cntl%distribute_fnl_rot)THEN
              CALL rotate_c0_fnl(ncpw%ngw,c0_ptr(:,:,ik),c2,il_fnl_packed(1),fnl_packed,&
                   fnlgam_packed,nstate,gam,redist=.NOT.cntl%nonort)
@@ -338,9 +364,13 @@ CONTAINS
                   only_dfnl=.TRUE.)
              CALL rnlfl(fion,nstate,nkpoint,fnl_packed,fnlgam_packed,dfnl_packed)
           END IF
+#ifdef _USE_SCRATCHLIBRARY
+          CALL free_scratch(il_fnl_packed,fnlgam_packed,procedureN//'_fnlgam_packed')
+#else
           DEALLOCATE(fnlgam_packed, STAT=ierr)
           IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
                __LINE__,__FILE__)
+#endif
           IF (ropt_mod%calste) CALL nlsl(gam,nstate)
           IF (ropt_mod%prteig.AND.paral%io_parent) THEN
              CALL dscal(nstate*nstate,-1.0_real_8,gam,1)
@@ -503,9 +533,13 @@ CONTAINS
        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
             __LINE__,__FILE__)
     END IF
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_gam,gam,procedureN//'_gam')
+#else
     DEALLOCATE(gam,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
+#endif
     IF(.NOT.pslo_com%tivan)THEN
        DEALLOCATE(fsc,STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
@@ -522,12 +556,17 @@ CONTAINS
             __LINE__,__FILE__)
     ENDIF
     IF(cntl%nonort.AND.pslo_com%tivan)THEN
+#ifdef _USE_SCRATCHLIBRARY
+       CALL free_scratch(il_smat,smat,procedureN//'_smat')
+       CALL free_scratch(il_c0_ort,c0_ort,procedureN//'_c0_ort')
+#else
        DEALLOCATE(c0_ort,stat=ierr)
        IF (ierr.NE.0) CALL stopgm(procedureN,'Deallocation problem',&
             __LINE__,__FILE__)
        DEALLOCATE(smat,stat=ierr)
        IF (ierr.NE.0) CALL stopgm(procedureN,'Deallocation problem',&
             __LINE__,__FILE__)
+#endif
     END IF
 
 2000 CONTINUE

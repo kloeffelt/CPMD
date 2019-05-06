@@ -21,6 +21,10 @@ MODULE rotate_utils
                                              ncpw
   USE, INTRINSIC :: ISO_C_BINDING,     ONLY: C_PTR,&
                                              C_F_POINTER
+#ifdef _USE_SCRATCHLIBRARY
+  USE scratch_interface,               ONLY: request_scratch,&
+                                             free_scratch
+#endif
 
   IMPLICIT NONE
 
@@ -267,8 +271,11 @@ CONTAINS
                                                 work_proc(2,0:parai%nproc-1),&
                                                 methread, nthreads, nested_threads, &
                                                 il_temp(3), ierr, ngw_local, ibeg_c0
+#ifdef _USE_SCRATCHLIBRARY
+    REAL(real_8), POINTER __CONTIGUOUS       :: temp(:,:,:)
+#else
     REAL(real_8), ALLOCATABLE                :: temp(:,:,:)
-
+#endif
     CALL tiset(procedureN,isub)
     !set up spin settings
     IF (cntl%tlsd) THEN
@@ -292,9 +299,13 @@ CONTAINS
     proc=parai%me+1
     il_temp(2)=nstate
     il_temp(3)=parai%nproc
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_temp,temp,procedureN//'_temp')
+#else
     ALLOCATE(temp(il_temp(1),il_temp(2),il_temp(3)), stat=ierr)
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate temp',&
          __LINE__,__FILE__)
+#endif
     CALL dsymm('R','U',loc_work,nchunk,1.0_real_8,&
          gam(nmin,nmin),nstate,fnl_p(start_work,nmin),ldf,&
          0.0_real_8,temp(1,nmin,proc),il_temp(1))
@@ -350,9 +361,13 @@ CONTAINS
     !$ END IF
     !$omp end parallel
     CALL copy_back(fnlgam_p,temp,work_proc,ldf,nstate,parai%nproc)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_temp,temp,procedureN//'_temp')
+#else
     DEALLOCATE(temp, stat=ierr)
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate temp',&
          __LINE__,__FILE__)
+#endif
     IF(redist)CALL cp_grp_redist_array_f(c2,ldc,nstate)
     CALL tihalt(procedureN,isub)
   END SUBROUTINE rotate_c0_fnl
@@ -379,7 +394,11 @@ CONTAINS
                                                 work_proc(2,0:parai%nproc-1),&
                                                 methread, nthreads, nested_threads, &
                                                 il_temp(3), ierr, ngw_local, ibeg_c0
+#ifdef _USE_SCRATCHLIBRARY
+    REAL(real_8), POINTER __CONTIGUOUS       :: temp(:,:,:)
+#else
     REAL(real_8), ALLOCATABLE                :: temp(:,:,:)
+#endif
     ! ==--------------------------------------------------------------==
     CALL tiset(procedureN,isub)
     !set up spin settings
@@ -404,9 +423,13 @@ CONTAINS
     proc=parai%me+1
     il_temp(2)=nstate
     il_temp(3)=parai%nproc
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_temp,temp,procedureN//'_temp')
+#else
     ALLOCATE(temp(il_temp(1),il_temp(2),il_temp(3)), stat=ierr)
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate temp',&
          __LINE__,__FILE__)
+#endif
     IF(loc_work.GT.0)THEN
        CALL dtrmm('R','U','N','N',loc_work,nchunk,1.0_real_8,gam(nmin,nmin),nstate, &
             fnl(start_work,nmin),ldf)
@@ -463,9 +486,13 @@ CONTAINS
     !$ END IF
     !$omp end parallel
     CALL copy_back(fnl,temp,work_proc,ldf,nstate,parai%nproc)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_temp,temp,procedureN//'_temp')
+#else
     DEALLOCATE(temp, stat=ierr)
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate temp',&
          __LINE__,__FILE__)
+#endif
     IF(redist)CALL cp_grp_redist_array_f(c0,ldc,nstate)
     CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==

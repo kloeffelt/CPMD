@@ -90,6 +90,11 @@
 #define _HAS_LIBGRIMMEVDW
 #endif
 
+!tk use scratchmodule
+#if defined(__USE_SCRATCHLIBRARY)
+#define _USE_SCRATCHLIBRARY
+#endif
+
 !vw ------------------------------------------------------
 !vw CUDA 
 

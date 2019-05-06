@@ -1,3 +1,5 @@
+#include "cpmd_global.h"
+
 MODULE phfac_utils
   USE cppt,                            ONLY: inyh
   USE error_handling,                  ONLY: stopgm
@@ -29,6 +31,10 @@ MODULE phfac_utils
                                              spar
   USE timer,                           ONLY: tihalt,&
                                              tiset
+#ifdef _USE_SCRATCHLIBRARY
+  USE scratch_interface,               ONLY: request_scratch,&
+                                             free_scratch
+#endif
 
   IMPLICIT NONE
 
@@ -56,7 +62,11 @@ CONTAINS
     INTEGER, SAVE                            :: ifirst = 0
     REAL(real_8)                             :: ar1, ar2, ar3, sum, sum1, &
                                                 sum2, sum3
+#ifdef _USE_SCRATCHLIBRARY
+    COMPLEX(real_8),POINTER __CONTIGUOUS     :: ei1t(:,:), ei2t(:,:), ei3t(:,:)
+#else
     COMPLEX(real_8),ALLOCATABLE              :: ei1t(:,:), ei2t(:,:), ei3t(:,:)
+#endif
 ! ==--------------------------------------------------------------==
 
     IF (spar%nr1s.LT.3) THEN
@@ -114,6 +124,11 @@ CONTAINS
     il_ei2t(2)=parai%ncpus
     il_ei3t(1)=2*spar%nr3s-1
     il_ei3t(2)=parai%ncpus
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_ei1t,ei1t,procedureN//'_ei1t')
+    CALL request_scratch(il_ei2t,ei2t,procedureN//'_ei2t')
+    CALL request_scratch(il_ei3t,ei3t,procedureN//'_ei3t')
+#else
     ALLOCATE(ei1t(il_ei1t(1),il_ei2t(2)),STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
          __LINE__,__FILE__)
@@ -123,6 +138,7 @@ CONTAINS
     ALLOCATE(ei3t(il_ei3t(1),il_ei3t(2)),STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
          __LINE__,__FILE__)
+#endif
     ! ==--------------------------------------------------------------==
     nh1=spar%nr1s/2
     nh2=spar%nr2s/2
@@ -262,6 +278,11 @@ CONTAINS
        eigkr => eigr
     ENDIF
 
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_ei3t,ei3t,procedureN//'_ei3t')
+    CALL free_scratch(il_ei2t,ei2t,procedureN//'_ei2t')
+    CALL free_scratch(il_ei1t,ei1t,procedureN//'_ei1t')
+#else
     DEALLOCATE(ei1t,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
          __LINE__,__FILE__)
@@ -271,6 +292,7 @@ CONTAINS
     DEALLOCATE(ei3t,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
          __LINE__,__FILE__)
+#endif
 
     CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==

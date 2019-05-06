@@ -15,7 +15,7 @@ MODULE fft
 
   INTEGER :: naux1,naux2
 
-#if defined(_HAS_CUDA)
+#if defined(_HAS_CUDA) || defined(_USE_SCRATCHLIBRARY)
   COMPLEX(real_8), POINTER __CONTIGUOUS :: xf(:,:)
   COMPLEX(real_8), POINTER __CONTIGUOUS :: yf(:,:)
 #else
@@ -76,7 +76,10 @@ MODULE fft
   ! ==================================================================
   INTEGER :: a2a_msgsize,fft_batchsize,fft_numbatches,fft_residual,fft_total
   LOGICAL :: batch_fft
+#ifdef _USE_SCRATCHLIBRARY
+  COMPLEX(real_8), POINTER, SAVE           :: wfn_r(:,:),wfn_g(:,:)
+#else
   COMPLEX(real_8), ALLOCATABLE, SAVE       :: wfn_r(:,:),wfn_g(:,:)
-
+#endif
 END MODULE fft
 

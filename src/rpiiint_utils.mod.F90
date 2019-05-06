@@ -21,6 +21,10 @@ MODULE rpiiint_utils
                                              parm, maxsys, iatpt, cntl
   USE timer,                           ONLY: tihalt,&
                                              tiset
+#ifdef _USE_SCRATCHLIBRARY
+  USE scratch_interface,               ONLY: request_scratch,&
+                                             free_scratch
+#endif
 
   IMPLICIT NONE
 
@@ -59,8 +63,13 @@ CONTAINS
     REAL(real_8) :: addesr, addpre, arg,  esrtzero, rckj, repand, rlm, &
       xlm, ylm, zlm, xlm_, ylm_, zlm_ , zv2, fiont(6), &
         thresh, rckj_inv
+#ifdef _USE_SCRATCHLIBRARY
+    REAL(real_8),POINTER __CONTIGUOUS        :: ftmp(:,:,:,:),rxlm(:,:,:),erre2(:,:,:),&
+                                                ht(:,:)
+#else
     REAL(real_8),ALLOCATABLE                 :: ftmp(:,:,:,:),rxlm(:,:,:),erre2(:,:,:),&
                                                 ht(:,:)
+#endif
     INTEGER                                  :: iesr_arr((iesr*2+1)**3,3), num_ind, &
                                                 tot_ind,ind
     CHARACTER(*), PARAMETER                  :: procedureN='rpiiint'
@@ -105,6 +114,12 @@ CONTAINS
     il_erre2(2)=10 !padding
     il_erre2(3)=parai%ncpus
 
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_ftmp,ftmp,procedureN//'_ftmp')
+    CALL request_scratch(il_ht,ht,procedureN//'_ht')
+    CALL request_scratch(il_rxlm,rxlm,procedureN//'_rxlm')
+    CALL request_scratch(il_erre2,erre2,procedureN//'_erre2')
+#else
     ALLOCATE(ftmp(il_ftmp(1),il_ftmp(2),il_ftmp(3),il_ftmp(4)), stat=ierr)
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate ftmp',&
          __LINE__,__FILE__)
@@ -117,7 +132,7 @@ CONTAINS
     ALLOCATE(erre2(il_erre2(1),il_erre2(2),il_erre2(3)), stat=ierr)
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate erre2',&
          __LINE__,__FILE__)
-
+#endif
     !$omp simd
     DO ind=1,tot_ind
        ht(ind,1)=iesr_arr(ind,1)*metr_com%ht(1,1)&
@@ -255,6 +270,12 @@ CONTAINS
        CALL mp_sum(fion,3*maxsys%nax*maxsys%nsx,parai%cp_inter_grp)
     END IF
     IF (.NOT.paral%parent) esr=0._real_8
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_erre2,erre2,procedureN//'_erre2')
+    CALL free_scratch(il_rxlm,rxlm,procedureN//'_rxlm')
+    CALL free_scratch(il_ht,ht,procedureN//'_ht')
+    CALL free_scratch(il_ftmp,ftmp,procedureN//'_ftmp')
+#else
     DEALLOCATE(ftmp, stat=ierr)
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate ftmp',&
          __LINE__,__FILE__)
@@ -267,7 +288,7 @@ CONTAINS
     DEALLOCATE(erre2, stat=ierr)
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate erre2',&
          __LINE__,__FILE__)
-
+#endif
     CALL tihalt(procedureN,isub)
 
     ! ==================================================================    

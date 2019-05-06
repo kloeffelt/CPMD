@@ -1,3 +1,5 @@
+#include "cpmd_global.h"
+
 MODULE rortv_utils
   USE cp_grp_utils,                    ONLY: cp_grp_get_sizes,&
                                              cp_grp_redist_array_f
@@ -27,6 +29,10 @@ MODULE rortv_utils
   USE tpar,                            ONLY: dtb2me
 !!use ovlap_utils, only : ovlap2
   USE zeroing_utils,                   ONLY: zeroing
+#ifdef _USE_SCRATCHLIBRARY
+  USE scratch_interface,               ONLY: request_scratch,&
+                                             free_scratch
+#endif
 
   IMPLICIT NONE
 
@@ -56,8 +62,12 @@ CONTAINS
                                                 isub, il_yi_n(1), ierr, gid
     LOGICAL                                  :: geq0_local,cp_active
     REAL(real_8)                             :: ai, bi, pf4, s2, yi
-    REAL(real_8), ALLOCATABLE                :: a1mat(:,:), a2mat(:,:), yi_n(:)
-
+    REAL(real_8), ALLOCATABLE                :: a1mat(:,:), a2mat(:,:)
+#ifdef _USE_SCRATCHLIBRARY
+    REAL(real_8), POINTER __CONTIGUOUS       :: yi_n(:)
+#else
+    REAL(real_8), ALLOCATABLE                :: yi_n(:)
+#endif
     CALL tiset(procedureN,isub)
     IF(PRESENT(use_cp_grps))THEN
        cp_active=use_cp_grps
@@ -126,9 +136,13 @@ CONTAINS
           END DO
        ELSE
           il_yi_n(1)=nstate
+#ifdef _USE_SCRATCHLIBRARY
+          CALL request_scratch(il_yi_n,yi_n,procedureN//'_yi_n')
+#else
           ALLOCATE(yi_n(il_yi_n(1)),STAT=ierr)
           IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
                __LINE__,__FILE__)
+#endif
           !$omp parallel private(i)
           !$omp do
           DO i=1,nstate
@@ -146,9 +160,13 @@ CONTAINS
           END DO
           !$omp end do nowait
           !$omp end parallel
+#ifdef _USE_SCRATCHLIBRARY
+          CALL free_scratch(il_yi_n,yi_n,procedureN//'_yi_n')
+#else
           DEALLOCATE(yi_n,STAT=ierr)
           IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
                __LINE__,__FILE__)
+#endif
        END IF
        ! UNITARY ROTATION?
        IF (nort_com%scond.GT.nort_com%slimit) THEN

@@ -24,6 +24,10 @@ MODULE hnlmat_utils
                                              parap
   USE timer,                           ONLY: tihalt,&
                                              tiset
+#ifdef _USE_SCRATCHLIBRARY
+  USE scratch_interface,               ONLY: request_scratch,&
+                                             free_scratch
+#endif
 
   IMPLICIT NONE
 
@@ -49,7 +53,11 @@ CONTAINS
                                                 isub, ierr
     LOGICAL                                  :: need_hmat_loc, non_uspp
     REAL(real_8)                             :: ffi, fac, sum , fractions(parai%nproc)
+#ifdef _USE_SCRATCHLIBRARY
+    REAL(real_8),POINTER __CONTIGUOUS        :: fnlat(:,:,:), fnlatj(:,:,:)
+#else
     REAL(real_8),ALLOCATABLE                 :: fnlat(:,:,:), fnlatj(:,:,:)
+#endif
     REAL(real_8),POINTER __CONTIGUOUS        :: hmat_loc(:,:)
     INTEGER,ALLOCATABLE,SAVE                 :: na_buff(:,:,:)
     CHARACTER(*), PARAMETER                  :: procedureN = 'hnlmat'
@@ -128,12 +136,17 @@ CONTAINS
           il_fnlatj(1)=tot_work
           il_fnlatj(2)=MAXVAL(ns)
           il_fnlatj(3)=nspin
+#ifdef _USE_SCRATCHLIBRARY
+          CALL request_scratch(il_fnlat,fnlat,procedureN//'_fnlat')
+          CALL request_scratch(il_fnlatj,fnlatj,procedureN//'_fnlatj')
+#else
           ALLOCATE(fnlat(il_fnlat(1),il_fnlat(2),il_fnlat(3)), stat=ierr)
           IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate fnlat',&
                __LINE__,__FILE__)
           ALLOCATE(fnlatj(il_fnlatj(1),il_fnlatj(2),il_fnlatj(3)), stat=ierr)
           IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate fnlatj',&
                __LINE__,__FILE__)
+#endif
           !$omp parallel private(ispin,off_i,i,isa0,off_mat,off_fnl,is,ia_fnl,ia_sum,&
           !$omp isa_start,start_fnl,end_fnl,fnl_start,start_mat,end_mat)
           DO ispin=1,nspin
@@ -184,12 +197,17 @@ CONTAINS
                   hmat_loc(nmin(ispin),nmin(ispin)),nstate)
 #endif
           END DO
+#ifdef _USE_SCRATCHLIBRARY
+          CALL free_scratch(il_fnlatj,fnlatj,procedureN//'_fnlatj')
+          CALL free_scratch(il_fnlat,fnlat,procedureN//'_fnlat')
+#else
           DEALLOCATE(fnlat, stat=ierr)
           IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate fnlat',&
                __LINE__,__FILE__)
           DEALLOCATE(fnlatj, stat=ierr)
           IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate fnlatj',&
                __LINE__,__FILE__)
+#endif
           IF(need_hmat_loc)THEN
              !$omp parallel do private(i,j)
              DO i=1,nstate

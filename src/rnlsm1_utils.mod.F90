@@ -40,6 +40,10 @@ MODULE rnlsm1_utils
   USE timer,                           ONLY: tihalt,&
                                              tiset
   USE zeroing_utils,                   ONLY: zeroing
+#ifdef _USE_SCRATCHLIBRARY
+  USE scratch_interface,               ONLY: request_scratch,&
+                                             free_scratch
+#endif
 
   IMPLICIT NONE
 
@@ -84,9 +88,14 @@ CONTAINS
                                                 il_eiscr(2),il_t(1),il_dai(1),igeq0,&
                                                 ld_buffer(maxbuff), start_buffer(maxbuff)
     INTEGER,ALLOCATABLE                      :: na_buff(:,:,:)
-    REAL(real_8),ALLOCATABLE                 :: t(:)
     REAL(real_8),POINTER __CONTIGUOUS        :: dai(:)
+#ifdef _USE_SCRATCHLIBRARY
+    COMPLEX(real_8),POINTER __CONTIGUOUS     :: eiscr(:,:)
+    REAL(real_8),POINTER __CONTIGUOUS        :: t(:)
+#else
+    REAL(real_8),ALLOCATABLE                 :: t(:)
     COMPLEX(real_8),ALLOCATABLE              :: eiscr(:,:)
+#endif
     REAL(real_8), SAVE                       :: timings(2)=0.0_real_8
     INTEGER, SAVE                            :: autotune_it=0
     !$ LOGICAL                               :: locks(maxbuff)
@@ -119,18 +128,27 @@ CONTAINS
     il_eiscr(2)=MAXVAL(ld_buffer)/imagp
     il_t(1)=nkpt%ngwk
     IF(buffcount.GT.1)THEN
+#ifdef _USE_SCRATCHLIBRARY
+       CALL request_scratch(il_dai,dai,procedureN//'_dai')
+#else
        ALLOCATE(dai(il_dai(1)), stat=ierr)
        IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate dai',&
             __LINE__,__FILE__)
+#endif
     ELSE
        CALL reshape_inplace(fnl_packed, (/il_dai(1)/), dai)
     END IF
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_eiscr,eiscr,procedureN//'_eiscr')
+    CALL request_scratch(il_t,t,procedureN//'_t')
+#else
     ALLOCATE(eiscr(il_eiscr(1),il_eiscr(2)), stat=ierr)
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate eiscr',&
          __LINE__,__FILE__)
     ALLOCATE(t(il_t(1)), stat=ierr)
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate t',&
          __LINE__,__FILE__)
+#endif
     IF(tkpts%tkpnt)THEN
        igeq0=ncpw%ngw+1
     ELSE
@@ -266,17 +284,26 @@ CONTAINS
           CALL mp_bcast(cntr%rnlsm1_b2,parai%source,parai%allgrp)
        END IF
     END IF
-    IF(buffcount.GT.1)THEN
-       DEALLOCATE(dai, stat=ierr)
-       IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate dai',&
-            __LINE__,__FILE__)
-    END IF
+#ifdef _USE_SCRATCHLIBRARY 
+    CALL free_scratch(il_t,t,procedureN//'_t')
+    CALL free_scratch(il_eiscr,eiscr,procedureN//'_eiscr')
+#else
     DEALLOCATE(eiscr, stat=ierr)
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate eiscr',&
          __LINE__,__FILE__)
     DEALLOCATE(t, stat=ierr)
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate t',&
          __LINE__,__FILE__)
+#endif
+    IF(buffcount.GT.1)THEN
+#ifdef _USE_SCRATCHLIBRARY
+       CALL free_scratch(il_dai,dai,procedureN//'_dai')
+#else
+       DEALLOCATE(dai, stat=ierr)
+       IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate dai',&
+            __LINE__,__FILE__)
+#endif
+    END IF
     DEALLOCATE(na_buff, stat=ierr)
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate na_buff',&
          __LINE__,__FILE__)

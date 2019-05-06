@@ -41,6 +41,10 @@ MODULE rhov_utils
   USE timer,                           ONLY: tihalt,&
                                              tiset
   USE zeroing_utils,                   ONLY: zeroing
+#ifdef _USE_SCRATCHLIBRARY
+  USE scratch_interface,               ONLY: request_scratch,&
+                                             free_scratch
+#endif
 
   IMPLICIT NONE
 
@@ -68,7 +72,11 @@ CONTAINS
                                                 na(2,ions1%nsp), nst(2,0:parai%nproc-1), &
                                                 na_grp(2,ions1%nsp,0:parai%cp_nogrp-1), &
                                                 il_deltar(1), ierr
+#ifdef _USE_SCRATCHLIBRARY
+    COMPLEX(real_8), POINTER __CONTIGUOUS    :: deltar(:)
+#else
     COMPLEX(real_8), ALLOCATABLE             :: deltar(:)
+#endif
     CHARACTER(*), PARAMETER                  :: procedureN='rhov'
     CALL tiset(procedureN,isub)
 
@@ -88,9 +96,13 @@ CONTAINS
 
 
     il_deltar(1)=ncpw%nhg
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_deltar,deltar,procedureN//'_deltar')
+#else
     ALLOCATE(deltar(il_deltar(1)),STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
          __LINE__,__FILE__)
+#endif
    ! ==--------------------------------------------------------------==
     IF (cntl%bigmem) THEN
        CALL prep_bigmem_rhov(nst(1,parai%me),ig_start,nhg_loc,na,deltar,fnl_packed)
@@ -116,9 +128,13 @@ CONTAINS
           psi(indz(ig))=CONJG(deltar(ig))
        ENDDO
     END IF
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_deltar,deltar,procedureN//'_deltar')
+#else
     DEALLOCATE(deltar,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
+#endif
     IF (PRESENT(psi)) THEN
        CALL invfftn(psi, .FALSE.,parai%allgrp)
     END IF
@@ -139,8 +155,13 @@ CONTAINS
                                                 blocksize, blocks, last_block, ig, &
                                                 il_dia(1), il_ctmp(2), il_fnlt(3), &
                                                 ierr
+#ifdef _USE_SCRATCHLIBRARY
+    REAL(real_8), POINTER __CONTIGUOUS       :: dia(:), fnlt(:,:,:)
+    COMPLEX(real_8), POINTER __CONTIGUOUS    :: ctmp(:,:)
+#else
     REAL(real_8), ALLOCATABLE                :: dia(:), fnlt(:,:,:)
     COMPLEX(real_8), ALLOCATABLE             :: ctmp(:,:)
+#endif
     CHARACTER(*), PARAMETER                  :: procedureN='prep_bigmem_rhov'
 
 
@@ -163,6 +184,11 @@ CONTAINS
     il_fnlt(1)=num_orb
     il_fnlt(2)=maxsys%nhxs
     il_fnlt(3)=parai%ncpus
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_dia,dia,procedureN//'_dia')
+    CALL request_scratch(il_fnlt,fnlt,procedureN//'_fnlt')
+    CALL request_scratch(il_ctmp,ctmp,procedureN//'_ctmp')
+#else
     ALLOCATE(dia(il_dia(1)),STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
          __LINE__,__FILE__)
@@ -172,7 +198,7 @@ CONTAINS
     ALLOCATE(ctmp(il_ctmp(1),il_ctmp(2)),STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
          __LINE__,__FILE__)
-
+#endif
     !$omp parallel do private(ig)
     DO ig=ig_start,ig_start+nhg-1
        deltar(ig)=CMPLX(0.0_real_8,0.0_real_8,kind=real_8)
@@ -193,6 +219,11 @@ CONTAINS
        offset_fnl0=offset_fnl0+(na(2,is)-na(1,is)+1)*nlps_com%ngh(is)
     END DO
 
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_ctmp,ctmp,procedureN//'_ctmp')
+    CALL free_scratch(il_fnlt,fnlt,procedureN//'_fnlt')
+    CALL free_scratch(il_dia,dia,procedureN//'_dia')
+#else
     DEALLOCATE(fnlt,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
@@ -202,6 +233,7 @@ CONTAINS
     DEALLOCATE(ctmp,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
+#endif
 
   END SUBROUTINE prep_bigmem_rhov
   ! ==================================================================

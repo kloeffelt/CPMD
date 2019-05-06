@@ -343,14 +343,18 @@ CONTAINS
 #else
        CALL stopgm(procedureN,'shall not get to that point', __LINE__,__FILE__)
 #endif
+#if !defined(_USE_SCRATCHLIBRARY)
     ELSE
        ALLOCATE(xf(maxfft,1),STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', __LINE__,__FILE__)
        ALLOCATE(yf(maxfft,1),STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', __LINE__,__FILE__)
+#endif
     ENDIF
+#ifdef defined(_HAS_CUDA) || !defined(_USE_SCRATCHLIBRARY)
     CALL zeroing(xf)!,SIZE(xf))
     CALL zeroing(yf)!,SIZE(yf))
+#endif
     !
     DEALLOCATE(mg,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
@@ -459,6 +463,7 @@ CONTAINS
        CALL mp_bcast(fft_batchsize,parai%io_source,parai%allgrp)
        CALL mp_bcast(fft_total,parai%io_source,parai%allgrp)
 
+#if !defined(_USE_SCRATCHLIBRARY)
        IF(ALLOCATED(xf))THEN
           DEALLOCATE(xf,STAT=ierr)
           IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
@@ -473,7 +478,7 @@ CONTAINS
        IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', __LINE__,__FILE__)
        ALLOCATE(yf(MAX(maxfft,fpar%nnr1*fft_batchsize),2),STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', __LINE__,__FILE__)
-
+#endif
        IF (paral%io_parent) THEN
           WRITE(6,*)&
                ' FFTPRP| BLOCKING FFT NUMBER ALLTOALL CALLS ',fft_numbatches
@@ -521,6 +526,7 @@ CONTAINS
        CALL stopgm(procedureN,'shall not get to that point', __LINE__,__FILE__)
 #endif
        ENDIF
+#if !defined(_USE_SCRATCHLIBRARY)
     ELSE
        DEALLOCATE(xf,STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
@@ -528,6 +534,7 @@ CONTAINS
        DEALLOCATE(yf,STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
             __LINE__,__FILE__)
+#endif
     ENDIF
 
   END SUBROUTINE fftprp_default_finalize

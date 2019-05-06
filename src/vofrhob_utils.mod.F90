@@ -1,4 +1,3 @@
-
 #include "cpmd_global.h"
 
 MODULE vofrhob_utils
@@ -65,7 +64,10 @@ MODULE vofrhob_utils
   USE utils,                           ONLY: zgthr
   USE xcener_utils,                    ONLY: xcener
   USE zeroing_utils,                   ONLY: zeroing
-
+#ifdef _USE_SCRATCHLIBRARY
+  USE scratch_interface,               ONLY: request_scratch,&
+                                             free_scratch
+#endif
   IMPLICIT NONE
 
   PRIVATE
@@ -92,15 +94,22 @@ CONTAINS
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'vofrhob'
 
-    COMPLEX(real_8), ALLOCATABLE             :: vtmp(:,:)
     COMPLEX(real_8), POINTER                 :: dqg_1d(:)
-    INTEGER                                  :: ierr, ig, il_grad, il_rhoval, &
-                                                il_vpt1, il_vpt2, il_vtmp, &
-                                                ir, isub, kk, nnrs, i_start, i_end
+    INTEGER                                  :: ierr, ig, il_grad(2), il_rhoval(2), &
+                                                il_vpt1(1), il_vpt2(1), il_vtmp(2), &
+                                                il_rvtmp(2), ir, isub, kk, nnrs, &
+                                                i_start, i_end
     LOGICAL                                  :: debug
     REAL(real_8)                             :: sgcc, sgcx, sxc, vgc
+#ifdef _USE_SCRATCHLIBRARY
+    COMPLEX(real_8), POINTER __CONTIGUOUS    :: vtmp(:,:)
+    REAL(real_8), POINTER __CONTIGUOUS       :: grad(:,:), rhoval(:,:), &
+                                                rvtmp(:,:), vpt1(:), vpt2(:)
+#else
+    COMPLEX(real_8), ALLOCATABLE             :: vtmp(:,:)
     REAL(real_8), ALLOCATABLE                :: grad(:,:), rhoval(:,:), &
                                                 rvtmp(:,:), vpt1(:), vpt2(:)
+#endif
     REAL(real_8), DIMENSION(:, :, :), &
       POINTER                                :: fnla, fnladown, fnlaup
 
@@ -112,36 +121,52 @@ CONTAINS
     CALL setfftn(0)
     ! SCR partition.
     debug=.FALSE.
-    il_vtmp = MAX(fpar%nnr1,ncpw%nhg*2)*clsd%nlsx      ! GCENER and COREC
+    il_vtmp(1) = ncpw%nhg
+    il_vtmp(2) = MAX(fpar%nnr1,ncpw%nhg*2)*clsd%nlsx/ncpw%nhg      ! GCENER and COREC
     IF (cntl%tgc) THEN
-       il_grad=fpar%nnr1*clsd%nlsd*4   ! GRADEN
+       il_grad(1)=fpar%nnr1
+       il_grad(2)=clsd%nlsd*4   ! GRADEN
     ELSE
-       il_grad=0
+       il_grad(1)=fpar%nnr1
+       il_grad(2)=0
     ENDIF
     IF (corel%tinlc) THEN
-       il_rhoval=fpar%nnr1*clsd%nlsd   ! XCENER
+       il_rhoval(1)=fpar%nnr1
+       il_rhoval(2)=clsd%nlsd   ! XCENER
     ELSE
-       il_rhoval=0
+       il_rhoval(1)=fpar%nnr1
+       il_rhoval(2)=0   ! XCENER
     ENDIF
     IF (cntl%tpotential) THEN
-       il_vpt1=fpar%nnr1*clsd%nlsd
-       il_vpt2=fpar%nnr1*clsd%nlsd
+       il_vpt1(1)=fpar%nnr1*clsd%nlsd
+       il_vpt2(1)=fpar%nnr1*clsd%nlsd
     ELSE
-       il_vpt1=0
-       il_vpt2=0
+       il_vpt1(1)=0
+       il_vpt2(1)=0
     ENDIF
-    ALLOCATE(rvtmp(fpar%nnr1,4),STAT=ierr)!clsd%nlsx),STAT=ierr)
+    il_rvtmp(1)=fpar%nnr1
+    il_rvtmp(2)=4
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_rvtmp,rvtmp,procedureN//'_rvtmp')
+    CALL request_scratch(il_vtmp,vtmp,procedureN//'_vtmp')
+    CALL request_scratch(il_grad,grad,procedureN//'_grad')
+    IF(corel%tinlc)CALL request_scratch(il_rhoval,rhoval,procedureN//'_rhoval')
+#else
+    ALLOCATE(rvtmp(il_rvtmp(1),il_rvtmp(2)),STAT=ierr)!clsd%nlsx),STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
          __LINE__,__FILE__)
-    ALLOCATE(vtmp(ncpw%nhg, il_vtmp/ncpw%nhg),STAT=ierr)
+    ALLOCATE(vtmp(il_vtmp(1), il_vtmp(2)),STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
          __LINE__,__FILE__) ! ! TODO il_vtmp should take into account that vtmp is complex
-    ALLOCATE(grad(fpar%nnr1, il_grad/fpar%nnr1),STAT=ierr)
+    ALLOCATE(grad(il_grad(1), il_grad(2)),STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
          __LINE__,__FILE__)
-    ALLOCATE(rhoval(fpar%nnr1, il_rhoval/fpar%nnr1),STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
-         __LINE__,__FILE__)
+    IF(corel%tinlc)THEN
+       ALLOCATE(rhoval(il_rhoval(1), il_rhoval(2)),STAT=ierr)
+       IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+            __LINE__,__FILE__)
+    END IF
+#endif
     ! ==--------------------------------------------------------------==
     ! == ADD CORE CHARGE TO RHOE                                      ==
     ! ==--------------------------------------------------------------==
@@ -260,14 +285,30 @@ CONTAINS
                __LINE__,__FILE__)
           IF (pslo_com%tivan) CALL stopgm(procedureN,'NO VDB PP WITH TPOTENTIAL',& 
                __LINE__,__FILE__)
-          ALLOCATE(vpt1(il_vpt1),STAT=ierr)
+#ifdef _USE_SCRATCHLIBRARY
+          CALL request_scratch(il_vpt1,vpt1,procedureN//'_vpt1')
+          CALL request_scratch(il_vpt2,vpt2,procedureN//'_vpt2')
+#else
+          ALLOCATE(vpt1(il_vpt1(1)),STAT=ierr)
           IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
                __LINE__,__FILE__)
-          ALLOCATE(vpt2(il_vpt2),STAT=ierr)
+          ALLOCATE(vpt2(il_vpt2(1)),STAT=ierr)
           IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
                __LINE__,__FILE__)
-
+#endif
           CALL vpotential(rhoe,grad,v,vtemp,rvtmp,vpt1,vpt2)
+#ifdef _USE_SCRATCHLIBRARY
+          CALL free_scratch(il_vpt2,vpt2,procedureN//'_vpt2')
+          CALL free_scratch(il_vpt1,vpt1,procedureN//'_vpt1')
+#else
+          DEALLOCATE(vpt1,STAT=ierr)
+          IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+               __LINE__,__FILE__)
+          DEALLOCATE(vpt2,STAT=ierr)
+          IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+               __LINE__,__FILE__)
+#endif
+
        ELSEIF (cntl%tlsd) THEN
           ! IF(TSTRESS) CALL STOPGM('VOFRHOB','NO STRESS WITH LSD AND GC')
           CALL gclsd(sgcx,sgcc,rhoe,v,vtemp,rvtmp,grad,tstress)
@@ -370,6 +411,12 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     ! == RELEASE TEMPORARY ARRAYS FROM SCRATCH SPACE                  ==
     ! ==--------------------------------------------------------------==
+#ifdef _USE_SCRATCHLIBRARY
+    IF(corel%tinlc)CALL free_scratch(il_rhoval,rhoval,procedureN//'_rhoval')
+    CALL free_scratch(il_grad,grad,procedureN//'_grad')
+    CALL free_scratch(il_vtmp,vtmp,procedureN//'_vtmp')
+    CALL free_scratch(il_rvtmp,rvtmp,procedureN//'_rvtmp')
+#else
     DEALLOCATE(rvtmp,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
@@ -379,9 +426,12 @@ CONTAINS
     DEALLOCATE(grad,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
-    DEALLOCATE(rhoval,STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-         __LINE__,__FILE__)
+    IF(corel%tinlc)THEN
+       DEALLOCATE(rhoval,STAT=ierr)
+       IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+            __LINE__,__FILE__)
+    END IF
+#endif
     ! ==--------------------------------------------------------------==
     ! == V CONTAINS THE TOTAL POTENTIAL IN R-SPACE                    ==
     ! == MOVE IT TO RHOE                                              ==

@@ -1,3 +1,5 @@
+#include "cpmd_global.h"
+
 MODULE summat_utils
   USE error_handling,                  ONLY: stopgm
   USE kinds,                           ONLY: int_1,&
@@ -16,6 +18,11 @@ MODULE summat_utils
                                              tiset
   USE utils,                           ONLY: symmat_pack,&
                                              symmat_unpack
+
+#ifdef _USE_SCRATCHLIBRARY
+  USE scratch_interface,               ONLY: request_scratch,&
+                                             free_scratch
+#endif
 
   IMPLICIT NONE
 
@@ -40,7 +47,11 @@ CONTAINS
     LOGICAL                                  :: full,lsd_active,is_parent,&
          only_parent
     INTEGER                                  :: mpi_com,parent_rank
+#ifdef _USE_SCRATCHLIBRARY
+    REAL(real_8), POINTER __CONTIGUOUS       :: aux(:)
+#else
     REAL(real_8), ALLOCATABLE                :: aux(:)
+#endif
     ! ==--------------------------------------------------------------==
     ! == GLOBAL SUMMATION OF A SYMMETRIC MATRIX                       ==
     ! ==--------------------------------------------------------------==
@@ -94,9 +105,13 @@ CONTAINS
     ELSE
        ntr=nstate*(nstate+1)/2
     END IF
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(ntr,aux,procedureN//'_aux')
+#else
     ALLOCATE(aux(ntr(1)),STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
          __LINE__,__FILE__)
+#endif
     IF(lsd_active.AND.cntl%tlsd)THEN
        CALL symmat_pack(a,aux,nstate,spin_mod%nsup,spin_mod%nsdown)
     ELSE
@@ -114,9 +129,13 @@ CONTAINS
           CALL symmat_unpack(a,aux,nstate,nstate,0,full)
        END IF
     END IF
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(ntr,aux,procedureN//'_aux')    
+#else
     DEALLOCATE(aux,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
+#endif
 
     CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==

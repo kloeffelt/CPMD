@@ -115,6 +115,10 @@ MODULE rhoofr_utils
 #endif
 
   USE nvtx_utils
+#ifdef _USE_SCRATCHLIBRARY
+  USE scratch_interface,               ONLY: request_scratch,&
+                                             free_scratch
+#endif
 
   IMPLICIT NONE
 
@@ -813,7 +817,11 @@ CONTAINS
 
     il_wfnr(1)=fpar%kr1*fpar%kr2s*fpar%kr3s*fft_batchsize
     il_wfnr(2)=fft_numbatches
-    IF (fft_residual .gt. 0) il_wfnr(2)=fft_numbatches+1
+    IF (fft_residual.GT.0) il_wfnr(2)=fft_numbatches+1
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_wfnr,wfn_r,'wfn_r')
+    CALL request_scratch(il_wfng,wfn_g,'wfn_g')
+#else
     IF(.NOT.rsactive.OR..NOT.ALLOCATED(wfn_r))THEN
        ALLOCATE(wfn_r(il_wfnr(1),il_wfnr(2)),STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'cannot allocate wfn_r1', &
@@ -822,6 +830,7 @@ CONTAINS
        IF(ierr/=0) CALL stopgm(procedureN,'cannot allocate wfn_g', &
             __LINE__,__FILE__)
     END IF
+#endif
     ! Loop over the electronic states
     ist=0
     DO i = 1,part_1d_nbr_el_in_blk(nstate,parai%cp_inter_me,parai%cp_nogrp),2
@@ -853,11 +862,15 @@ CONTAINS
           ! ==  time.                                                       ==
           ! ==--------------------------------------------------------------==
     CALL invfftn_batch(wfn_g,wfn_r)
+#ifdef _USE_SCRATCHLIBRARY
+        CALL free_scratch(il_wfng,wfn_g,'wfn_g')
+#else
     IF(.NOT.rsactive) THEN
        DEALLOCATE(wfn_g,STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'cannot deallocate wfn_g', &
             __LINE__,__FILE__)
     END IF
+#endif
     il_wfnr1(1)=fpar%kr1*fpar%kr2s
     il_wfnr1(2)=fft_batchsize
     il_wfnr1(3)=fpar%kr3s
@@ -1011,9 +1024,13 @@ CONTAINS
        CALL tihalt(procedureN//'_grps_b',isub3)
     ENDIF
     IF(.NOT.rsactive) THEN
+#ifdef _USE_SCRATCHLIBRARY
+       CALL free_scratch(il_wfnr,wfn_r,'wfn_r')
+#else
        DEALLOCATE(wfn_r,STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'cannot deallocate wfn_r1', &
             __LINE__,__FILE__)
+#endif
     END IF
     ! MOVE DENSITY ACCORDING TO MOVEMENT OF ATOMS
     IF (ropt_mod%modens) CALL moverho(rhoe,psi)

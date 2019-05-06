@@ -1,3 +1,5 @@
+#include "cpmd_global.h"
+
 MODULE posupa_utils
   USE cp_grp_utils,                    ONLY: cp_grp_get_sizes
   USE dotp_utils,                      ONLY: dotp_c1_cp,&
@@ -32,6 +34,11 @@ MODULE posupa_utils
   USE tpar,                            ONLY: dt2hbe,&
                                              dt_elec,&
                                              dtb2me
+#ifdef _USE_SCRATCHLIBRARY
+  USE scratch_interface,               ONLY: request_scratch,&
+                                             free_scratch
+#endif
+
 !!use rotate_utils, only : rotate
 !!se rotate_utils, only : rotate_da
 
@@ -62,7 +69,11 @@ CONTAINS
     LOGICAL                                  :: prtev, tnon, cp_active, geq0_local
     REAL(real_8)                             :: odt, pf1, pf2, pf3, &
                                                 pf4, xi, xi_dt_elec
+#ifdef _USE_SCRATCHLIBRARY
+    REAL(real_8),POINTER __CONTIGUOUS        :: ai(:,:)
+#else
     REAL(real_8),ALLOCATABLE                 :: ai(:,:)
+#endif
     CHARACTER(*), PARAMETER                  :: procedureN = 'posupa'
 ! Variables
 ! ==--------------------------------------------------------------==
@@ -97,10 +108,13 @@ CONTAINS
           il_ai(1)=nstate
           il_ai(2)=1
        END IF
+#ifdef _USE_SCRATCHLIBRARY
+       CALL request_scratch(il_ai,ai,procedureN//'_ai')
+#else
        ALLOCATE(ai(il_ai(1),il_ai(2)),STAT=ierr)
        IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate ai',&
          __LINE__,__FILE__)
-
+#endif
        ! ..LINEAR CONSTRAINTS
        IF (cntl%tharm) THEN
           !$omp parallel do private (i,ig,pf1,pf2,pf3,pf4)
@@ -177,10 +191,13 @@ CONTAINS
              END DO
           END DO
        ENDIF
+#ifdef _USE_SCRATCHLIBRARY
+       CALL free_scratch(il_ai,ai,procedureN//'_ai')
+#else
        DEALLOCATE(ai,STAT=ierr)
        IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate ai',&
          __LINE__,__FILE__)
-
+#endif
     ELSE
        IF (cntl%tharm) THEN
           !$omp parallel do private (I,IG,PF1,PF2,PF3,PF4)

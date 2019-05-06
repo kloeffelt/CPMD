@@ -13,6 +13,10 @@ MODULE utils
   USE reshaper,                        ONLY: reshape_inplace
   USE system,                          ONLY: parap
   USE zeroing_utils,                   ONLY: zeroing
+#ifdef _USE_SCRATCHLIBRARY
+  USE scratch_interface,               ONLY: request_scratch,&
+                                             free_scratch
+#endif
 
   IMPLICIT NONE
 
@@ -337,7 +341,11 @@ CONTAINS
     REAL(real_8),INTENT(INOUT)               :: w(:), a(:,:)
     !local
     INTEGER                                  :: il_work(1), il_iwork, dummy_int(1)
+#ifdef _USE_SCRATCHLIBRARY
+    REAL(real_8), POINTER __CONTIGUOUS       :: work(:)
+#else
     REAL(real_8), ALLOCATABLE                :: work(:)
+#endif
     INTEGER, ALLOCATABLE                     :: iwork(:)
     REAL(real_8)                             :: dummy_real(1)
     CHARACTER(1)                             :: jobz, uplo
@@ -362,9 +370,13 @@ CONTAINS
     CALL dsyevd(jobz,uplo,n,a,n,w,dummy_real,il_work(1),dummy_int,il_iwork,info)
     il_work(1)=INT(dummy_real(1))
     il_iwork=dummy_int(1)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_work,work,procedureN//'_work')
+#else
     ALLOCATE(work(il_work(1)),STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
          __LINE__,__FILE__)
+#endif
     ALLOCATE(iwork(il_iwork),STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
          __LINE__,__FILE__)
@@ -372,9 +384,13 @@ CONTAINS
     CALL dsyevd(jobz,uplo,n,a,n,w,work,il_work(1),iwork,il_iwork,info)
     IF (info.NE.0) CALL stopgm(procedureN,'FAILED TO DIAGONALIZE',&
          __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_work,work,procedureN//'_work')
+#else
     DEALLOCATE(work,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
+#endif
     DEALLOCATE(iwork,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
@@ -394,7 +410,11 @@ CONTAINS
     REAL(real_8),INTENT(INOUT)               :: w(:), a(:,:), z(:,:)
     !local
     INTEGER                                  :: il_work(1), il_iwork, il_ifail, m
+#ifdef _USE_SCRATCHLIBRARY
+    REAL(real_8), POINTER __CONTIGUOUS       :: work(:)
+#else
     REAL(real_8), ALLOCATABLE                :: work(:)
+#endif
     INTEGER, ALLOCATABLE                     :: iwork(:), ifail(:)
     REAL(real_8)                             :: dummy_real(1)
     CHARACTER(1)                             :: jobz, uplo, range
@@ -434,17 +454,25 @@ CONTAINS
     CALL dsyevx(jobz,range,uplo,n,a,n,1.0_real_8,1.0_real_8,il,iu,-1_real_8,m,w,&
          z,n,dummy_real,il_work(1),iwork,ifail,info)
     il_work(1)=INT(dummy_real(1))
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_work,work,procedureN//'_work')
+#else
     ALLOCATE(work(il_work(1)),STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
          __LINE__,__FILE__)
+#endif
     !actual calculation
     CALL dsyevx(jobz,range,uplo,n,a,n,1.0_real_8,1.0_real_8,il,iu,-1_real_8,m,w,&
          z,n,work,il_work(1),iwork,ifail,info)
     IF (info.NE.0) CALL stopgm(procedureN,'FAILED TO DIAGONALIZE',&
          __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_work,work,procedureN//'_work')
+#else
     DEALLOCATE(work,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
+#endif
     DEALLOCATE(iwork,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
