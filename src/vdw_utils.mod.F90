@@ -3,6 +3,7 @@
 MODULE vdw_utils
   USE adat,                            ONLY: covrad
   USE cnst,                            ONLY: fbohr
+  USE distribution_utils,              ONLY: dist_entity2
   USE dftd3_driver,                    ONLY: dftd3
   USE error_handling,                  ONLY: stopgm
   USE fileopen_utils,                  ONLY: fileclose,&
@@ -1510,34 +1511,8 @@ CONTAINS
     INTEGER                                  :: nstate, nblock, my_nproc, &
                                                 nbmax
 
-    INTEGER                                  :: ip, nx
-    REAL(real_8)                             :: xsaim, xsnow, xstates
-
 ! ==--------------------------------------------------------------==
-
-    nbmax=0
-    xstates=REAL(nblock,kind=real_8)
-    IF ((xstates*my_nproc).LT.nstate) THEN
-       xstates=REAL(nstate,kind=real_8)/REAL(my_nproc,kind=real_8)
-    ENDIF
-    xsnow=0.0_real_8
-    xsaim=0.0_real_8
-    DO ip=1,my_nproc
-       xsaim = xsnow + xstates
-       npt12(ip-1,1)=NINT(xsnow)+1
-       npt12(ip-1,2)=NINT(xsaim)
-       IF (NINT(xsaim).GT.nstate) THEN
-          npt12(ip-1,2)=nstate
-       ENDIF
-       IF (NINT(xsnow).GT.nstate) THEN
-          npt12(ip-1,1)=nstate+1
-       ENDIF
-       xsnow = xsaim
-    ENDDO
-    DO ip=0,my_nproc-1
-       nx=npt12(ip,2)-npt12(ip,1)+1
-       nbmax=MAX(nbmax,nx)
-    ENDDO
+    CALL dist_entity2(nstate,my_nproc,npt12,nblock=nblock,nbmax=nbmax,fw=.TRUE.)
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE set_ptdist

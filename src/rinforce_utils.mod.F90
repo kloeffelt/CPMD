@@ -13,6 +13,7 @@ MODULE rinforce_utils
                                              dvan,&
                                              nelev,&
                                              qq
+  USE distribution_utils,              ONLY: dist_entity2
   USE dpot,                            ONLY: dpot_mod
   USE eam,                             ONLY: tieam
   USE eam_pot_utils,                   ONLY: eamin
@@ -778,8 +779,9 @@ CONTAINS
     CHARACTER(*), PARAMETER                  :: procedureN = 'setspline'
     INTEGER, PARAMETER                       :: nadd = 10 
 
-    INTEGER                                  :: i, ierr, il, nn
-    REAL(real_8)                             :: dgl, xsaim, xsnow
+    INTEGER                                  :: i, ierr, il, nn, &
+                                                dummy(0:parai%nproc-1,2)
+    REAL(real_8)                             :: dgl
 
 ! ==--------------------------------------------------------------==
 
@@ -821,17 +823,9 @@ CONTAINS
     IF (qsrang.GT.1) nsplpo=nsplpo+nadd
     ! ==--------------------------------------------------------------==
     ! DISTRIBUTE SPLINE POINTS
-    xsnow=0._real_8
-    DO i=parai%nproc,1,-1
-       xsaim = xsnow + REAL(nsplpo,kind=real_8)/REAL(parai%nproc,kind=real_8)
-       IF (i.EQ.parai%mepos+1) THEN
-          nsplpa=NINT(xsnow)+1
-          nsplpe=NINT(xsaim)
-          IF (NINT(xsaim).GT.nsplpo) nsplpe=nsplpo
-          IF (i.EQ.1) nsplpe=nsplpo
-       ENDIF
-       xsnow = xsaim
-    ENDDO
+    CALL dist_entity2(nsplpo,parai%nproc,dummy)
+    nsplpa=dummy(parai%me,1)
+    nsplpe=dummy(parai%me,2)
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE setspline

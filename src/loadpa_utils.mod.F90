@@ -3,6 +3,8 @@
 MODULE loadpa_utils
   USE cppt,                            ONLY: hg,&
                                              inyh
+  USE distribution_utils,              ONLY: dist_entity2,&
+                                             dist_entity
   USE elct,                            ONLY: crge
   USE error_handling,                  ONLY: stopgm
   USE geq0mod,                         ONLY: geq0
@@ -56,9 +58,7 @@ CONTAINS
                                                 mgpa(:,:)
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: thread_buff
     LOGICAL                                  :: oldstatus
-    REAL(real_8)                             :: g2, sign, t, xpaim, xplanes, &
-                                                xpnow, xsaim, xsnow, xstates, &
-                                                zpaim, zplanes, zpnow
+    REAL(real_8)                             :: g2, sign, t
 
 ! ==--------------------------------------------------------------==
 ! ==  DISTRIBUTION OF PARALLEL WORK                               ==
@@ -88,20 +88,7 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     ! DISTRIBUTE ATOMS
     ! ==--------------------------------------------------------------==
-    xstates=REAL(ions1%nat,kind=real_8)
-    xsnow=0.0_real_8
-    DO i=parai%nproc,1,-1
-       xsaim = xsnow + xstates/parai%nproc
-       ipept(1,i-1)=NINT(xsnow)+1
-       ipept(2,i-1)=NINT(xsaim)
-       IF (NINT(xsaim).GT.ions1%nat) THEN
-          ipept(2,i-1)=ions1%nat
-       ENDIF
-       IF (i.EQ.1) THEN
-          ipept(2,i-1)=ions1%nat
-       ENDIF
-       xsnow = xsaim
-    ENDDO
+    CALL dist_entity(ions1%nat,parai%nproc,ipept)
 
     CALL mm_dim(mm_go_mm,oldstatus)
     ALLOCATE(iatpt(2,ions1%nat),STAT=ierr)
@@ -126,56 +113,15 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     ! DISTRIBUTE ORBITALS
     ! ==--------------------------------------------------------------==
-    xstates=REAL(crge%n,kind=real_8)
-    xsnow=0.0_real_8
-    DO i=parai%nproc,1,-1
-       xsaim = xsnow + xstates/parai%nproc
-       parap%nst12(i-1,1)=NINT(xsnow)+1
-       parap%nst12(i-1,2)=NINT(xsaim)
-       IF (NINT(xsaim).GT.crge%n) THEN
-          parap%nst12(i-1,2)=crge%n
-       ENDIF
-       IF (i.EQ.1) THEN
-          parap%nst12(i-1,2)=crge%n
-       ENDIF
-       xsnow = xsaim
-    ENDDO
-    norbpe=parap%nst12(parai%mepos,2)-parap%nst12(parai%mepos,1)+1
+    CALL dist_entity2(crge%n,parai%nproc,parap%nst12,nblocal=norbpe,iloc=parai%me)
     ! ==--------------------------------------------------------------==
     ! DISTRIBUTE REAL SPACE YZ-PLANES
     ! ==--------------------------------------------------------------==
-    CALL zeroing(parap%nrxpl)!,2*(maxcpu+1))
-    xplanes=REAL(spar%nr1s,kind=real_8)
-    xpnow=0.0_real_8
-    DO i=parai%nproc,1,-1
-       xpaim = xpnow + xplanes/parai%nproc
-       parap%nrxpl(i-1,1)=NINT(xpnow)+1
-       parap%nrxpl(i-1,2)=NINT(xpaim)
-       IF (NINT(xpaim).GT.spar%nr1s) THEN
-          parap%nrxpl(i-1,2)=spar%nr1s
-       ENDIF
-       IF (i.EQ.1) THEN
-          parap%nrxpl(i-1,2)=spar%nr1s
-       ENDIF
-       xpnow = xpaim
-    ENDDO
+    CALL dist_entity2(spar%nr1s,parai%nproc,parap%nrxpl)
     CALL zeroing(parap%nrzpl)!,2*(maxcpu+1))
-    IF (isos1%tclust.AND.isos3%ps_type.EQ.1) THEN
+    IF (isos1%tclust.AND.isos3%ps_type.EQ.1) THEN      
        ! DISTRIBUTE REAL SPACE XY-PLANES
-       zplanes=REAL(2*spar%nr3s,kind=real_8)
-       zpnow=0.0_real_8
-       DO i=parai%nproc,1,-1
-          zpaim = zpnow + zplanes/parai%nproc
-          parap%nrzpl(i-1,1)=NINT(zpnow)+1
-          parap%nrzpl(i-1,2)=NINT(zpaim)
-          IF (NINT(zpaim).GT.2*spar%nr3s) THEN
-             parap%nrzpl(i-1,2)=2*spar%nr3s
-          ENDIF
-          IF (i.EQ.1) THEN
-             parap%nrzpl(i-1,2)=2*spar%nr3s
-          ENDIF
-          zpnow = zpaim
-       ENDDO
+       CALL dist_entity2(2*spar%nr3s,parai%nproc,parap%nrzpl)
     ENDIF
     ! ==--------------------------------------------------------------==
     ! DISTRIBUTE G-VECTORS

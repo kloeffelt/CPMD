@@ -2,6 +2,7 @@
 
 MODULE jrotation_utils
   USE cnst,                            ONLY: pi
+  USE distribution_utils,              ONLY: dist_entity2
   USE error_handling,                  ONLY: stopgm
   USE kinds,                           ONLY: real_8
   USE machine,                         ONLY: m_flush
@@ -184,34 +185,9 @@ CONTAINS
     INTEGER                                  :: nstate, nblock, my_nproc, &
                                                 nbmax
 
-    INTEGER                                  :: ip, nx
-    REAL(real_8)                             :: xsaim, xsnow, xstates
 
-! ==--------------------------------------------------------------==
-
-    nbmax=0
-    xstates=REAL(nblock,kind=real_8)
-    IF ((xstates*my_nproc).LT.nstate) THEN
-       xstates=REAL(nstate,kind=real_8)/REAL(my_nproc,kind=real_8)
-    ENDIF
-    xsnow=0.0_real_8
-    xsaim=0.0_real_8
-    DO ip=1,my_nproc
-       xsaim = xsnow + xstates
-       paraw%nwa12(ip-1,1)=NINT(xsnow)+1
-       paraw%nwa12(ip-1,2)=NINT(xsaim)
-       IF (NINT(xsaim).GT.nstate) THEN
-          paraw%nwa12(ip-1,2)=nstate
-       ENDIF
-       IF (NINT(xsnow).GT.nstate) THEN
-          paraw%nwa12(ip-1,1)=nstate+1
-       ENDIF
-       xsnow = xsaim
-    ENDDO
-    DO ip=0,my_nproc-1
-       nx=paraw%nwa12(ip,2)-paraw%nwa12(ip,1)+1
-       nbmax=MAX(nbmax,nx)
-    ENDDO
+    ! ==--------------------------------------------------------------==
+    CALL dist_entity2(nstate,my_nproc,paraw%nwa12,nblock=nblock,nbmax=nbmax,fw=.TRUE.)
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE set_orbdist
@@ -220,27 +196,8 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     INTEGER                                  :: nstate, nblock, nbmax
 
-    INTEGER                                  :: ip, n
-    REAL(real_8)                             :: xsaim, xsnow, xstates
-
-! ==--------------------------------------------------------------==
-
-    nbmax=0
-    xstates=REAL(nstate,kind=real_8)/REAL(parai%nproc,kind=real_8)
-    IF (xstates.LT.REAL(nblock,kind=real_8)) xstates=REAL(nblock,kind=real_8)
-    xsnow=0.0_real_8
-    n=0
-    DO ip=1,parai%nproc
-       xsaim = xsnow + xstates
-       paraw%nwa12(ip-1,1)=NINT(xsnow)+1
-       paraw%nwa12(ip-1,2)=NINT(xsaim)
-       IF (NINT(xsaim).GT.nstate) paraw%nwa12(ip-1,2)=nstate
-       IF (ip.EQ.parai%nproc) paraw%nwa12(ip-1,2)=nstate
-       IF (NINT(xsnow).GT.nstate) paraw%nwa12(ip-1,1)=nstate+1
-       xsnow = xsaim
-       n=n+paraw%nwa12(ip-1,2)-paraw%nwa12(ip-1,1)+1
-       nbmax=MAX(nbmax,paraw%nwa12(ip-1,2)-paraw%nwa12(ip-1,1)+1)
-    ENDDO
+    ! ==--------------------------------------------------------------==
+    CALL dist_entity2(nstate,parai%nproc,paraw%nwa12,nblock=nblock,nbmax=nbmax,fw=.TRUE.)
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE my_set_orbdist
