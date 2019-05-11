@@ -301,12 +301,14 @@ CONTAINS
                 t=REAL(i,kind=real_8)*gvec_com%b1(ir)+REAL(j,kind=real_8)*gvec_com%b2(ir)+REAL(k,kind=real_8)*gvec_com%b3(ir)
                 g2=g2+t*t
              ENDDO
-             IF (g2.LT.gvec_com%gcut) THEN
+             IF (compare_lt(g2,gvec_com%gcut)) THEN
+!             IF (g2.LT.gvec_com%gcut) THEN
                 ig=ig+1
                 in1=nh1+i
                 in2=nh2+j
                 in3=nh3+k
-                IF (g2.LT.gcutwmax) THEN
+                IF (compare_lt(g2,gcutwmax)) THEN
+!                IF (g2.LT.gcutwmax) THEN
                    icpu=ixray(in2,in3)
                    IF (-icpu.EQ.parai%mepos+1) THEN
                       ncpw%ngw=ncpw%ngw+1
@@ -559,7 +561,8 @@ CONTAINS
                 t=REAL(i,kind=real_8)*gvec_com%b1(ir)+REAL(j,kind=real_8)*gvec_com%b2(ir)+REAL(k,kind=real_8)*gvec_com%b3(ir)
                 g2=g2+t*t
              ENDDO
-             IF (g2.LT.gvcut) THEN
+!             IF (g2.LT.gvcut) THEN
+             IF (compare_lt(g2,gvcut)) THEN
                 in1=nh1+i
                 in2=nh2+j
                 in3=nh3+k
@@ -624,7 +627,8 @@ CONTAINS
                 t=REAL(i,kind=real_8)*gvec_com%b1(ir)+REAL(j,kind=real_8)*gvec_com%b2(ir)+REAL(k,kind=real_8)*gvec_com%b3(ir)
                 g2=g2+t*t
              ENDDO
-             IF (g2.LT.gvcut) THEN
+             IF (compare_lt(g2,gvcut)) THEN
+!             IF (g2.LT.gvcut) THEN
                 in1=nh1+i
                 in2=nh2+j
                 in3=nh3+k
@@ -697,7 +701,8 @@ CONTAINS
              mho=0
           ELSE
              DO j=l,nho-1
-                IF (hg(i).GE.ho(j).AND.hg(i).LT.ho(j+1)) THEN
+                IF (compare_ge(hg(i),ho(j)).AND.compare_lt(hg(i),ho(j+1))) THEN
+!                IF (hg(i).GE.ho(j).AND.hg(i).LT.ho(j+1)) THEN
                    l=j
                    mho=j
                    GOTO 100
@@ -718,10 +723,10 @@ CONTAINS
     CALL mp_sum(xm,parai%allgrp)
     xt=REAL(spar%ngws,kind=real_8)
     xt=0.5_real_8*xt*(xt+1._real_8)-xm
-    ! IF(ABS(XT).GT.0.1_real_8.AND.PARENT) THEN
-    ! WRITE(6,*) ' GORDER| PROGRAMING ERROR. INFORM THE PROGRAMMER'
-    ! CALL STOPGM('GORDER','ERROR IN G-VEC ORDERING (NGW)')
-    ! ENDIF
+    IF(ABS(XT).GT.0.1_real_8.AND.paral%io_PARENT) THEN
+       WRITE(6,*) 'PROGRAMING ERROR. INFORM THE PROGRAMMER'
+       WRITE(6,*) procedureN,'ERROR IN G-VEC ORDERING (NGW)'
+    ENDIF
     xm=0._real_8
     DO i=1,ncpw%nhg
        xm=xm+mapgp(i)
@@ -729,10 +734,10 @@ CONTAINS
     CALL mp_sum(xm,parai%allgrp)
     xt=REAL(spar%nhgs,kind=real_8)
     xt=0.5_real_8*xt*(xt+1._real_8)-xm
-    ! IF(ABS(XT).GT.0.1_real_8.AND.PARENT) THEN
-    ! WRITE(6,*) ' GORDER| PROGRAMING ERROR. INFORM THE PROGRAMMER'
-    ! CALL STOPGM('GORDER','ERROR IN G-VEC ORDERING (NHG)')
-    ! ENDIF
+    IF(ABS(XT).GT.0.1_real_8.AND.paral%io_PARENT) THEN
+       WRITE(6,*) 'PROGRAMING ERROR. INFORM THE PROGRAMMER'
+       wRITE(6,*) procedureN,'ERROR IN G-VEC ORDERING (NHG)'
+    ENDIF
     DEALLOCATE(ho,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
          __LINE__,__FILE__)
@@ -752,7 +757,7 @@ CONTAINS
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'gsort'
 
-    INTEGER                                  :: icurr, ierr, ig, it
+    INTEGER                                  :: icurr, ierr, ig, it, j
     INTEGER, ALLOCATABLE                     :: INDEX(:)
 
 ! REORDER THE G S IN ORDER OF INCREASING MAGNITUDE
@@ -765,15 +770,11 @@ CONTAINS
        icurr=ig
 30     CONTINUE
        IF (INDEX(icurr).NE.ig) THEN
-          it=inyh(1,icurr)
-          inyh(1,icurr)=inyh(1,INDEX(icurr))
-          inyh(1,INDEX(icurr))=it
-          it=inyh(2,icurr)
-          inyh(2,icurr)=inyh(2,INDEX(icurr))
-          inyh(2,INDEX(icurr))=it
-          it=inyh(3,icurr)
-          inyh(3,icurr)=inyh(3,INDEX(icurr))
-          inyh(3,INDEX(icurr))=it
+          DO j=1,3
+             it=inyh(j,icurr)
+             inyh(j,icurr)=inyh(j,INDEX(icurr))
+             inyh(j,INDEX(icurr))=it
+          END DO
           it=icurr
           icurr=INDEX(icurr)
           INDEX(it)=it
@@ -790,5 +791,40 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE gsort
+
+  ! ******************************************************************************
+  PURE FUNCTION compare_ge(a,b) RESULT(greater_equal)
+    REAL(real_8), INTENT(IN)                 :: a,b
+    REAL(real_8), PARAMETER                  :: eps=EPSILON(1.0_real_8)
+    LOGICAL                                  :: greater_equal
+    
+    greater_equal=.FALSE.
+    IF(ABS(a-b).LT.eps)THEN
+       !a.eq.b
+       greater_equal=.TRUE.
+    ELSE
+       IF(a.GT.b)THEN
+          greater_equal=.TRUE.
+       END IF
+    END IF
+    
+  END FUNCTION compare_ge
+  ! ******************************************************************************
+  PURE FUNCTION compare_lt(a,b) RESULT(lower)
+    REAL(real_8), INTENT(IN)                 :: a,b
+    REAL(real_8), PARAMETER                  :: eps=EPSILON(1.0_real_8)
+    LOGICAL                                  :: lower
+    
+    lower=.FALSE.
+    IF(ABS(a-b).LT.eps)THEN
+       !a.eq.b
+    ELSE
+       IF(a.LT.b)THEN
+          lower=.TRUE.
+       END IF
+    END IF
+    
+  END FUNCTION compare_lt
+  ! ******************************************************************************
 
 END MODULE loadpa_utils
