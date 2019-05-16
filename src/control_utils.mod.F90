@@ -3652,6 +3652,14 @@ CONTAINS
                 ENDIF
              ELSEIF ( keyword_contains(line,'USE_OVERLAPPING_COMM_COMP') ) THEN
                 cntl%overlapp_comm_comp=.TRUE.
+             ELSEIF ( keyword_contains(line,'BLOCKSIZE_USPP') ) THEN
+                READ(iunit,'(A)',iostat=ierr) line
+                CALL readsi(line,1,last,cnti%blocksize_uspp,erread)
+                IF (erread) THEN
+                   error_message        = "ERROR WHILE READING VALUE"
+                   something_went_wrong = .true.
+                   go_on_reading        = .false.
+                ENDIF
              ELSEIF ( keyword_contains(line,'RNLSM1_BLOCKCOUNT') ) THEN
                 READ(iunit,'(A)',iostat=ierr) line
                 CALL readsi(line,1,last,cnti%rnlsm1_bc,erread)

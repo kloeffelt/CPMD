@@ -5,7 +5,8 @@ MODULE vdbinit_utils
                                              qrad
   USE cvan,                            ONLY: dvan,&
                                              nelev,&
-                                             qq
+                                             qq,&
+                                             qg
   USE error_handling,                  ONLY: stopgm
   USE fitpack_utils,                   ONLY: curv1,&
                                              curv2
@@ -16,6 +17,7 @@ MODULE vdbinit_utils
                                              nlps_com
   USE parac,                           ONLY: parai
   USE pslo,                            ONLY: pslo_com
+  USE geq0mod,                         ONLY: geq0
   USE qspl,                            ONLY: ggng,&
                                              ggnh,&
                                              nqdim,&
@@ -25,12 +27,14 @@ MODULE vdbinit_utils
                                              qspl1,&
                                              twns
   USE qvan1_utils,                     ONLY: qvan1
+  USE qvan2_utils,                     ONLY: qvan2
   USE radin_utils,                     ONLY: radin,&
                                              radlg
   USE system,                          ONLY: maxsys,&
                                              nbrx,&
                                              ncpw,&
-                                             parm
+                                             parm,&
+                                             cntl
   USE timer,                           ONLY: tihalt,&
                                              tiset
   USE vdbp,                            ONLY: betar,&
@@ -49,7 +53,7 @@ MODULE vdbinit_utils
 
   PUBLIC :: vdbinit
   PUBLIC :: qinit
-
+  PUBLIC :: qvan2_init
 CONTAINS
 
   ! ==================================================================
@@ -173,7 +177,7 @@ CONTAINS
     CHARACTER(*), PARAMETER                  :: procedureN = 'qinit'
 
     INTEGER                                  :: ierr, il, ir, is, isub, iv, &
-                                                jv, l, lqx, lval, mmax, nngh
+                                                jv, l, lqx, lval, mmax, nngh, nhh
     REAL(real_8)                             :: fqrad, ggl, qg0, xg
     REAL(real_8), ALLOCATABLE                :: qrd0(:,:), qsp1(:), qsp2(:), &
                                                 qsp3(:)
@@ -194,6 +198,7 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     ! ==  CALCULATION OF ARRAY  QRAD(IGL,IV,JV,IS)                    ==
     ! ==--------------------------------------------------------------==
+    nhh=0
     DO is=1,ions1%nsp
        IF (pslo_com%tvan(is)) THEN
           lval=ncpr1%nvales(is)
@@ -327,5 +332,40 @@ CONTAINS
     RETURN
   END SUBROUTINE qinit
   ! ==================================================================
+  SUBROUTINE qvan2_init()
+    ! ==--------------------------------------------------------------==
+    ! ==  CALCULATION OF ARRAY QG SAVE ONLY FOR BIGMEM                ==
+    ! ==--------------------------------------------------------------==
+    CHARACTER(*), PARAMETER                  :: procedureN = 'qvan2_init'
 
+    INTEGER                                  :: ierr, is, isub, iv, &
+                                                jv, nhh
+
+    CALL tiset(procedureN,isub)
+    IF(cntl%bigmem)THEN
+       nhh=0
+       DO is=1,ions1%nsp
+          IF(pslo_com%tvan(is))nhh=nhh+nlps_com%ngh(is)*(nlps_com%ngh(is)+1)/2
+       END DO
+       ALLOCATE(qg(ncpw%nhg,nhh),STAT=ierr)
+       IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+            __LINE__,__FILE__)
+       nhh=0
+       DO is=1,ions1%nsp
+          IF(pslo_com%tvan(is))THEN
+             DO iv=1,nlps_com%ngh(is)
+                DO jv=iv,nlps_com%ngh(is)
+                   nhh=nhh+1
+                   CALL qvan2(iv,jv,is,qg(:,nhh))
+                   IF(geq0) qg(1,nhh)=cmplx(real(qg(1,nhh),kind=real_8),0.0_real_8,&
+                        kind=real_8)
+                END DO
+             END DO
+          END IF
+       END DO
+    END IF
+    CALL tihalt(procedureN,isub)
+    RETURN
+  END SUBROUTINE qvan2_init
+  ! ==================================================================
 END MODULE vdbinit_utils

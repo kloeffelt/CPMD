@@ -75,7 +75,8 @@ MODULE rinforce_utils
                                              tiset
   USE utils,                           ONLY: numcpus
   USE vdbinit_utils,                   ONLY: qinit,&
-                                             vdbinit
+                                             vdbinit,&
+                                             qvan2_init
   USE vdbp,                            ONLY: &
        betar, dion, ncpr1, qfunc, qqq, qrl, r, rab, rsatom, rscore, ru, rucore
   USE ylmr2_utils,                     ONLY: ylmr2
@@ -302,6 +303,7 @@ CONTAINS
     CALL zeroing(twnl)!,maxsys%nsx*maxsys%nhxs*nkpt%ngwk*kpts_com%nkptall)
     CALL give_scr_putwnl(lscr,tag)
     CALL putwnl
+    IF(pslo_com%tivan) CALL qvan2_init()
     ! ==--------------------------------------------------------------==
     ! ==  NONLINEAR CORE CORRECTION                                   ==
     ! ==--------------------------------------------------------------==

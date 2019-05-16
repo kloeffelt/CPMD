@@ -679,6 +679,7 @@ CONTAINS
     cntr%rnlsm2_b2=0.3
     ! TK rnlsm autotune disabled
     cnti%rnlsm_autotune_maxit=0
+    cnti%blocksize_uspp=1200
     RETURN
   END SUBROUTINE control_def
   ! ==================================================================

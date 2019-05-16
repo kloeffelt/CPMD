@@ -680,6 +680,7 @@ MODULE system
      INTEGER :: rnlsm2_bc
      INTEGER :: rnlsm_autotune_maxit = HUGE(0)
      INTEGER :: disortho_bsize = HUGE(0)
+     INTEGER :: blocksize_uspp = HUGE(0)
   END TYPE cnti_t
   TYPE(cnti_t), SAVE, PUBLIC :: cnti
   ! ==================================================================

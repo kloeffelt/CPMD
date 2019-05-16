@@ -22,8 +22,7 @@ MODULE rhoofr_kdp_utils
   USE pslo,                            ONLY: pslo_com
   USE reshaper,                        ONLY: reshape_inplace,&
                                              type_cast
-  USE rhov_utils,                      ONLY: give_scr_rhov,&
-                                             rhov
+  USE rhov_utils,                      ONLY: rhov
   USE ropt,                            ONLY: ropt_mod
   USE sfac,                            ONLY: fnl
   USE spin,                            ONLY: clsd,&
@@ -79,7 +78,7 @@ CONTAINS
                                                 ierr, ifft, ig, is, is1, &
                                                 ispin1, isub, ix, ix1, ixp, &
                                                 l, lead, leadx, msglen, nl2, &
-                                                nnrx, nsta
+                                                nnrx, nsta, i_start, i_end
     LOGICAL                                  :: tfcal
     REAL(real_8)                             :: coef3, r1, r2, rsum, rsum1, &
                                                 rsum1abs, rsumv, tt
@@ -240,21 +239,27 @@ CONTAINS
     IF (pslo_com%tivan) THEN
        IF (cntl%tlsd) THEN
           ! ALPHA SPIN
-          CALL rhov(nstate,1,spin_mod%nsup,rsumv,psi)
+          i_start=1
+          i_end=spin_mod%nsup
+          CALL rhov(i_start,i_end,rsumv,psi)
           rsum=rsum+parm%omega*rsumv
           !$omp parallel do private(I)
           DO i=1,fpar%nnr1
              rhoe(i,1)=rhoe(i,1)+REAL(psi(i))
           ENDDO
           ! BETA SPIN
-          CALL rhov(nstate,spin_mod%nsup+1,nstate,rsumv,psi)
+          i_start=spin_mod%nsup+1
+          i_end=spin_mod%nsup+spin_mod%nsdown
+          CALL rhov(i_start,i_end,rsumv,psi)
           rsum=rsum+parm%omega*rsumv
           !$omp parallel do private(I)
           DO i=1,fpar%nnr1
              rhoe(i,2)=rhoe(i,2)+REAL(psi(i))
           ENDDO
        ELSE
-          CALL rhov(nstate,1,nstate,rsumv,psi)
+          i_start=1
+          i_end=nstate
+          CALL rhov(i_start,i_end,rsumv,psi)
           rsum=rsum+parm%omega*rsumv
           !$omp parallel do private(I)
           DO i=1,fpar%nnr1
@@ -346,12 +351,11 @@ CONTAINS
     INTEGER                                  :: lrhoofr
     CHARACTER(len=30)                        :: tag
 
-    INTEGER                                  :: lmoverho, lrhov, lsymrho
+    INTEGER                                  :: lmoverho, lsymrho
 
     lmoverho=0
     IF (pslo_com%tivan.AND.paral%parent) THEN ! RHOOFR and RHOOFR_C
-       CALL give_scr_rhov(lrhov,tag)
-       lrhoofr=MAX(ions1%nat,lrhov)! AUGCHG
+       lrhoofr=ions1%nat! AUGCHG
     ELSE
        lrhoofr=0
     ENDIF

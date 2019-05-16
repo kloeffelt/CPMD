@@ -66,8 +66,7 @@ MODULE rhoofr_utils
                                              part_1d_nbr_el_in_blk
   USE pslo,                            ONLY: pslo_com
   USE rho1ofr_utils,                   ONLY: rhoabofr
-  USE rhov_utils,                      ONLY: give_scr_rhov,&
-                                             rhov
+  USE rhov_utils,                      ONLY: rhov
   USE ropt,                            ONLY: ropt_mod
   USE rswfmod,                         ONLY: maxstates,&
                                              rsactive,&
@@ -146,7 +145,7 @@ CONTAINS
       POINTER __CONTIGUOUS                   :: psis
     INTEGER :: device_idx, fft_comm, i, i_stream, ia, iat, ierr, ir, is, is1, &
       is2, ispin1, ispin2, isub, isub2, isub3, isub4, iwf, n_max_threads, &
-      n_nested_threads, n_streams_per_task, stream_idx
+      n_nested_threads, n_streams_per_task, stream_idx, i_start, i_end
     LOGICAL                                  :: copy_data_to_device, &
                                                 copy_data_to_host, tfcal
     REAL(real_8)                             :: chksum, coef3, coef4, ral, &
@@ -497,21 +496,27 @@ CONTAINS
     IF (pslo_com%tivan) THEN
        IF (cntl%tlsd) THEN
           ! ALPHA SPIN
-          CALL rhov(nstate,1,spin_mod%nsup,rsumv,psi)
+          i_start=1
+          i_end=spin_mod%nsup
+          CALL rhov(i_start,i_end,rsumv,psi)
           rsum=rsum+parm%omega*rsumv
           !$omp parallel do private(I)
           DO i=1,fpar%nnr1
              rhoe(i,1)=rhoe(i,1)+REAL(psi(i))
           ENDDO
           ! BETA SPIN
-          CALL rhov(nstate,spin_mod%nsup+1,nstate,rsumv,psi)
+          i_start=spin_mod%nsup+1
+          i_end=spin_mod%nsup+spin_mod%nsdown
+          CALL rhov(i_start,i_end,rsumv,psi)
           rsum=rsum+parm%omega*rsumv
           !$omp parallel do private(I)
           DO i=1,fpar%nnr1
              rhoe(i,2)=rhoe(i,2)+REAL(psi(i))
           ENDDO
        ELSE
-          CALL rhov(nstate,1,nstate,rsumv,psi)
+          i_start=1
+          i_end=nstate
+          CALL rhov(i_start,i_end,rsumv,psi)
           rsum=rsum+parm%omega*rsumv
           !$omp parallel do private(I)
           DO i=1,fpar%nnr1

@@ -11,8 +11,7 @@ MODULE cvan
   REAL(real_8), ALLOCATABLE :: qq(:,:,:)
   REAL(real_8), ALLOCATABLE :: dvan(:,:,:)
   REAL(real_8), ALLOCATABLE :: deeq(:,:,:,:)
-
-
+  COMPLEX(real_8), ALLOCATABLE :: qg(:,:)
   ! ==================================================================
 
 END MODULE cvan

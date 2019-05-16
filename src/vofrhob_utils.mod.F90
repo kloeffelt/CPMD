@@ -25,8 +25,7 @@ MODULE vofrhob_utils
   USE kinds,                           ONLY: real_8
   USE linres,                          ONLY: lrf4
   USE meta_localizespin_utils,         ONLY: localizespin
-  USE newd_utils,                      ONLY: give_scr_newd,&
-                                             newd
+  USE newd_utils,                      ONLY: newd
   USE nlcc,                            ONLY: corel,&
                                              corer,&
                                              vnlt
@@ -97,7 +96,7 @@ CONTAINS
     COMPLEX(real_8), POINTER                 :: dqg_1d(:)
     INTEGER                                  :: ierr, ig, il_grad, il_rhoval, &
                                                 il_vpt1, il_vpt2, il_vtmp, &
-                                                ir, isub, kk, nnrs
+                                                ir, isub, kk, nnrs, i_start, i_end
     LOGICAL                                  :: debug
     REAL(real_8)                             :: sgcc, sgcx, sxc, vgc
     REAL(real_8), ALLOCATABLE                :: grad(:,:), rhoval(:,:), &
@@ -433,19 +432,16 @@ CONTAINS
        ! == FORCE ON IONS DUE TO THE "VANDERBILT CHARGE"                 ==
        ! ==--------------------------------------------------------------==
        IF (cntl%tlsd) THEN
-          fnlaup => fnl(1,:,:,1:spin_mod%nsup,1)
-          CALL newd(fnlaup,deeq(:,:,:,1),crge%f(1,1),vtemp(:,1),fion,&
-               spin_mod%nsup,tfor)
-          !         CALL newd(fnl(:,:,:,spin_mod%nsup+1,1),deeq(:,:,:,2),crge%f(spin_mod%nsup+1,1),&
-          !              vtemp(:,2),fion,spin_mod%nsdown,tfor)
-          !         CALL newd(fnl(:,:,:,1,1),deeq(:,:,:,1),crge%f(1,1),vtemp(:,1),fion,&
-          !              spin_mod%nsup,tfor)
-          fnladown => fnl(1,:,:,spin_mod%nsup+1:spin_mod%nsup+spin_mod%nsdown,1)
-          CALL newd(fnladown,deeq(:,:,:,2),crge%f(spin_mod%nsup+1,1),&
-               vtemp(:,2),fion,spin_mod%nsdown,tfor)
+          i_start=1
+          i_end=spin_mod%nsup
+          CALL newd(i_start,i_end,deeq(:,:,:,1),crge%f,vtemp(:,1),fion,tfor)
+          i_start=spin_mod%nsup+1
+          i_end=spin_mod%nsup+spin_mod%nsdown
+          CALL newd(i_start,i_end,deeq(:,:,:,2),crge%f,vtemp(:,2),fion,tfor)
        ELSE
-          fnla => fnl(1,:,:,:,1)
-          CALL newd(fnla,deeq,crge%f,vtemp,fion,crge%n,tfor)
+          i_start=1
+          i_end=crge%n
+          CALL newd(i_start,i_end,deeq,crge%f,vtemp,fion,tfor)
        ENDIF
     ENDIF
     ! ==--------------------------------------------------------------==
@@ -475,7 +471,7 @@ CONTAINS
     INTEGER                                  :: lvofrhob
     CHARACTER(len=30)                        :: tag
 
-    INTEGER                                  :: lnewd, ltgc, ltinlc, lvtmp
+    INTEGER                                  :: ltgc, ltinlc, lvtmp
 
     IF (cntl%tgc) THEN
        ltgc=fpar%nnr1*clsd%nlsd*4      ! GRADEN
@@ -492,10 +488,6 @@ CONTAINS
        lvtmp=lvtmp+2*fpar%nnr1*clsd%nlsd
     ENDIF
     lvofrhob = lvtmp+ltgc+ltinlc ! GCENER and COREC
-    IF (pslo_com%tivan) THEN
-       CALL give_scr_newd(lnewd,tag)
-       lvofrhob=MAX(lvofrhob,lnewd)
-    ENDIF
     lvofrhob = lvofrhob + 100  ! For boundary checks in SCRPTR
     tag='MAX(NNR1,NHG*2)*NLSX+.....'
     ! ==--------------------------------------------------------------==
