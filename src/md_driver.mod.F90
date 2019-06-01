@@ -1,3 +1,5 @@
+#include "cpmd_global.h"
+
 #if defined(__USE_IBM_HPM)
 #define USE_IBM_HPM
 #endif
@@ -102,7 +104,7 @@ MODULE md_driver
   USE mfep,                            ONLY: mfepi
   USE mm_extrap,                       ONLY: cold , cold_high, &
                                              numcold, numcold_high, &
-                                             nnow, nnow_high
+                                             scold, nnow, nnow_high
   USE moverho_utils,                   ONLY: give_scr_moverho,&
                                              moverho
   USE mp_interface,                    ONLY: mp_bcast,&
@@ -601,21 +603,28 @@ CONTAINS
     IF (cntl%textrap) THEN
        lenext=2*nkpt%ngwk*nstate*nkpt%nkpts*cnti%mextra
        rmem = 16._real_8*lenext*1.e-6_real_8
-       ALLOCATE(cold(nkpt%ngwk,crge%n,nkpt%nkpnt,lenext/(crge%n*nkpt%ngwk*nkpt%nkpnt)),STAT=ierr)
+       ALLOCATE(cold(nkpt%ngwk,crge%n,nkpt%nkpnt,lenext/(crge%n*nkpt%ngwk*nkpt%nkpnt)),&
+            STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
             __LINE__,__FILE__)
-       call zeroing(cold)
-
-       ! allocate array for high level WF extrapolation
-       if (mts_pure_dft) then
-          allocate(cold_high(nkpt%ngwk,crge%n,nkpt%nkpnt,lenext/(crge%n*nkpt%ngwk*nkpt%nkpnt)),stat=ierr)
-          if(ierr/=0) call stopgm(proceduren,'allocation problem: cold_high',&
+       CALL zeroing(cold)
+       
+       IF(pslo_com%tivan)THEN
+          ALLOCATE(scold(nkpt%ngwk,crge%n,nkpt%nkpnt,lenext/(crge%n*nkpt%ngwk*nkpt%nkpnt)),&
+               STAT=ierr)
+          IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
                __LINE__,__FILE__)
-          call zeroing(cold_high)
-          numcold_high=0 
-          nnow_high=0
-          rmem=rmem*2._real_8
-       endif
+          CALL zeroing(scold)
+           rmem=rmem*2._real_8
+       END IF
+        ! allocate array for high level WF extrapolation
+        if (mts_pure_dft) then
+           allocate(cold_high(nkpt%ngwk,crge%n,nkpt%nkpnt,lenext/(crge%n*nkpt%ngwk*nkpt%nkpnt)),stat=ierr)
+           if(ierr/=0) call stopgm(proceduren,'allocation problem: cold_high',&
+                __LINE__,__FILE__)
+           call zeroing(cold_high)
+           rmem=rmem*2._real_8
+        endif
 
        IF (paral%io_parent)&
             WRITE(6,'(A,T51,F8.3,A)') ' MDDIAG| '&
@@ -1056,7 +1065,11 @@ CONTAINS
        ropt_mod%calste=cntl%tpres.AND.MOD(iteropt%nfi,cnti%npres).EQ.0
        IF (cntl%textrap) THEN
           ! Extrapolate wavefunctions
-          CALL extrapwf(infi,c0,scr,cold,nnow,numcold,nstate,cnti%mextra)
+          IF(pslo_com%tivan)THEN
+             CALL extrapwf(infi,c0,scr,cold,nnow,numcold,nstate,cnti%mextra,scold,.FALSE.)
+          ELSE
+             CALL extrapwf(infi,c0,scr,cold,nnow,numcold,nstate,cnti%mextra)
+          END IF
        ENDIF
        IF (cntl%tlanc) nx=1
        IF (cntl%tdavi) nx=cnti%ndavv*nkpt%nkpnt+1
@@ -1101,6 +1114,12 @@ CONTAINS
              CALL lr_tddft(c0(:,:,1),c1,c2(:,:,1),sc0,rhoe,psi,taup,fion,eigv,&
                   nstate,.TRUE.,td01%ioutput)
           ENDIF
+       ENDIF
+       IF (cntl%textrap) THEN
+          ! Extrapolate wavefunctions
+          IF(pslo_com%tivan)THEN
+             CALL extrapwf(infi,c0,scr,cold,nnow,numcold,nstate,cnti%mextra,scold,.TRUE.)
+          END IF
        ENDIF
        ! ..TSH[
        IF (tshl%tdtully) THEN 
@@ -1861,7 +1880,7 @@ CONTAINS
 END MODULE md_driver
 
 ! ==================================================================
-SUBROUTINE extrapwf(infi,c0,gam,cold,nnow,numcold,nstate,m)
+SUBROUTINE extrapwf(infi,c0,gam,cold,nnow,numcold,nstate,m,scold,only_save)
   USE dotp_utils, ONLY: dotp
   USE kinds, ONLY: real_4, real_8, int_1, int_2, int_4, int_8
   USE error_handling, ONLY: stopgm
@@ -1880,32 +1899,44 @@ SUBROUTINE extrapwf(infi,c0,gam,cold,nnow,numcold,nstate,m)
   USE ovlap_utils, ONLY : ovlap
   USE rnlsm_utils, ONLY: rnlsm
   USE rotate_utils, ONLY: rotate
-  USE utils, ONLY: zclean
+  USE rgsvan_utils, ONLY: rgsvan
+  USE spsi_utils, ONLY: spsi
+  USE rnlsm_utils, ONLY: rnlsm
+  USE sfac, ONLY: fnl_packed, il_fnl_packed
+  USE rhov_utils, ONLY: rhov
   USE zeroing_utils,                   ONLY: zeroing
   IMPLICIT NONE
   INTEGER                                    :: nstate, infi, nnow, numcold, m
   COMPLEX(real_8)                            :: cold(nkpt%ngwk,nstate,nkpt%nkpnt,*)
   REAL(real_8)                               :: gam(nstate,*)
-  COMPLEX(real_8)                            :: c0(nkpt%ngwk,nstate,*)
-
-  INTEGER                                    :: i, ik, isub, ma, n1, nm, ierr
-  REAL(real_8)                               :: fa, rsum, scalef
+  COMPLEX(real_8)                            :: c0(nkpt%ngwk,nstate,*), scold(nkpt%ngwk,nstate,nkpt%nkpnt,*)
+  
+  LOGICAL, INTENT(IN), OPTIONAL              :: only_save
+  INTEGER                                    :: i, ik, isub, ma, n1, nm, nnow_save, ig
+  REAL(real_8)                               :: fa, rsum, scalef, rsumv
   REAL(real_8), EXTERNAL                     :: ddot
-  complex(real_8), allocatable               :: c2(:,:)
+  CHARACTER(*), PARAMETER                    :: procedureN = 'extrapwf'
+  CALL tiset(procedureN,isub)
 
-! IF (pslo_com%tivan) CALL stopgm('EXTRAPWF','EXTRAPOLATION NOT (YET) ' //&
-!      'SUPPORTED FOR VANDERBILT PSEUDOPOTENTIALS',& 
-!      __LINE__,__FILE__)
-  CALL tiset('  EXTRAPWF',isub)
-
-  ALLOCATE(c2(nkpt%ngwk,nstate),stat=ierr)
-  IF(ierr/=0) CALL stopgm('extrapwf','allocation problem : c2',&
-       __LINE__,__FILE__)
-
-  nnow=MOD(nnow,m)+1
-  CALL dcopy(2*nkpt%ngwk*nstate*nkpt%nkpnt,c0,1,cold(1,1,1,nnow),1)
-
-  numcold=MIN(numcold+1,m)
+  IF(PRESENT(only_save))THEN
+     IF(only_save)THEN
+        nnow_save=MOD(nnow,m)+1
+        CALL dcopy(2*nkpt%ngwk*nstate*nkpt%nkpnt,c0,1,cold(1,1,1,nnow_save),1)
+        IF(pslo_com%tivan)THEN
+           CALL dcopy(2*nkpt%ngwk*nstate*nkpt%nkpnt,c0,1,scold(1,1,1,nnow_save),1)
+           CALL spsi(nstate,scold(:,:,1,nnow_save),fnl_packed,.FALSE.)
+        END IF
+        numcold=MIN(numcold+1,m)
+        CALL tihalt(procedureN,isub)
+        RETURN
+     ELSE
+        nnow=MOD(nnow,m)+1        
+     END IF
+  ELSE
+     nnow=MOD(nnow,m)+1
+     CALL dcopy(2*nkpt%ngwk*nstate*nkpt%nkpnt,c0,1,cold(1,1,1,nnow),1)
+     numcold=MIN(numcold+1,m)
+  END IF
 
   ma=numcold
   IF (ma.GT.1) THEN
@@ -1930,7 +1961,11 @@ SUBROUTINE extrapwf(infi,c0,gam,cold,nnow,numcold,nstate,m)
                    CMPLX(1._real_8,0._real_8,kind=real_8),c0(1,1,ik),gam,nstate)
            ENDDO
         ELSE
-           CALL ovlap(nstate,gam,cold(:,:,1,nm),cold(:,:,1,n1))
+           IF(pslo_com%tivan)THEN
+              CALL ovlap(nstate,gam,scold(:,:,1,nm),cold(:,:,1,n1))
+           ELSE
+              CALL ovlap(nstate,gam,cold(:,:,1,nm),cold(:,:,1,n1))
+           END IF
            CALL mp_sum(gam,nstate*nstate,parai%allgrp)
            CALL rotate(fa,cold(:,:,1,nm),1._real_8,c0(:,:,1),gam,nstate,2*nkpt%ngwk,&
                 cntl%tlsd,spin_mod%nsup,spin_mod%nsdown)
@@ -1965,17 +2000,21 @@ SUBROUTINE extrapwf(infi,c0,gam,cold,nnow,numcold,nstate,m)
               rsum=rsum+crge%f(i,1)*dotp(ncpw%ngw,c0(:,i,1),c0(:,i,1))
            ENDIF
         ENDDO
+        IF(pslo_com%tivan)THEN
+           CALL rnlsm(c0(:,:,1),nstate,1,1,.FALSE.,unpack_dfnl_fnl=.FALSE.)
+           CALL rhov(1,nstate,rsumv)
+           rsum=rsum+rsumv
+        END IF
      ENDIF
      CALL mp_sum(rsum,parai%allgrp)
      scalef=crge%nel/rsum
      CALL dscal(2*nkpt%ngwk*nstate*nkpt%nkpnt,scalef,c0,1)
+     IF(pslo_com%tivan) THEN
+        CALL dscal(nstate*il_fnl_packed(1),scalef,fnl_packed,1)
+        CALL rgsvan(c0(:,:,1),nstate,gam,store_nonort=.FALSE.)
+     END IF
   ENDIF
-1 CONTINUE
-  DEALLOCATE(c2,stat=ierr)
-  IF(ierr/=0) call stopgm('extrapwf','deallocation problem : c2',&
-       __LINE__,__FILE__)
-
-  CALL tihalt('  EXTRAPWF',isub)
+  CALL tihalt(procedureN,isub)
   ! ==--------------------------------------------------------------==
   RETURN
 END SUBROUTINE extrapwf

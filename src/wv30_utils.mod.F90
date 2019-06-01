@@ -44,6 +44,7 @@ MODULE wv30_utils
   USE metr,                            ONLY: metr_com
   USE mm_dimmod,                       ONLY: clsaabox
   USE mm_extrap,                       ONLY: cold,&
+                                             scold,&
                                              nnow,&
                                              numcold
   USE mp_interface,                    ONLY: mp_sum
@@ -1254,6 +1255,10 @@ CONTAINS
           ENDIF
           CALL w_wfnio(nw,ierror,nstate,cold(1,1,1,is),tau0,&
                'C0',irecord)
+          IF(ALLOCATED(scold))THEN
+             CALL w_wfnio(nw,ierror,nstate,scold(1,1,1,is),tau0,&
+                  'SC0',irecord)
+          END IF
        ENDDO
     ELSE
        IF (paral%io_parent) THEN
