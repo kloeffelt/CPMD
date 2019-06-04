@@ -3,17 +3,24 @@
 MODULE rotate_utils
   USE cp_grp_utils,                    ONLY: cp_grp_get_sizes,&
                                              cp_grp_redist_array_f
+  USE distribution_utils,              ONLY: dist_entity
   USE error_handling,                  ONLY: stopgm
-  USE kinds,                           ONLY: int_1,&
-                                             int_2,&
-                                             int_4,&
-                                             int_8,&
-                                             real_4,&
-                                             real_8
+  USE kinds,                           ONLY: real_8
+  USE mp_interface,                    ONLY: mp_win_alloc_shared_mem,&
+                                             mp_win_sync,&
+                                             mp_sync
   USE nvtx_utils
+  !$ USE omp_lib,                      ONLY: omp_set_nested,&
+  !$                                         omp_get_thread_num,&
+  !$                                         omp_set_num_threads
+  USE parac,                           ONLY: parai
   USE timer,                           ONLY: tihalt,&
                                              tiset
-  USE system,                          ONLY: ncpw
+  USE spin,                            ONLY: spin_mod
+  USE system,                          ONLY: cntl,&
+                                             ncpw
+  USE, INTRINSIC :: ISO_C_BINDING,     ONLY: C_PTR,&
+                                             C_F_POINTER
 
   IMPLICIT NONE
 
@@ -23,9 +30,472 @@ MODULE rotate_utils
   !!public :: rotate_c
   !!public :: rotate_da
   PUBLIC :: rottr
+  PUBLIC :: rottr_fnl
+  PUBLIC :: rotate_fnl
+  PUBLIC :: rottr_c0_fnl
+  PUBLIC :: rotate_c0_fnl
 
 CONTAINS
+  ! ==================================================================
+  SUBROUTINE rotate_fnl(ldf,fnl_p,fnlgam_p,nstate,gam)
+    ! ==--------------------------------------------------------------==
+    ! ==         FNLGAM <= A*FNL*GAM                                  ==
+    ! == USPP needs fnl*gam two times. This operation is rather cheap ==
+    ! == and is only parallelizable on the node level. Hence we create==
+    ! == a mpi shared memory window and perform the dgemm directly in ==
+    ! == this window.                                                 ==
+    ! ==--------------------------------------------------------------==
+    INTEGER,INTENT(IN)                       :: nstate, ldf
+    REAL(real_8),INTENT(IN)                  :: gam(nstate,*), fnl_p(ldf,nstate)
+    REAL(real_8),INTENT(OUT), TARGET         :: fnlgam_p(ldf,nstate)
+    INTEGER                                  :: isub, loc_work, start_work,&
+                                                i, arrayshape(2), proc, nmin,&
+                                                nchunk,nmin_2,nchunk_2, lda,&
+                                                work_proc(2,0:parai%node_nproc-1),&
+                                                len_proc(0:parai%node_nproc-1),&
+                                                ierr
+    TYPE(C_PTR)                              :: baseptr(0:parai%node_nproc-1)
+    CHARACTER(*), PARAMETER                  :: procedureN = 'rotate_fnl'
+    REAL(real_8), POINTER __CONTIGUOUS       :: loc(:,:)
+    TYPE CONTAINER
+       REAL(real_8),  POINTER __CONTIGUOUS   :: temp(:,:)
+    END TYPE CONTAINER
+    TYPE(CONTAINER),ALLOCATABLE :: iproc(:)
+! ==--------------------------------------------------------------==
+    CALL tiset(procedureN,isub)
 
+    IF(parai%node_nproc.GT.1)THEN
+       !parallelize dsymms at node level
+       CALL dist_entity(ldf,parai%node_nproc,work_proc)
+       DO proc=0,parai%node_nproc-1
+          len_proc(proc)=work_proc(2,proc)-work_proc(1,proc)+1
+       END DO
+       loc_work=len_proc(parai%node_me)
+       start_work=work_proc(1,parai%node_me)
+       lda=MAXVAL(len_proc)
+       ALLOCATE(iproc(0:parai%node_nproc-1), stat=ierr)
+       IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate iproc',&
+            __LINE__,__FILE__)
+
+       CALL mp_win_alloc_shared_mem('r',lda,nstate,baseptr,parai%node_nproc,&
+            parai%node_me,parai%node_grp)
+       arrayshape(1)=lda
+       arrayshape(2)=nstate
+       DO proc=0,parai%node_nproc-1
+          CALL C_F_POINTER(baseptr(proc), iproc(proc)%temp,arrayshape)
+       END DO
+       loc=>iproc(parai%node_me)%temp(:,:)
+    ELSE
+       loc_work=ldf
+       lda=ldf
+       start_work=1
+       loc=>fnlgam_p
+    END IF
+
+    !set up spin settings
+    IF (cntl%tlsd) THEN
+       nmin=1
+       nchunk=spin_mod%nsup
+       nmin_2=spin_mod%nsup+1
+       nchunk_2=spin_mod%nsdown
+    ELSE
+       nmin=1
+       nchunk=nstate
+       nmin_2=0
+       nchunk_2=0
+    ENDIF
+
+    CALL dsymm('R','U',loc_work,nchunk,1.0_real_8,&
+         gam(nmin,nmin),nstate,&
+         fnl_p(start_work,nmin),ldf,&
+         0.0_real_8,loc(1,nmin),lda)
+    IF(cntl%tlsd)THEN
+       CALL dsymm('R','U',loc_work,nchunk_2,1.0_real_8,&
+            gam(nmin_2,nmin_2),nstate,&
+            fnl_p(start_work,nmin_2),ldf,&
+            0.0_real_8,loc(1,nmin_2),lda)
+    END IF
+
+    IF(parai%node_nproc.GT.1)THEN
+       !sync shared memory window
+       CALL mp_win_sync(parai%node_grp)
+       CALL mp_sync(parai%node_grp)
+       !get data from all procs
+       !$omp parallel do private(proc,i)
+       DO i=1,nstate
+          DO proc=0,parai%node_nproc-1
+             CALL copy(fnlgam_p(work_proc(1,proc):work_proc(2,proc),i),&
+                  iproc(proc)%temp(:,i),len_proc(proc))
+          END DO
+       END DO
+       DEALLOCATE(iproc, stat=ierr)
+       IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate iproc',&
+            __LINE__,__FILE__)
+    END IF
+    CALL tihalt(procedureN,isub)
+    ! ==--------------------------------------------------------------==
+  END SUBROUTINE rotate_fnl
+  ! ==================================================================
+  SUBROUTINE rottr_fnl(ldf,fnl_p,nstate,gam)
+    ! ==--------------------------------------------------------------==
+    ! ==         FNL <= A*FNL*GAM                                     ==
+    ! ==   SPECIAL CASE FOR GAM UPPER TRIAGONAL                       ==
+    ! ==   Usage: rgsvan                                              ==
+    ! ==--------------------------------------------------------------==
+    INTEGER,INTENT(IN)                       :: ldf, nstate
+    REAL(real_8),INTENT(INOUT)               :: fnl_p(ldf,*)
+    REAL(real_8),INTENT(IN)                  :: gam(nstate,nstate)
+
+    INTEGER                                  :: isub, loc_work, start_work,&
+                                                i, arrayshape(2), proc, nmin,&
+                                                nchunk,nmin_2,nchunk_2, lda,&
+                                                work_proc(2,0:parai%node_nproc-1),&
+                                                len_proc(0:parai%node_nproc-1),&
+                                                ierr
+    CHARACTER(*), PARAMETER                  :: procedureN = 'rottr_fnl'
+    TYPE(C_PTR)                              :: baseptr(0:parai%node_nproc-1)
+    TYPE CONTAINER
+       REAL(real_8),  POINTER __CONTIGUOUS   :: temp(:,:)
+    END TYPE CONTAINER
+    TYPE(CONTAINER),ALLOCATABLE :: iproc(:)
+
+! ==--------------------------------------------------------------==
+    CALL tiset(procedureN,isub)
+    IF(parai%node_nproc.GT.1)THEN
+       !parallelize dtrmms at node level
+       CALL dist_entity(ldf,parai%node_nproc,work_proc)
+       DO proc=0,parai%node_nproc-1
+          len_proc(proc)=work_proc(2,proc)-work_proc(1,proc)+1
+       END DO
+       loc_work=len_proc(parai%node_me)
+       start_work=work_proc(1,parai%node_me)
+       lda=MAXVAL(len_proc)
+       ALLOCATE(iproc(0:parai%node_nproc-1), stat=ierr)
+       IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate iproc',&
+            __LINE__,__FILE__)
+
+       CALL mp_win_alloc_shared_mem('r',lda,nstate,baseptr,parai%node_nproc,&
+            parai%node_me,parai%node_grp)
+       arrayshape(1)=lda
+       arrayshape(2)=nstate
+       DO proc=0,parai%node_nproc-1
+          CALL C_F_POINTER(baseptr(proc), iproc(proc)%temp,arrayshape)
+       END DO
+    ELSE
+       loc_work=ldf
+       lda=ldf
+       start_work=1
+    END IF
+
+    !set up spin settings
+    IF (cntl%tlsd) THEN
+       nmin=1
+       nchunk=spin_mod%nsup
+       nmin_2=spin_mod%nsup+1
+       nchunk_2=spin_mod%nsdown
+    ELSE
+       nmin=1
+       nchunk=nstate
+       nmin_2=0
+       nchunk_2=0
+    ENDIF
+    IF(loc_work.GT.0)THEN
+       CALL dtrmm('R','U','N','N',loc_work,nchunk,1.0_real_8,gam(nmin,nmin),nstate, &
+            fnl_p(start_work,nmin),ldf)
+       IF(cntl%tlsd)THEN
+          CALL dtrmm('R','U','N','N',loc_work,nchunk_2,1.0_real_8,gam(nmin_2,nmin_2),nstate,&
+               fnl_p(start_work,nmin_2),ldf)
+       END IF
+    END IF
+
+    IF(parai%node_nproc.GT.1)THEN
+       !copy local chunk into shared mem
+       proc=parai%node_me
+       !$omp parallel do private (i)
+       DO i=1,nstate
+          CALL copy(iproc(proc)%temp(:,i),fnl_p(work_proc(1,proc),i),len_proc(proc))
+       END DO
+       !sync shared memory window
+       CALL mp_win_sync(parai%node_grp)
+       CALL mp_sync(parai%node_grp)
+       !get data from other procs
+       !$omp parallel do private (i,proc)
+       DO i=1,nstate
+          DO proc=0,parai%node_nproc-1
+             IF(proc.EQ.parai%node_me)CYCLE
+             CALL copy(fnl_p(work_proc(1,proc):work_proc(2,proc),i),&
+                  iproc(proc)%temp(:,i),len_proc(proc))
+          END DO
+       END DO
+
+       DEALLOCATE(iproc, stat=ierr)
+       IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate iproc',&
+            __LINE__,__FILE__)
+    END IF
+    CALL tihalt(procedureN,isub)
+    ! ==--------------------------------------------------------------==
+  END SUBROUTINE rottr_fnl
+  ! ==================================================================
+  PURE SUBROUTINE copy (out,in,len)
+    !should be inlined, get rid of pointer attribute
+    INTEGER,INTENT(IN)                       :: len
+    REAL(real_8),INTENT(IN)                  :: in(len)
+    REAL(real_8), INTENT(OUT)                :: out(len)
+
+    out=in
+  END SUBROUTINE  copy
+  ! ==================================================================
+  SUBROUTINE rotate_c0_fnl(ldc,c0,c2,ldf,fnl_p,fnlgam_p,nstate,gam,redist)
+    ! ==--------------------------------------------------------------==
+    ! ==         FNLGAM <= A*FNL*GAM                                  ==
+    ! ==         C2 <= 1.0*C2-1.0*C0*GAM                              ==
+    ! == USPP also needs fnl*gam. This operation in rather cheap,     ==
+    ! == especially when it is parallelized across all procs. So we   ==
+    ! == do the allgather step while doing c2=c2-c0*gam               ==
+    ! ==--------------------------------------------------------------==
+    INTEGER,INTENT(IN)                       :: nstate, ldf, ldc
+    REAL(real_8),INTENT(IN)                  :: gam(nstate,*),fnl_p(ldf,nstate)
+    REAL(real_8),INTENT(OUT)                 :: fnlgam_p(ldf,nstate)
+    COMPLEX(real_8),INTENT(INOUT)            :: c2(ldc,*)
+    COMPLEX(real_8),INTENT(IN)               :: c0(ldc,*)
+    LOGICAL,INTENT(IN)                       :: redist
+    CHARACTER(*), PARAMETER                  :: procedureN = 'rotate_c0_fnl'
+
+    INTEGER                                  :: isub, loc_work, start_work,&
+                                                proc, nmin, nchunk, &
+                                                nmin_2,nchunk_2,&
+                                                work_proc(2,0:parai%nproc-1),&
+                                                methread, nthreads, nested_threads, &
+                                                il_temp(3), ierr, ngw_local, ibeg_c0
+    REAL(real_8), ALLOCATABLE                :: temp(:,:,:)
+
+    CALL tiset(procedureN,isub)
+    !set up spin settings
+    IF (cntl%tlsd) THEN
+       nmin=1
+       nchunk=spin_mod%nsup
+       nmin_2=spin_mod%nsup+1
+       nchunk_2=spin_mod%nsdown
+    ELSE
+       nmin=1
+       nchunk=nstate
+       nmin_2=0
+       nchunk_2=0
+    ENDIF
+    !end spin settings
+    !get local fnl chunk
+    CALL dist_entity(ldf,parai%nproc,work_proc,nbmax=il_temp(1),nblocal=loc_work,&
+         iloc=parai%me)
+    start_work=work_proc(1,parai%me)
+    !end local fnl chunk
+    !allocate fnlgam buffer
+    proc=parai%me+1
+    il_temp(2)=nstate
+    il_temp(3)=parai%nproc
+    ALLOCATE(temp(il_temp(1),il_temp(2),il_temp(3)), stat=ierr)
+    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate temp',&
+         __LINE__,__FILE__)
+    CALL dsymm('R','U',loc_work,nchunk,1.0_real_8,&
+         gam(nmin,nmin),nstate,fnl_p(start_work,nmin),ldf,&
+         0.0_real_8,temp(1,nmin,proc),il_temp(1))
+    IF(cntl%tlsd)THEN
+       CALL dsymm('R','U',loc_work,nchunk_2,1.0_real_8,&
+            gam(nmin_2,nmin_2),nstate,fnl_p(start_work,nmin_2),ldf,&
+            0.0_real_8,temp(1,nmin_2,proc),il_temp(1))
+    END IF
+    IF(cntl%overlapp_comm_comp)THEN
+       nthreads=MIN(2,parai%ncpus)
+       nested_threads=(MAX(parai%ncpus-1,1))
+#if !defined(_INTEL_MKL)
+       CALL stopgm(procedureN, 'Overlapping communication and computation: Behavior of BLAS &
+            routine inside parallel region not checked',&
+            __LINE__,__FILE__)
+#endif
+    ELSE
+       nthreads=1
+       nested_threads=parai%ncpus
+    END IF
+    methread=0
+    !$omp parallel if(nthreads.eq.2) num_threads(nthreads) &
+    !$omp private (methread,ngw_local,ibeg_c0) proc_bind(close)
+    !$ methread=omp_get_thread_num()
+    !$ IF(methread.EQ.1)THEN
+    !$   CALL omp_set_num_threads(nested_threads)
+#ifdef _INTEL_MKL
+    !$   CALL mkl_set_dynamic(0)
+#endif
+    !$   CALL omp_set_nested(.TRUE.)
+    !$ END IF
+
+    IF(methread.EQ.1.OR.nthreads.EQ.1)THEN
+       CALL cp_grp_get_sizes(ngw_l=ngw_local,first_g=ibeg_c0)
+       CALL dsymm('R','U',ngw_local*2,nchunk,-1.0_real_8,&
+            gam(nmin,nmin),nstate,c0(ibeg_c0,nmin),ldc*2,&
+            1.0_real_8,c2(ibeg_c0,nmin),ldc*2)
+       IF(cntl%tlsd)THEN
+          CALL dsymm('R','U',ngw_local*2,nchunk_2,-1.0_real_8,&
+               gam(nmin_2,nmin_2),nstate,c0(ibeg_c0,nmin_2),ldc*2,&
+               1.0_real_8,c2(ibeg_c0,nmin_2),ldc*2)
+       END IF
+    END IF
+    IF(methread.EQ.0.OR.nthreads.EQ.1)THEN
+       CALL my_concat_inplace(temp,il_temp(1)*nstate,parai%allgrp)
+    END IF
+    !$ IF(methread.EQ.1)THEN
+    !$   CALL omp_set_num_threads(parai%ncpus)
+#ifdef _INTEL_MKL
+    !$   CALL mkl_set_dynamic(1)
+#endif
+    !$   CALL omp_set_nested(.false.)
+    !$ END IF
+    !$omp end parallel
+    CALL copy_back(fnlgam_p,temp,work_proc,ldf,nstate,parai%nproc)
+    DEALLOCATE(temp, stat=ierr)
+    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate temp',&
+         __LINE__,__FILE__)
+    IF(redist)CALL cp_grp_redist_array_f(c2,ldc,nstate)
+    CALL tihalt(procedureN,isub)
+  END SUBROUTINE rotate_c0_fnl
+  ! ==================================================================
+  SUBROUTINE rottr_c0_fnl(ldc,c0,ldf,fnl,gam,nstate,redist)
+    ! ==--------------------------------------------------------------==
+    ! ==         FNL <= FNL*GAM                                       ==
+    ! ==          C0 <= C0*GAM                                        ==
+    ! == USPP also needs fnl*gam. This operation in rather cheap,     ==
+    ! == especially when it is parallelized across all procs. So we   ==
+    ! == do the allgather step while doing c0=c0*gam                  ==
+    ! ==--------------------------------------------------------------==
+    INTEGER,INTENT(IN)                       :: nstate, ldf, ldc
+    REAL(real_8),INTENT(INOUT)               :: fnl(ldf,nstate)
+    REAL(real_8),INTENT(IN)                  :: gam(nstate,*)
+    COMPLEX(real_8),INTENT(INOUT)            :: c0(ldc,nstate)
+    LOGICAL,INTENT(IN)                       :: redist
+
+    CHARACTER(*), PARAMETER                  :: procedureN = 'rottr_c0_fnl'
+
+    INTEGER                                  :: isub, loc_work, start_work,&
+                                                proc, nmin, nchunk, &
+                                                nmin_2,nchunk_2,&
+                                                work_proc(2,0:parai%nproc-1),&
+                                                methread, nthreads, nested_threads, &
+                                                il_temp(3), ierr, ngw_local, ibeg_c0
+    REAL(real_8), ALLOCATABLE                :: temp(:,:,:)
+    ! ==--------------------------------------------------------------==
+    CALL tiset(procedureN,isub)
+    !set up spin settings
+    IF (cntl%tlsd) THEN
+       nmin=1
+       nchunk=spin_mod%nsup
+       nmin_2=spin_mod%nsup+1
+       nchunk_2=spin_mod%nsdown
+    ELSE
+       nmin=1
+       nchunk=nstate
+       nmin_2=0
+       nchunk_2=0
+    ENDIF
+    !end spin settings
+    !get local fnl chunk
+    CALL dist_entity(ldf,parai%nproc,work_proc,nbmax=il_temp(1),nblocal=loc_work,&
+         iloc=parai%me)
+    start_work=work_proc(1,parai%me)
+    !end local fnl chunk
+    !allocate fnlgam buffer
+    proc=parai%me+1
+    il_temp(2)=nstate
+    il_temp(3)=parai%nproc
+    ALLOCATE(temp(il_temp(1),il_temp(2),il_temp(3)), stat=ierr)
+    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate temp',&
+         __LINE__,__FILE__)
+    IF(loc_work.GT.0)THEN
+       CALL dtrmm('R','U','N','N',loc_work,nchunk,1.0_real_8,gam(nmin,nmin),nstate, &
+            fnl(start_work,nmin),ldf)
+       IF(cntl%tlsd)THEN
+          CALL dtrmm('R','U','N','N',loc_work,nchunk_2,1.0_real_8,gam(nmin_2,nmin_2),nstate,&
+               fnl(start_work,nmin_2),ldf)
+       END IF
+    END IF
+    CALL copy_in(temp(:,:,parai%me+1),fnl,work_proc(:,parai%me),il_temp(1),nstate)
+    IF(cntl%overlapp_comm_comp)THEN
+       nthreads=MIN(2,parai%ncpus)
+       nested_threads=(MAX(parai%ncpus-1,1))
+#if !defined(_INTEL_MKL)
+       CALL stopgm(procedureN, 'Overlapping communication and computation: Behavior of BLAS &
+            routine inside parallel region not checked',&
+            __LINE__,__FILE__)
+#endif
+    ELSE
+       nthreads=1
+       nested_threads=parai%ncpus
+    END IF
+    methread=0
+    !$omp parallel if(nthreads.eq.2) num_threads(nthreads) &
+    !$omp private (methread,ngw_local,ibeg_c0) proc_bind(close)
+    !$ methread=omp_get_thread_num()
+    !$ IF(methread.EQ.1)THEN
+    !$   CALL omp_set_num_threads(nested_threads)
+#ifdef _INTEL_MKL
+    !$   CALL mkl_set_dynamic(0)
+#endif
+    !$   CALL omp_set_nested(.TRUE.)
+    !$ END IF
+
+    IF(methread.EQ.1.OR.nthreads.EQ.1)THEN
+       CALL cp_grp_get_sizes(ngw_l=ngw_local,first_g=ibeg_c0)
+       IF(ngw_local.GT.0)THEN
+          CALL dtrmm('R','U','N','N',ngw_local*2,nchunk,1.0_real_8,gam(nmin,nmin),nstate,&
+               c0(ibeg_c0,nmin),ldc*2)
+          IF(cntl%tlsd)THEN
+             CALL dtrmm('R','U','N','N',ngw_local*2,nchunk_2,1.0_real_8,gam(nmin_2,nmin_2),&
+                  nstate,c0(ibeg_c0,nmin_2),ldc*2)
+          END IF
+       END IF
+    END IF
+    IF(methread.EQ.0.OR.nthreads.EQ.1)THEN
+       CALL my_concat_inplace(temp,il_temp(1)*nstate,parai%allgrp)
+    END IF
+    !$ IF(methread.EQ.1)THEN
+    !$   CALL omp_set_num_threads(parai%ncpus)
+#ifdef _INTEL_MKL
+    !$   CALL mkl_set_dynamic(1)
+#endif
+    !$   CALL omp_set_nested(.false.)
+    !$ END IF
+    !$omp end parallel
+    CALL copy_back(fnl,temp,work_proc,ldf,nstate,parai%nproc)
+    DEALLOCATE(temp, stat=ierr)
+    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate temp',&
+         __LINE__,__FILE__)
+    IF(redist)CALL cp_grp_redist_array_f(c0,ldc,nstate)
+    CALL tihalt(procedureN,isub)
+    ! ==--------------------------------------------------------------==
+  END SUBROUTINE rottr_c0_fnl
+  ! ==================================================================
+  SUBROUTINE copy_back(fnl_p,temp,work_proc,ldf,nstate,n)
+    INTEGER, INTENT(IN)                      :: n,nstate,ldf,work_proc(2,n)
+    REAL(real_8), INTENT(IN) __CONTIGUOUS    :: temp(:,:,:)
+    REAL(real_8), INTENT(OUT)                :: fnl_p(ldf,nstate)
+    INTEGER                                  :: proc,i
+
+    !$omp parallel do private(proc,i)
+    DO i=1,nstate
+       DO proc=1,n
+          CALL copy(fnl_p(work_proc(1,proc):work_proc(2,proc),i),&
+               temp(:,i,proc),work_proc(2,proc)-work_proc(1,proc)+1)
+       END DO
+    END DO
+  END SUBROUTINE copy_back
+  ! ==================================================================
+  SUBROUTINE copy_in(temp,fnl_p,work_proc,ldt,nstate)
+    INTEGER, INTENT(IN)                      :: nstate, ldt ,work_proc(2)
+    REAL(real_8), INTENT(IN) __CONTIGUOUS    :: fnl_p(:,:)
+    REAL(real_8), INTENT(OUT)                :: temp(ldt,nstate)
+    INTEGER                                  :: i
+    !$omp parallel do private(i)
+    DO i=1,nstate
+       CALL copy(temp(:,i),fnl_p(work_proc(1):work_proc(2),i),work_proc(2)-work_proc(1)+1)
+    END DO
+  END SUBROUTINE  copy_in
   ! ==================================================================
   SUBROUTINE rottr(a,c1,gam,transa,nstate,n,tlsd,na,nb,redist,use_cp)
     ! ==--------------------------------------------------------------==
@@ -82,9 +552,7 @@ CONTAINS
     ! ==--------------------------------------------------------------==
   END SUBROUTINE rottr
   ! ==================================================================
-
-  ! ==================================================================
-  SUBROUTINE rotate(a,c1,b,c2,gam,nstate,n,tlsd,na,nb,redist,use_cp)
+  SUBROUTINE rotate(a,c1,b,c2,gam,nstate,n,tlsd,na,nb,symm,redist,use_cp)
     ! ==--------------------------------------------------------------==
     ! ==         C2 <= B*C2 + A*C1*GAM                                ==
     ! ==   ALSO FOR LSD                                               ==
@@ -95,12 +563,13 @@ CONTAINS
     COMPLEX(real_8),INTENT(INOUT)            :: c2(:,:)
     REAL(real_8),INTENT(IN)                  :: gam(nstate,*)
     LOGICAL,INTENT(IN)                       :: tlsd
-    LOGICAL,INTENT(IN),OPTIONAL              :: redist,use_cp
+    LOGICAL,INTENT(IN),OPTIONAL              :: redist,use_cp,symm
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'rotate'
 
-    INTEGER                                  :: isub, naa, ibeg_c0, ngw_local
-    LOGICAL                                  :: rdst,cp_active
+    INTEGER                                  :: isub, naa, ibeg_c0, ngw_local, &
+                                                first_g
+    LOGICAL                                  :: rdst,cp_active,use_dsymm
 ! Variables
 ! ==--------------------------------------------------------------==
     IF (n.EQ.0 .OR. nstate.EQ.0) RETURN
@@ -114,6 +583,11 @@ CONTAINS
     ELSE
        cp_active=.FALSE.
     END IF
+    IF(PRESENT(symm))THEN
+       use_dsymm=symm
+    ELSE
+       use_dsymm=.FALSE.
+    END IF
     IF(cp_active)THEN
        CALL cp_grp_get_sizes(ngw_l=ngw_local,first_g=ibeg_c0)
        IF(PRESENT(redist))THEN
@@ -126,27 +600,40 @@ CONTAINS
        ibeg_c0=1
        rdst=.FALSE.
     END IF
-
-    IF (n>0) THEN
-       IF (tlsd) THEN
-          naa=na+1
-          CALL dgemm('N','N',2*ngw_local,na,na,a,c1(ibeg_c0,1),n,&
-               gam(1,1),nstate,b,c2(ibeg_c0,1),n)
-          CALL dgemm('N','N',2*ngw_local,nb,nb,a,c1(ibeg_c0,naa),n,&
-               gam(naa,naa),nstate,b,c2(ibeg_c0,naa),n)
-       ELSE
-          CALL dgemm('N','N',2*ngw_local,nstate,nstate,a,c1(ibeg_c0,1),&
-               n,gam,nstate,b,c2(ibeg_c0,1),n)
+    IF(use_dsymm)THEN
+       IF (n>0) THEN
+          IF (tlsd) THEN
+             naa=na+1
+             CALL dsymm('R','U',2*ngw_local,na,a,gam(1,1),nstate,&
+                  c1(ibeg_c0,1),n,b,c2(ibeg_c0,1),n)
+             CALL dsymm('R','U',2*ngw_local,nb,a,gam(naa,naa),nstate,&
+                  c1(ibeg_c0,naa),n,b,c2(ibeg_c0,naa),n)
+          ELSE
+             CALL dsymm('R','U',2*ngw_local,nstate,a,gam,nstate,&
+                  c1(ibeg_c0,1),n,b,c2(ibeg_c0,1),n)
+          ENDIF
        ENDIF
-    ENDIF
-
+    ELSE
+       IF (n>0) THEN
+          IF (tlsd) THEN
+             naa=na+1
+             CALL dgemm('N','N',2*ngw_local,na,na,a,c1(ibeg_c0,1),n,&
+                  gam(1,1),nstate,b,c2(ibeg_c0,1),n)
+             CALL dgemm('N','N',2*ngw_local,nb,nb,a,c1(ibeg_c0,naa),n,&
+                  gam(naa,naa),nstate,b,c2(ibeg_c0,naa),n)
+          ELSE
+             CALL dgemm('N','N',2*ngw_local,nstate,nstate,a,c1(ibeg_c0,1),&
+                  n,gam,nstate,b,c2(ibeg_c0,1),n)
+          ENDIF
+       ENDIF
+    END IF
     IF(rdst)CALL cp_grp_redist_array_f(c2,n/2,nstate)
 
     __NVTX_TIMER_STOP
     CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==
   END SUBROUTINE rotate
-
+  ! ==================================================================
 END MODULE rotate_utils
 
 ! ==================================================================
