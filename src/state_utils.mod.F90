@@ -8,6 +8,8 @@ MODULE state_utils
                                              nzfs
   USE geq0mod,                         ONLY: geq0
   USE kinds,                           ONLY: real_8
+  USE part_1d,                         ONLY: part_1d_get_el_in_blk,&
+                                             part_1d_nbr_el_in_blk
   USE system,                          ONLY: ncpw
 
   IMPLICIT NONE
@@ -26,7 +28,7 @@ MODULE state_utils
   PUBLIC :: set_psi_1_state_g_kpts
   PUBLIC :: zero_wfn
   PUBLIC :: add_wfn
-
+  PUBLIC :: set_psi_batch_g
 CONTAINS
 
   ! ==================================================================
@@ -223,6 +225,57 @@ CONTAINS
     ! ==--------------------------------------------------------------==
   END SUBROUTINE set_psi_1_state_g_kpts
 
+  ! ==================================================================
+  SUBROUTINE set_psi_batch_g(c0,psi,ld_psi,ist_start,bsize,maxstate, me_grp, n_grp)
+    ! ==================================================================
+    ! == Set Psi with two*batchsize states                            ==
+    ! ==--------------------------------------------------------------==
+    INTEGER,INTENT(IN)                       :: ld_psi, ist_start, bsize, maxstate, me_grp, n_grp
+    COMPLEX(real_8),INTENT(IN)               :: c0(:,:)
+    COMPLEX(real_8),INTENT(OUT)              :: psi(ld_psi,bsize)
+
+    INTEGER                                  :: count, ist, is1, is2, offset_state,ir
+
+    !$omp parallel private (count,ist,is1,is2,offset_state,ir)
+    offset_state=ist_start
+    DO count=1,bsize
+       ist=offset_state+1
+       is1=part_1d_get_el_in_blk(ist,maxstate,me_grp,n_grp)
+       is2=maxstate+1
+       ist=offset_state+2
+       offset_state=offset_state+2
+       IF (ist.LE.part_1d_nbr_el_in_blk(maxstate,me_grp,n_grp))&
+            is2 = part_1d_get_el_in_blk(ist,maxstate,me_grp,n_grp)
+       !$omp do 
+       DO ir=1,ld_psi
+          psi(ir,count)=CMPLX(0.0_real_8,0.0_real_8,kind=real_8)
+       END DO
+       IF (is2.GT.maxstate) THEN
+          !                      CALL set_psi_1_state_g(zone,c0(:,is1),psi(:,count))
+          !$omp do
+          DO ir=1,jgw
+             psi(nzfs(ir),count)=c0(ir,is1)
+             psi(inzs(ir),count)=CONJG(c0(ir,is1))
+          ENDDO
+          !$omp single
+          IF (geq0) psi(nzfs(1),count)=c0(1,is1)
+          !$omp end single
+       ELSE
+          !$omp do
+          DO ir=1,jgw
+             psi(nzfs(ir),count)=c0(ir,is1)+uimag*c0(ir,is2)
+             psi(inzs(ir),count)=CONJG(c0(ir,is1))+uimag*CONJG(c0(ir,is2))
+          ENDDO
+          !$omp single
+          IF (geq0) psi(nzfs(1),count)=c0(1,is1)+uimag*c0(1,is2)
+          !$omp end single
+          !                      CALL set_psi_2_states_g(c0(:,is1),c0(:,is2),psi(:,count))
+       ENDIF
+    END DO
+    !$omp end parallel
+    
+  END SUBROUTINE set_psi_batch_g
+  
   ! ==================================================================
   SUBROUTINE zero_wfn(m,n,x,ldx)
     ! ==================================================================

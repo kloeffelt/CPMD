@@ -44,7 +44,7 @@ MODULE rnlsm1_utils
   USE scratch_interface,               ONLY: request_scratch,&
                                              free_scratch
 #endif
-
+  use machine, only: m_walltime
   IMPLICIT NONE
 
   PRIVATE
@@ -100,7 +100,7 @@ CONTAINS
     INTEGER, SAVE                            :: autotune_it=0
     !$ LOGICAL                               :: locks(maxbuff)
 
-
+    real(real_8) :: ti(20), ti_te
     ! ==--------------------------------------------------------------==
     ! IF no non-local components -> return.
     IF (nlm.EQ.0) RETURN
@@ -112,7 +112,7 @@ CONTAINS
     ELSE
        unpack=.TRUE.
     END IF
-
+    ti=0.0_real_8
     ! split states between cp groups
     CALL cp_grp_split_atoms(na_grp)
     ! set autotuning stuff
@@ -159,11 +159,13 @@ CONTAINS
     ld_dai=ld_buffer(buff)
     end_dai=start_dai-1+ld_dai*nstate
     IF(autotune_it.GT.0.AND.autotune_it.LE.cnti%rnlsm_autotune_maxit) temp=m_walltime()
+    ti_te=m_walltime()
     IF(ld_dai.GT.0)THEN
        CALL proj_beta(na_buff(:,:,buff),igeq0,nstate,c0,nkpt%ngwk,eigkr(:,:,ikind),&
             twnl(:,:,:,ikind),eiscr,t,nkpt%ngwk,1,dai(start_dai:end_dai),ld_dai/imagp,&
             .FALSE.,tkpts%tkpnt,geq0)
     END IF
+    ti(1)=ti(1)+m_walltime()-ti_te
     IF(autotune_it.GT.0.AND.autotune_it.LE.cnti%rnlsm_autotune_maxit)timings(1)=&
          timings(1)+m_walltime()-temp
 
@@ -191,7 +193,7 @@ CONTAINS
     !$ locks=.TRUE.
     !$ locks(1)=.FALSE.
     !$omp parallel if(nthreads.eq.2) num_threads(nthreads) &
-    !$omp private(methread,buff,ld_dai,start_dai,end_dai)&
+    !$omp private(methread,buff,ld_dai,start_dai,end_dai,ti_te)&
     !$omp shared(locks,nthreads) proc_bind(close)
     !$ methread = omp_get_thread_num()
     !$ IF (nested_threads .NE. parai%ncpus) THEN
@@ -210,11 +212,13 @@ CONTAINS
           ld_dai=ld_buffer(buff)
           start_dai=start_buffer(buff)
           end_dai=start_dai-1+ld_dai*nstate
+          ti_te=m_walltime()
           IF(ld_dai.GT.0)THEN
              CALL proj_beta(na_buff(:,:,buff),igeq0,nstate,c0,nkpt%ngwk,eigkr(:,:,ikind),&
                   twnl(:,:,:,ikind),eiscr,t,nkpt%ngwk,1,dai(start_dai:end_dai),ld_dai/imagp,&
                   .FALSE.,tkpts%tkpnt,geq0)
           END IF
+          ti(2)=ti(2)+m_walltime()-ti_te
           !$ locks(buff) = .FALSE.
           !$omp flush(locks)
        ENDDO
@@ -232,9 +236,11 @@ CONTAINS
           !$ END DO
           CALL TIHALT(procedureN//'_barrier',ISUB2)
           IF(autotune_it.GT.0.AND.autotune_it.LE.cnti%rnlsm_autotune_maxit) temp=m_walltime()
+          ti_te=m_walltime()
           IF(ld_dai.GT.0)THEN
              CALL mp_sum(dai(start_dai:end_dai),end_dai-start_dai+1,parai%allgrp)
           END IF
+          ti(3)=ti(3)+m_walltime()-ti_te
           IF(autotune_it.GT.0.AND.autotune_it.LE.cnti%rnlsm_autotune_maxit)&
                timings(2)=timings(2)+m_walltime()-temp
        ENDDO
@@ -251,6 +257,7 @@ CONTAINS
     !$ END IF
 
     !$OMP end parallel
+    ti_te=m_walltime()
     IF(buffcount.GT.1)THEN
        CALL sort_fnl(buffcount,na_buff(:,:,:),dai,fnl_packed,start_buffer,&
             ld_buffer)
@@ -264,6 +271,9 @@ CONTAINS
        END IF
        IF(parai%cp_nogrp.GT.1)CALL cp_grp_redist_dfnl_fnl(.TRUE.,.FALSE.,nstate,ikind)
     END IF
+    ti(4)=ti(4)+m_walltime()-ti_te
+    if(paral%io_parent) write(6,'(1X,4E12.5,A)') ti(1:4),'r'
+       
     !set buffcount/buffsizes
     IF(cnti%rnlsm_autotune_maxit.GT.0)THEN
        IF(autotune_it.EQ.cnti%rnlsm_autotune_maxit)THEN

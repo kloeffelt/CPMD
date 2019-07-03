@@ -31,7 +31,8 @@ MODULE rhoofr_utils
                                              CuUser_setpsi_2_states_g
   USE density_utils,                   ONLY: build_density_imag,&
                                              build_density_real,&
-                                             build_density_sum
+                                             build_density_sum,&
+                                             build_density_sum_batch
   USE dg,                              ONLY: ipooldg,&
                                              tdgcomm
   USE elct,                            ONLY: crge
@@ -51,11 +52,17 @@ MODULE rhoofr_utils
                                              fft_residual,&
                                              fft_numbatches,&
                                              wfn_g,&
-                                             wfn_r
+                                             wfn_r,&
+                                             xf,&
+                                             yf,&
+                                             NZFS,&
+                                             INZS,&
+                                             locks_inv
   USE fftmain_utils,                   ONLY: fwfftn,&
                                              invfftn,&
                                              fwfftn_batch,&
-                                             invfftn_batch
+                                             invfftn_batch,&
+                                             invfftn_batch_com
   USE fftnew_utils,                    ONLY: setfftn
   USE geq0mod,                         ONLY: geq0
   USE ions,                            ONLY: ions0,&
@@ -85,7 +92,8 @@ MODULE rhoofr_utils
                                              lspin2,&
                                              spin_mod
   USE state_utils,                     ONLY: set_psi_1_state_g,&
-                                             set_psi_2_states_g
+                                             set_psi_2_states_g,&
+                                             set_psi_batch_g
   USE symm,                            ONLY: symmi
   USE symtrz_utils,                    ONLY: give_scr_symrho
   USE system,                          ONLY: cntl,&
@@ -113,7 +121,7 @@ MODULE rhoofr_utils
   !$ USE omp_lib, ONLY: omp_get_max_active_levels, omp_get_nested, &
   !$                    omp_set_max_active_levels, omp_set_nested
 #endif
-
+  use machine, only: m_walltime
   USE nvtx_utils
 #ifdef _USE_SCRATCHLIBRARY
   USE scratch_interface,               ONLY: request_scratch,&
@@ -777,19 +785,27 @@ CONTAINS
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'rhoofr_batchfft'
     COMPLEX(real_8), PARAMETER               :: zone = (1.0_real_8,0.0_real_8)
-    COMPLEX(real_8), POINTER __CONTIGUOUS    :: wfn_r1(:,:,:,:)
+    COMPLEX(real_8), POINTER __CONTIGUOUS    :: wfn_r1(:)
     REAL(real_8), POINTER __CONTIGUOUS       :: rhoe_p(:,:,:)
-    REAL(real_8), PARAMETER :: delta = 1.e-6_real_8, &
-      o3 = 0.33333333333333333_real_8
+    REAL(real_8), PARAMETER                  :: delta = 1.e-6_real_8, &
+                                                o3 = 0.33333333333333333_real_8
 
-    INTEGER                                  ::  i,ia, iat, ierr, ir, is, is1, is2, iwf, ist, ibatch, &
-                                                 isub, isub3, ir1, bsize, first_state, offset, &
-                                                 i_start, i_end, ispin(2,fft_batchsize),  il_wfng(2), &
-                                                 il_wfnr(2), il_wfnr1(4)
-    REAL(real_8)                             :: chksum, coef3(fft_batchsize), coef4(fft_batchsize), &
-                                                ral, rbe, rsp, rsum, rsum1, rsum1abs, rsumv, rto, &
-                                                temp(4)
-
+    INTEGER                                  :: i, ierr, ir, is1, is2, iwf, &
+                                                ibatch, isub, isub3, bsize, &
+                                                first_state, offset_state, i_start, i_end, &
+                                                il_wfng(2), il_wfnr(2), i_start1, i_start2, &
+                                                i_start3, il_xf(2), me_grp, n_grp, &
+                                                nthreads, nested_threads, methread, count, &
+                                                swap, il_wfnr1(1), int_mod, start_loop, &
+                                                end_loop
+    REAL(real_8)                             :: chksum, ral, rbe, rsp, rsum, rsum1, &
+                                                rsum1abs, rsumv, rto, temp(4), inv_omega
+!    REAL(real_8), ALLOCATABLE                :: coef4(:), coef3(:)
+    REAL(real_8)                            :: coef4(fft_batchsize), coef3(fft_batchsize)
+!    INTEGER, ALLOCATABLE                     :: ispin(:,:)
+    INTEGER                      :: ispin(2,fft_batchsize)
+    real(real_8) :: ti(20), ti_te
+    ti=0.0_real_8
     CALL tiset(procedureN,isub)
     ! ==--------------------------------------------------------------==
     CALL kin_energy(c0,nstate,rsum)
@@ -812,15 +828,66 @@ CONTAINS
 
     CALL reshape_inplace(rhoe, (/fpar%kr1*fpar%kr2s,fpar%kr3s,clsd%nlsd/), rhoe_p)
 
+    !$ ALLOCATE(locks_inv(fft_numbatches+1,2),STAT=ierr)
+    !$ IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+    !$      __LINE__,__FILE__)
+    
+!    ALLOCATE(coef3(fft_numbatches+1),STAT=ierr)
+!    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+!         __LINE__,__FILE__)
+!    ALLOCATE(coef4(fft_numbatches+1),STAT=ierr)
+!    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+!      __LINE__,__FILE__)
+!    ALLOCATE(ispin(2,fft_numbatches+1),STAT=ierr)
+!    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+!      __LINE__,__FILE__)
+
     il_wfng(1)=fpar%kr1s*msrays
-    il_wfng(2)=fft_total
+    il_wfng(2)=fft_batchsize
 
     il_wfnr(1)=fpar%kr1*fpar%kr2s*fpar%kr3s*fft_batchsize
-    il_wfnr(2)=fft_numbatches
-    IF (fft_residual.GT.0) il_wfnr(2)=fft_numbatches+1
+    il_wfnr(1)=il_wfnr(1)+MOD(il_wfnr(1),4)
+    il_wfnr(2)=1
+    IF(rsactive)THEN
+       il_wfnr(2)=fft_numbatches
+       IF(fft_residual.GT.0) il_wfnr(2)=fft_numbatches+1
+    END IF
+    il_xf(1)=fpar%nnr1*fft_batchsize
+    il_xf(1)=il_xf(1)+MOD(il_xf(1),4)
+    il_xf(2)=2
+
+    me_grp=parai%cp_inter_me
+    n_grp=parai%cp_nogrp
+    i_start1=0
+    i_start2=part_1d_get_el_in_blk(1,nstate,me_grp,n_grp)-1
+    i_start3=part_1d_get_el_in_blk(1,nstate,me_grp,n_grp)-1
+    inv_omega=1.0_real_8/parm%omega
+    int_mod=2
+    start_loop=1
+    end_loop=fft_numbatches+2
+
+    IF(cntl%overlapp_comm_comp)THEN
+       nthreads=MIN(2,parai%ncpus)
+       nested_threads=(MAX(parai%ncpus-1,1))
+#if !defined(_INTEL_MKL)
+       CALL stopgm(procedureN, 'Overlapping communication and computation: Behavior of BLAS &
+            routine inside parallel region not checked',&
+            __LINE__,__FILE__)
+#endif
+    ELSE
+       nthreads=1
+       nested_threads=parai%ncpus
+       int_mod=1
+       start_loop=0
+       end_loop=fft_numbatches+1
+       il_xf(2)=1
+    END IF
+
 #ifdef _USE_SCRATCHLIBRARY
     CALL request_scratch(il_wfnr,wfn_r,'wfn_r')
     CALL request_scratch(il_wfng,wfn_g,'wfn_g')
+    CALL request_scratch(il_xf,xf,procedureN//'_xf')
+    CALL request_scratch(il_xf,yf,procedureN//'_yf')
 #else
     IF(.NOT.rsactive.OR..NOT.ALLOCATED(wfn_r))THEN
        ALLOCATE(wfn_r(il_wfnr(1),il_wfnr(2)),STAT=ierr)
@@ -831,189 +898,170 @@ CONTAINS
             __LINE__,__FILE__)
     END IF
 #endif
-    ! Loop over the electronic states
-    ist=0
-    DO i = 1,part_1d_nbr_el_in_blk(nstate,parai%cp_inter_me,parai%cp_nogrp),2
-       is1 = part_1d_get_el_in_blk(i,nstate,parai%cp_inter_me,parai%cp_nogrp)
-       is2 = nstate+1
-       IF (i+1.LE.part_1d_nbr_el_in_blk(nstate,parai%cp_inter_me,parai%cp_nogrp))&
-            is2 = part_1d_get_el_in_blk(i+1,nstate,parai%cp_inter_me,parai%cp_nogrp)
-
-       ist=ist+1
-
-       !$omp parallel do private(ir)
-       DO ir=1,il_wfng(1)
-          wfn_g(ir,ist)=CMPLX(0.0_real_8,0.0_real_8,kind=real_8)
-       END DO
-
-       IF (is2.GT.nstate) THEN
-          CALL set_psi_1_state_g(zone,c0(:,is1),wfn_g(:,ist))
-       ELSE
-          CALL set_psi_2_states_g(c0(:,is1),c0(:,is2),wfn_g(:,ist))
-       ENDIF
-    END DO
-          ! ==--------------------------------------------------------------==
-          ! ==  Fourier transform the wave functions to real space.         ==
-          ! ==  In the array PSI was used also the fact that the wave       ==
-          ! ==  functions at Gamma are real, to form a complex array (PSI)  ==
-          ! ==  with the wave functions corresponding to two different      ==
-          ! ==  states (i and i+1) as the real and imaginary part. This     ==
-          ! ==  allows to call the FFT routine 1/2 of the times and save    ==
-          ! ==  time.                                                       ==
-          ! ==--------------------------------------------------------------==
-    CALL invfftn_batch(wfn_g,wfn_r)
-#ifdef _USE_SCRATCHLIBRARY
-        CALL free_scratch(il_wfng,wfn_g,'wfn_g')
-#else
-    IF(.NOT.rsactive) THEN
-       DEALLOCATE(wfn_g,STAT=ierr)
-       IF(ierr/=0) CALL stopgm(procedureN,'cannot deallocate wfn_g', &
-            __LINE__,__FILE__)
-    END IF
+    ! 
+    IF(.NOT.rsactive) wfn_r1=>wfn_r(:,1)
+    methread=0
+    !$ locks_inv=.TRUE.
+    !$OMP parallel IF(nthreads.EQ.2) num_threads(2) &
+    !$omp private(methread,ibatch,bsize,offset_state,swap,count,is1,is2,ti_te) &
+    !$omp proc_bind(close)
+    !$ methread = omp_get_thread_num()
+    !$ IF (methread.EQ.1) THEN
+    !$    CALL dfftw_plan_with_nthreads(nested_threads)
+    !$    CALL omp_set_nested(.TRUE.)
+    !$    CALL omp_set_num_threads(nested_threads)
+#ifdef _INTEL_MKL
+    !$    CALL mkl_set_dynamic(0)
 #endif
-    il_wfnr1(1)=fpar%kr1*fpar%kr2s
-    il_wfnr1(2)=fft_batchsize
-    il_wfnr1(3)=fpar%kr3s
-    il_wfnr1(4)=fft_numbatches
-    IF (fft_residual .gt. 0) il_wfnr1(4)=fft_numbatches+1
+    !$ END IF
 
-    CALL reshape_inplace(wfn_r, (/il_wfnr1(1),il_wfnr1(2),il_wfnr1(3),il_wfnr1(4)/), wfn_r1)
-
-    first_state= part_1d_get_el_in_blk(1,nstate,parai%cp_inter_me,parai%cp_nogrp)
-    DO ibatch = 1,fft_numbatches +1
-       IF (fft_residual.EQ.0.AND.ibatch.GT.fft_numbatches ) CYCLE
-       bsize=fft_batchsize
-       IF (ibatch.GT.fft_numbatches) bsize=fft_residual
-
-       ! Compute the charge density from the wave functions
-       ! in real space
-       ! Decode fft batchs, setup (lsd) spin settings
-       ispin=1
-       offset=first_state-1+(ibatch-1)*fft_batchsize*2
-       DO ist=1,bsize
-          offset=offset+1
-          is1=offset
-          offset=offset+1
-          is2=offset
-          coef3(ist)=crge%f(is1,1)/parm%omega
-          IF(is2.GT.nstate) THEN
-             coef4(ist)=0.0_real_8
-          ELSE
-             coef4(ist)=crge%f(is2,1)/parm%omega
-          END IF
-          IF (cntl%tlsd) THEN
-             IF (is1.GT.spin_mod%nsup) THEN
-                ispin(1,ist)=2
+    !Loop over batches
+    DO ibatch=1,fft_numbatches+2
+       IF(methread.EQ.1.OR.nthreads.EQ.1)THEN
+          !process batches starting from ibatch .eq. 1 until ibatch .eq. fft_numbatches+1
+          IF(ibatch.LE.fft_numbatches+1)THEN
+             IF(ibatch.LE.fft_numbatches)THEN
+                bsize=fft_batchsize
+             ELSE
+                bsize=fft_residual
              END IF
-             IF (is2.GT.spin_mod%nsup) THEN
-                ispin(2,ist)=2
-             END IF
-          END IF
-          !two states per single fft
-       END DO
-       IF ( ibatch .LE. fft_numbatches) THEN
-          !$omp parallel do private(ir1,ist,IR)
-          DO ir1=1,fpar%kr3s
-             DO ist=1,bsize
-                DO ir=1,fpar%kr1*fpar%kr2s
-                   rhoe_p(ir,ir1,ispin(1,ist))=rhoe_p(ir,ir1,ispin(1,ist))&
-                        +coef3(ist)*REAL(wfn_r1(ir,ist,ir1,ibatch),KIND=real_8)**2
-                   rhoe_p(ir,ir1,ispin(2,ist))=rhoe_p(ir,ir1,ispin(2,ist))&
-                        +coef4(ist)*AIMAG(wfn_r1(ir,ist,ir1,ibatch))**2
-                ENDDO
-             END DO
-          END DO
-          !some extra loop in case of lse
-          IF (lspin2%tlse) THEN
-             !search for clsd%ialpha/ibeta
-             coef3=0.0_real_8
-             coef4=0.0_real_8
-             offset=first_state-1+(ibatch-1)*fft_batchsize*2
-             DO ist=1,bsize
-                is1=offset+ist
-                is2=offset+ist+1
-                IF (is1.EQ.clsd%ialpha.OR.is1.EQ.clsd%ibeta) THEN
-                   coef3(ist)=crge%f(is1,1)/parm%omega
-                ELSEIF (is2.EQ.clsd%ialpha.OR.is2.EQ.clsd%ibeta)THEN
-                   coef4(ist)=crge%f(is2,1)/parm%omega
-                END IF
-                IF (is1.EQ.clsd%ialpha) ispin(1,ist)=2
-                IF (is1.EQ.clsd%ibeta)  ispin(1,ist)=3
-                IF (is2.EQ.clsd%ialpha) ispin(2,ist)=2
-                IF (is2.EQ.clsd%ibeta)  ispin(2,ist)=3
-             END DO
-             !
-             IF (SUM(coef3).GT.0.0_real_8.OR.SUM(coef4).GT.0.0_real_8) THEN
-                !$omp parallel do private(ir1,ist,ir)
-                DO ir1=1,fpar%kr3s
-                   DO ist=1,bsize
-                      IF (coef3(ist).EQ.0.0_real_8.AND.coef4(ist).EQ.0.0_real_8) CYCLE
-                      DO ir=1,fpar%kr1*fpar%kr2s
-                         rhoe_p(ir,ir1,ispin(1,ist))=rhoe_p(ir,ir1,ispin(1,ist))&
-                              +coef3(ist)*REAL(wfn_r1(ir,ist,ir1,ibatch),KIND=real_8)**2
-                         rhoe_p(ir,ir1,ispin(2,ist))=rhoe_p(ir,ir1,ispin(2,ist))&
-                              +coef4(ist)*AIMAG(wfn_r1(ir,ist,ir1,ibatch))**2
-                      ENDDO
-                   END DO
-                END DO
-             END IF
-          END IF
-       ELSE
-          !handle the remaining states
-          il_wfnr1(1)=fpar%kr1*fpar%kr2s
-          il_wfnr1(2)=fft_batchsize*fpar%kr3s
-          il_wfnr1(3)=fft_numbatches+1
-          il_wfnr1(4)=1
-          CALL reshape_inplace(wfn_r, (/il_wfnr1(1),il_wfnr1(2),il_wfnr1(3),il_wfnr1(4)/), wfn_r1)
-          !$omp parallel do private(ir1,ist,IR)
-          DO ir1=1,fpar%kr3s
-             DO ist=1,bsize
-                DO ir=1,fpar%kr1*fpar%kr2s
-                   rhoe_p(ir,ir1,ispin(1,ist))=rhoe_p(ir,ir1,ispin(1,ist))&
-                        +coef3(ist)*REAL(wfn_r1(ir,ist+(ir1-1)*bsize,ibatch,1),KIND=real_8)**2
-                   rhoe_p(ir,ir1,ispin(2,ist))=rhoe_p(ir,ir1,ispin(2,ist))&
-                        +coef4(ist)*AIMAG(wfn_r1(ir,ist+(ir1-1)*bsize,ibatch,1))**2
-                ENDDO
-             END DO
-          END DO
-          IF (lspin2%tlse) THEN
-             !search for clsd%ialpha/ibeta
-             coef3=0.0_real_8
-             coef4=0.0_real_8
-             offset=first_state-1+(ibatch-1)*fft_batchsize*2
-             DO ist=1,bsize
-                is1=offset+ist
-                is2=offset+ist+1
-                IF (is1.EQ.clsd%ialpha.OR.is1.EQ.clsd%ibeta) THEN
-                   coef3(ist)=crge%f(is1,1)/parm%omega
-                ELSEIF (is2.EQ.clsd%ialpha.OR.is2.EQ.clsd%ibeta)THEN
-                   coef4(ist)=crge%f(is2,1)/parm%omega
-                END IF
-                IF (is1.EQ.clsd%ialpha) ispin(1,ist)=2
-                IF (is1.EQ.clsd%ibeta)  ispin(1,ist)=3
-                IF (is2.EQ.clsd%ialpha) ispin(2,ist)=2
-                IF (is2.EQ.clsd%ibeta)  ispin(2,ist)=3
-             END DO
-             IF (SUM(coef3).GT.0.0_real_8.OR.SUM(coef4).GT.0.0_real_8) THEN
-                !$omp parallel do private(ir1,ist,ir)
-                DO ir1=1,fpar%kr3s
-                   DO ist=1,bsize
-                      IF (coef3(ist).EQ.0.0_real_8.AND.coef4(ist).EQ.0.0_real_8) CYCLE
-                      DO ir=1,fpar%kr1*fpar%kr2s
-                         rhoe_p(ir,ir1,ispin(1,ist))=&
-                              rhoe_p(ir,ir1,ispin(1,ist))&
-                              +coef3(ist)&
-                              *REAL(wfn_r1(ir,ist+(ir1-1)*bsize,ibatch,1),KIND=real_8)**2
-                         rhoe_p(ir,ir1,ispin(1,ist))=&
-                              rhoe_p(ir,ir1,ispin(1,ist))&
-                              +coef4(ist)*AIMAG(wfn_r1(ir,ist+(ir1-1)*bsize,ibatch,1))**2
-                      ENDDO
-                   END DO
-                END DO
+             IF(bsize.NE.0)THEN
+                ! Loop over the electronic states of this batch
+                ti_te=m_walltime()
+                CALL set_psi_batch_g(c0,wfn_g,il_wfng(1),i_start1,bsize,nstate,me_grp,n_grp)
+                ti(1)=ti(1)+m_walltime()-ti_te
+                ! ==--------------------------------------------------------------==
+                ! ==  Fourier transform the wave functions to real space.         ==
+                ! ==  In the array PSI was used also the fact that the wave       ==
+                ! ==  functions at Gamma are real, to form a complex array (PSI)  ==
+                ! ==  with the wave functions corresponding to two different      ==
+                ! ==  states (i and i+1) as the real and imaginary part. This     ==
+                ! ==  allows to call the FFT routine 1/2 of the times and save    ==
+                ! ==  time.                                                       ==
+                ! ==  Here we operate on a batch of states, containing 2*bsize    ==
+                ! ==  states. To achive better overlapping of the communication   ==
+                ! ==  and communication phase, we operate on two batches at once  ==
+                ! ==  ist revers to the current batch (rsactive) or is identical  ==
+                ! ==  to swap                                                     ==
+                ! ==--------------------------------------------------------------==
+                swap=mod(ibatch,int_mod)+1
+                ti_te=m_walltime()
+                CALL invfftn_batch(wfn_g,bsize,swap,1,ibatch)
+                ti(2)=ti(2)+m_walltime()-ti_te
+                i_start1=i_start1+bsize*2
              END IF
           END IF
        END IF
-    ENDDO                     ! End loop over the electronic states
+       IF(methread.EQ.0.OR.nthreads.EQ.1)THEN
+          !process batches starting from ibatch .eq. 1 until ibatch .eq. fft_numbatches+1
+          !communication phase
+          IF(ibatch.LE.fft_numbatches+1)THEN
+             IF(ibatch.LE.fft_numbatches)THEN
+                bsize=fft_batchsize
+             ELSE
+                bsize=fft_residual
+             END IF
+             IF(bsize.NE.0)THEN
+                swap=mod(ibatch,int_mod)+1
+                ti_te=m_walltime()
+                CALL invfftn_batch(wfn_r,bsize,swap,2,ibatch)
+                ti(3)=ti(3)+m_walltime()-ti_te
+             END IF
+          END IF
+       END IF
+       IF (methread.EQ.1.OR.nthreads.EQ.1)THEN
+          !process batches starting from ibatch .eq. 2 until ibatch .eq. fft_numbatches+2
+          IF(ibatch.GT.start_loop.AND.ibatch.LE.end_loop)THEN
+             IF (ibatch-start_loop.LE.fft_numbatches)THEN
+                bsize=fft_batchsize
+             ELSE
+                bsize=fft_residual
+             END IF
+             IF(bsize.NE.0)THEN
+                swap=mod(ibatch-start_loop,int_mod)+1
+                IF(rsactive) wfn_r1=>wfn_r(:,ibatch-start_loop)
+                ti_te=m_walltime()
+                CALL invfftn_batch(wfn_r1,bsize,swap,3,ibatch-start_loop)
+                ti(4)=ti(4)+m_walltime()-ti_te
+                ! Compute the charge density from the wave functions
+                ! in real space
+                ! Decode fft batch, setup (lsd) spin settings                     
+                offset_state=i_start2
+                ispin=1
+                DO count=1,bsize
+                   is1=offset_state+1
+                   is2=offset_state+2
+                   offset_state=offset_state+2
+                   IF (cntl%tlsd) THEN
+                      IF (is1.GT.spin_mod%nsup) THEN
+                         ispin(1,count)=2
+                      END IF
+                      IF (is2.GT.spin_mod%nsup) THEN
+                         ispin(2,count)=2
+                      END IF
+                   END IF
+                   coef3(count)=crge%f(is1,1)*inv_omega
+                   IF(is2.GT.nstate) THEN
+                      coef4(count)=0.0_real_8
+                   ELSE
+                      coef4(count)=crge%f(is2,1)*inv_omega
+                   END IF
+                END DO
+                ti_te=m_walltime()
+                CALL build_density_sum_batch(coef3,coef4,wfn_r1,rhoe_p,&
+                     fpar%kr1*fpar%kr2s,bsize,fpar%kr3s,ispin,clsd%nlsd)
+                ti(5)=ti(5)+m_walltime()-ti_te
+                !some extra loop in case of lse
+                IF (lspin2%tlse) THEN
+                   ispin=1
+                   !search for clsd%ialpha/ibeta
+                   coef3=0.0_real_8
+                   coef4=0.0_real_8
+                   offset_state=i_start2
+                   DO count=1,bsize
+                      is1=offset_state+1
+                      is2=offset_state+2
+                      offset_state=offset_state+2
+                      IF (is1.EQ.clsd%ialpha.OR.is1.EQ.clsd%ibeta) THEN
+                         coef3(count)=crge%f(is1,1)/parm%omega
+                      END IF
+                      IF (is2.EQ.clsd%ialpha.OR.is2.EQ.clsd%ibeta)THEN
+                         coef4(count)=crge%f(is2,1)/parm%omega
+                      END IF
+                      IF (is1.EQ.clsd%ialpha) ispin(1,count)=2
+                      IF (is1.EQ.clsd%ibeta)  ispin(1,count)=3
+                      IF (is2.EQ.clsd%ialpha) ispin(2,count)=2
+                      IF (is2.EQ.clsd%ibeta)  ispin(2,count)=3
+                   END DO
+                   !
+                   IF (SUM(coef3).GT.0.0_real_8.OR.SUM(coef4).GT.0.0_real_8) THEN
+                      CALL build_density_sum_batch(coef3,coef4,wfn_r1,rhoe_p,&
+                           fpar%kr1*fpar%kr2s,bsize,fpar%kr3s,ispin,clsd%nlsd)
+                   END IF
+                END IF
+                i_start2=i_start2+bsize*2
+             END IF
+          END IF
+       END IF
+    END DO                     ! End loop over the electronic states
+
+    !    IF(methread.EQ.0.AND.nthreads.EQ.2)THEN
+    !       !process batches starting from ibatch .eq. 1 until ibatch .eq. fft_numbatches+1
+    !       !communication phase
+    !       CALL invfftn_batch_com(2)
+    !    END IF
+
+    !$ IF (methread.EQ.1) THEN
+    !$    CALL omp_set_num_threads(parai%ncpus)
+#ifdef _INTEL_MKL
+    !$    CALL mkl_set_dynamic(1)
+#endif
+    !$    CALL dfftw_plan_with_nthreads(parai%ncpus)
+    !$    CALL omp_set_nested(.FALSE.)
+    !$ END IF
+
+    !$omp end parallel
+    if(paral%io_parent) write(6,'(1X,5E12.5,A)') ti(1:5),'f'
 
     ! ==--------------------------------------------------------------==
     ! redistribute RHOE over the groups if needed
@@ -1023,6 +1071,9 @@ CONTAINS
        CALL cp_grp_redist(rhoe,fpar%nnr1,clsd%nlsd)
        CALL tihalt(procedureN//'_grps_b',isub3)
     ENDIF
+    CALL free_scratch(il_xf,yf,procedureN//'_yf')
+    CALL free_scratch(il_xf,xf,procedureN//'_xf')
+    CALL free_scratch(il_wfng,wfn_g,'wfn_g')
     IF(.NOT.rsactive) THEN
 #ifdef _USE_SCRATCHLIBRARY
        CALL free_scratch(il_wfnr,wfn_r,'wfn_r')
@@ -1032,9 +1083,13 @@ CONTAINS
             __LINE__,__FILE__)
 #endif
     END IF
+
+    !$ DEALLOCATE(locks_inv,STAT=ierr)
+    !$ IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+    !$      __LINE__,__FILE__)
+
     ! MOVE DENSITY ACCORDING TO MOVEMENT OF ATOMS
     IF (ropt_mod%modens) CALL moverho(rhoe,psi)
-    ! CONTRIBUTION OF THE VANDERBILT PP TO RHOE
     ! CONTRIBUTION OF THE VANDERBILT PP TO RHOE
     IF (pslo_com%tivan) THEN
        IF (cntl%tlsd) THEN
@@ -1197,5 +1252,15 @@ CONTAINS
     RETURN
   END SUBROUTINE rhoofr_batchfft
 
+  SUBROUTINE copy(in,out)
+    COMPLEX(real_8), INTENT(IN)              :: in(:)
+    COMPLEX(real_8), INTENT(OUT)             :: out(:)
+
+    !$omp parallel 
+    !$omp workshare
+    out=in
+    !$omp end workshare
+    !$omp end parallel
+  END SUBROUTINE copy
 
 END MODULE rhoofr_utils

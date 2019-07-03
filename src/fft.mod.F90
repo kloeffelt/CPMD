@@ -81,5 +81,6 @@ MODULE fft
 #else
   COMPLEX(real_8), ALLOCATABLE, SAVE       :: wfn_r(:,:),wfn_g(:,:)
 #endif
+  !$ LOGICAL, ALLOCATABLE                     :: locks_inv(:,:), locks_fw(:,:)
 END MODULE fft
 
