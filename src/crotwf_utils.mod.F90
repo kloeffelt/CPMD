@@ -3,7 +3,8 @@
 MODULE crotwf_utils
   USE cp_grp_utils,                    ONLY: cp_grp_get_sizes
   USE error_handling,                  ONLY: stopgm
-  USE kinds,                           ONLY: real_8
+  USE kinds,                           ONLY: real_8,&
+                                             int_8
   USE mp_interface,                    ONLY: mp_bcast,&
                                              mp_sum
   USE parac,                           ONLY: parai,&
@@ -14,10 +15,12 @@ MODULE crotwf_utils
                                              nort_com
   USE rotate_utils,                    ONLY: rotate
   USE spin,                            ONLY: spin_mod
+  USE summat_utils,                    ONLY: summat
   USE system,                          ONLY: cntl,&
                                              ncpw
   USE utils,                           ONLY: dsyevx_driver,&
-                                             dsyevd_driver
+                                             dsyevd_driver,&
+                                             elpa_driver
   USE timer,                           ONLY: tihalt,&
                                              tiset
   USE zeroing_utils,                   ONLY: zeroing
@@ -29,11 +32,8 @@ MODULE crotwf_utils
   IMPLICIT NONE
 
   PRIVATE
-
   PUBLIC :: crotwf
-
 CONTAINS
-
   ! ==================================================================
   SUBROUTINE crotwf(c0,cm,c2,sc0,nstate,gam,use_cp_grps)
     ! ==--------------------------------------------------------------==
@@ -48,8 +48,8 @@ CONTAINS
     CHARACTER(*), PARAMETER                  :: procedureN = 'crotwf'
 
     INTEGER                                  :: i, ierr, j, isub, &
-                                                il_eigval(1), il_temp(2), &
                                                 ibeg, iend, ig
+    INTEGER(int_8)                           :: il_eigval(1), il_temp(2)
 #ifdef _USE_SCRATCHLIBRARY
     REAL(real_8), POINTER __CONTIGUOUS       :: eigval(:),temp(:,:),temp1(:,:)
 #else
@@ -209,28 +209,33 @@ CONTAINS
                                                 displ(0:parai%cp_nproc-1)
 
     iopt=21
-    IF(nopara) THEN
-       !parallelization using multiple dsyevx/r does not work =>
-       !fall back to dsyevd on root
-       IF(paral%io_parent) CALL dsyevd_driver(iopt,ovlap,eigval,nstate)
+    IF(cntl%use_elpa)THEN
+       CALL elpa_driver(ovlap,eigval,nstate)
        CALL mp_bcast(ovlap,nstate**2,parai%io_source,parai%cp_grp)
     ELSE
-       !we can distribute the eigenvalue problem by using multiple
-       !dsyevx/r instances
-       !Not very efficient parallelization though
-       !For numerical stability we should consider to serialize and broadcast the
-       !tridiagonilization step
-       recvcnt=-1
-       displ=0
-       DO i = 0,parai%cp_nproc-1
-          CALL part_1d_get_blk_bounds(nstate,i,parai%cp_nproc,chunks(1,i),chunks(2,i))
-          recvcnt(i)=(chunks(2,i)-chunks(1,i)+1)*nstate
-          IF (i.GT.0) displ(i)=displ(i-1)+recvcnt(i-1)
-       END DO
-       first=chunks(1,parai%cp_me)
-       last=chunks(2,parai%cp_me)
-       CALL dsyevx_driver(iopt,ovlap,gam,eigval,nstate,first,last,-1.0_real_8)
-       CALL my_concatv(gam,ovlap,(last-first+1)*nstate,recvcnt,displ,parai%cp_grp)
+       IF(nopara) THEN
+          !parallelization using multiple dsyevx/r does not work =>
+          !fall back to dsyevd on root
+          IF(paral%io_parent) CALL dsyevd_driver(iopt,ovlap,eigval,nstate)
+          CALL mp_bcast(ovlap,nstate**2,parai%io_source,parai%cp_grp)
+       ELSE
+          !we can distribute the eigenvalue problem by using multiple
+          !dsyevx/r instances
+          !Not very efficient parallelization though
+          !For numerical stability we should consider to serialize and broadcast the
+          !tridiagonilization step
+          recvcnt=-1
+          displ=0
+          DO i = 0,parai%cp_nproc-1
+             CALL part_1d_get_blk_bounds(nstate,i,parai%cp_nproc,chunks(1,i),chunks(2,i))
+             recvcnt(i)=(chunks(2,i)-chunks(1,i)+1)*nstate
+             IF (i.GT.0) displ(i)=displ(i-1)+recvcnt(i-1)
+          END DO
+          first=chunks(1,parai%cp_me)
+          last=chunks(2,parai%cp_me)
+          CALL dsyevx_driver(iopt,ovlap,gam,eigval,nstate,first,last,-1.0_real_8)
+          CALL my_concatv(gam,ovlap,(last-first+1)*nstate,recvcnt,displ,parai%cp_grp)
+       END IF
     END IF
   END SUBROUTINE solve_eigenvector
   ! ==================================================================

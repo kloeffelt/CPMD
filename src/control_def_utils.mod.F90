@@ -688,6 +688,10 @@ CONTAINS
     cnti%rnlsm_autotune_maxit=0
     !TK blockingfactor for new/rhov bigmem
     cnti%blocksize_uspp=1200
+    !TK use elpa
+    cntl%use_elpa=.FALSE.
+    cnti%elpa_num_proc=-1
+    cntl%use_elpa_autotune=.FALSE.
     RETURN
   END SUBROUTINE control_def
   ! ==================================================================

@@ -95,6 +95,11 @@
 #define _USE_SCRATCHLIBRARY
 #endif
 
+!gm elpa lib
+#if defined(__HAS_LIBELPA)
+#define _HAS_LIBELPA
+#endif
+
 !vw ------------------------------------------------------
 !vw CUDA 
 

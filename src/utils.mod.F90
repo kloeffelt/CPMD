@@ -11,7 +11,10 @@ MODULE utils
                                              real_8
   USE parac,                           ONLY: parai
   USE reshaper,                        ONLY: reshape_inplace
-  USE system,                          ONLY: parap
+  USE timer,                           ONLY: tiset,&
+                                             tihalt
+  USE system,                          ONLY: parap,&
+                                             cntl
   USE zeroing_utils,                   ONLY: zeroing
 #ifdef _USE_SCRATCHLIBRARY
   USE scratch_interface,               ONLY: request_scratch,&
@@ -32,6 +35,7 @@ MODULE utils
   PUBLIC :: numcpus
   PUBLIC :: invmat
   PUBLIC :: inversemat
+  PUBLIC :: elpa_driver
   PUBLIC :: dsyevd_driver
   PUBLIC :: dsyevx_driver
   PUBLIC :: dspevy
@@ -328,6 +332,122 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE inversemat
+  ! ==----------------------------------------------------------------==
+  SUBROUTINE elpa_driver(a,w,n)
+    ! ==--------------------------------------------------------------==
+    ! == PARALLEL ELPA EIGENVALUE SOLVER                              ==
+    ! == ASUMES GLOBALLY REPLICATED SYMMETRIC MATRIX A, UPPER AND     ==
+    ! == LOWER PART OF A MUST BE SET                                  ==
+    ! == RETURNS GLOBALLY REPLICATED EIGENVECTORS OF A IN A           ==
+    ! == CAN HANDLE TO SIZES (MAINLY FOR SPINUP AND DOWN)             ==
+    ! ==--------------------------------------------------------------==
+    ! Author: Tobias Kloeffel, Erlangen
+    ! Date August 2019
+#ifdef _HAS_LIBELPA
+    USE elpa
+    USE elpa_utils,                           ONLY: elpa_ob_create,&
+                                                    elpa_get_eigvect,&
+                                                    elpa_set_mat,&
+                                                    elpa_autotune
+    IMPLICIT NONE
+#endif
+    INTEGER,INTENT(IN)                       :: n
+    REAL(real_8),INTENT(INOUT) __CONTIGUOUS  :: w(:), a(:,:)
+#ifdef _HAS_LIBELPA
+    INTEGER                                  :: i, j, id, success, isub,&
+                                                il_aux(2), il_c(2)
+    LOGICAL                                  :: create
+#ifdef _USE_SCRATCHLIBRARY
+    REAL(real_8), POINTER __CONTIGUOUS       :: aux(:,:), c(:,:)
+#else
+    REAL(real_8), ALLOCATABLE                :: aux(:,:), c(:,:)
+#endif
+    CLASS(ELPA_T),SAVE,POINTER               :: el1, el2
+    INTEGER, SAVE, ALLOCATABLE               :: idx1(:,:,:), idx2(:,:,:)
+    INTEGER, SAVE                            :: na_row(2)=0, na_col(2)=0, n_loc(2)=0
+#endif
+    CHARACTER(*),PARAMETER                   :: procedureN='elpa_driver'
+#ifdef _HAS_LIBELPA
+    LOGICAL, SAVE                            :: autotune1_done=.FALSE., autotune2_done=.FALSE.
+    create=.FALSE.
+    IF(n_loc(1).EQ.0)THEN
+       id=1
+       create=.TRUE.
+    ELSE IF(n.EQ.n_loc(1))THEN
+       id=1
+    ELSE IF(n_loc(2).EQ.0) THEN
+       id=2
+       create=.TRUE.
+    ELSE IF(n.EQ.n_loc(2))THEN
+       id=2
+    ELSE
+       CALL stopgm(procedureN,'problem with ELPA driver', &
+            __LINE__,__FILE__)
+    END IF
+    n_loc(id)=n
+    IF(create)THEN
+       IF(id.EQ.1)THEN
+          CALL elpa_ob_create(n_loc(id),el1,idx1,na_row(id),na_col(id))
+       ELSEIF(id.EQ.2)THEN
+          CALL elpa_ob_create(n_loc(id),el2,idx2,na_row(id),na_col(id))
+       ELSE
+          CALL stopgm(procedureN,'problem with ELPA driver', &
+               __LINE__,__FILE__)
+       END IF
+    END IF
+    IF(na_row(id).GT.0)THEN
+       il_c(1)=na_row(id)
+       il_c(2)=na_col(id)
+       il_aux=il_c
+#ifdef _USE_SCRATCHLIBRARY
+       CALL request_scratch(il_c,c,procedureN//'_c')
+       CALL request_scratch(il_aux,aux,procedureN//'_aux')
+#else
+       ALLOCATE(c(il_c(1),il_c(2)),aux(il_aux(1),il_aux(2)),STAT=ierr)
+       IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+            __LINE__,__FILE__)
+#endif
+       IF(id.EQ.1)THEN
+          CALL elpa_set_mat(a,c,idx1,na_col(id),na_row(id))
+          IF(cntl%use_elpa_autotune.AND..NOT.autotune1_done) THEN
+             call tiset(procedureN//'_autotune',isub)
+             call elpa_autotune(c,w,aux,el1)
+             call tihalt(procedureN//'_autotune',isub)
+             autotune1_done=.TRUE.
+          END IF
+          CALL el1%eigenvectors(c, w, aux, success)
+          CALL elpa_get_eigvect(aux,a,idx1,na_col(id),na_row(id))
+       ELSEIF(id.EQ.2)THEN
+          CALL elpa_set_mat(a,c,idx2,na_col(id),na_row(id))
+          IF(cntl%use_elpa_autotune.AND..NOT.autotune2_done) THEN
+             call tiset(procedureN//'_autotune',isub)
+             call elpa_autotune(c,w,aux,el1)
+             call tihalt(procedureN//'_autotune',isub)
+             autotune2_done=.TRUE.
+          END IF
+          CALL el2%eigenvectors(c, w, aux, success)
+          CALL elpa_get_eigvect(aux,a,idx2,na_col(id),na_row(id))
+       ELSE
+          CALL stopgm(procedureN,'problem with ELPA driver', &
+               __LINE__,__FILE__)
+       END IF
+       IF(success.NE.0) CALL stopgm(procedureN,'ELPA: diagonalization failed', &
+            __LINE__,__FILE__)
+
+#ifdef _USE_SCRATCHLIBRARY
+       CALL free_scratch(il_aux,aux,procedureN//'_aux')
+       CALL free_scratch(il_c,c,procedureN//'_c')
+#else
+       DEALLOCATE(c1,aux,STAT=ierr)
+       IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+            __LINE__,__FILE__)
+#endif
+    ENDIF
+#else
+    CALL stopgm(procedureN,'ELPA not installed', &
+         __LINE__,__FILE__)
+#endif
+  END SUBROUTINE elpa_driver
   ! ==================================================================
   SUBROUTINE dsyevd_driver(iopt,a,w,n)
     ! ==--------------------------------------------------------------==

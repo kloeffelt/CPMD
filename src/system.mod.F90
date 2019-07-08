@@ -565,6 +565,8 @@ MODULE system
      LOGICAL :: use_scaled_hfx = .FALSE.
      LOGICAL :: overlapp_comm_comp = .FALSE.
      LOGICAL :: distribute_fnl_rot = .FALSE.
+     LOGICAL :: use_elpa = .FALSE.
+     LOGICAL :: use_elpa_autotune = .FALSE.
   END TYPE cntl_t
   TYPE(cntl_t), SAVE, PUBLIC :: cntl
   ! ==================================================================
@@ -681,6 +683,7 @@ MODULE system
      INTEGER :: rnlsm_autotune_maxit = HUGE(0)
      INTEGER :: disortho_bsize = HUGE(0)
      INTEGER :: blocksize_uspp = HUGE(0)
+     INTEGER :: elpa_num_proc = HUGE(0)
   END TYPE cnti_t
   TYPE(cnti_t), SAVE, PUBLIC :: cnti
   ! ==================================================================

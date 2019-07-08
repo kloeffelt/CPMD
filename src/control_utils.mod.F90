@@ -394,6 +394,9 @@ CONTAINS
     ! ==    DISTRIBUTE FNL [ON,OFF]                                   ==
     ! ==    DISTRIBUTE FNL ROT [ON,OFF]                               ==
     ! ==    USE_OVERLAPPING_COMM_COMP                                 ==
+    ! ==    USE_ELPA [ON,OFF]                                         ==
+    ! ==      nproc_elpa                                              ==
+    ! ==    USE_ELPA_AUTOTUNING [ON,OFF]                              ==
     ! ==    RNLSM1_BLOCKCOUT                                          ==
     ! ==    rnlsm1_bc                                                 ==
     ! ==    RNLSM1_BLOCKSIZE1                                         ==
@@ -3661,8 +3664,30 @@ CONTAINS
                    something_went_wrong = .true.
                    go_on_reading        = .false.
                 ENDIF
+             ELSEIF ( keyword_contains(line,'USE_ELPA') ) THEN
+                IF ( keyword_contains(line,'OFF') ) THEN
+                   cntl%use_elpa=.FALSE.
+#ifdef _HAS_LIBELPA
+                ELSE
+                   cntl%use_elpa=.TRUE.
+#endif
+                ENDIF
+                IF(cntl%use_elpa)THEN
+                   READ(iunit,'(A)',iostat=ierr) line
+                   CALL readsi(line,1,last,cnti%elpa_num_proc,erread)
+                END IF
+             ELSEIF ( keyword_contains(line,'USE_ELPA_AUTOTUNE') ) THEN
+                IF ( keyword_contains(line,'OFF') ) THEN
+                   cntl%use_elpa_autotune=.FALSE.
+                ELSE
+                   cntl%use_elpa_autotune=.TRUE.
+                ENDIF
              ELSEIF ( keyword_contains(line,'USE_BATCHFFT') ) THEN
-                batch_fft=.TRUE.
+                IF ( keyword_contains(line,'OFF') ) THEN
+                   batch_fft=.FALSE.
+                ELSE
+                   batch_fft=.TRUE.
+                ENDIF
              ELSEIF ( keyword_contains(line,'ALL2ALL_BATCHSIZE') ) THEN
                 READ(iunit,'(A)',iostat=ierr) line
                 CALL readsi(line,1,last,a2a_msgsize,erread)
