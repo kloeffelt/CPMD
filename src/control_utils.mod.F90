@@ -393,7 +393,7 @@ CONTAINS
     ! ==      nogrp                                                   ==
     ! ==    DISTRIBUTE FNL [ON,OFF]                                   ==
     ! ==    DISTRIBUTE FNL ROT [ON,OFF]                               ==
-    ! ==    USE_OVERLAPPING_COMM_COMP                                 ==
+    ! ==    USE_OVERLAPPING_COMM_COMP [ON,OFF]                        ==
     ! ==    USE_ELPA [ON,OFF]                                         ==
     ! ==      nproc_elpa                                              ==
     ! ==    USE_ELPA_AUTOTUNING [ON,OFF]                              ==
@@ -3655,7 +3655,11 @@ CONTAINS
                    cntr%memsize=-1._real_8
                 ENDIF
              ELSEIF ( keyword_contains(line,'USE_OVERLAPPING_COMM_COMP') ) THEN
-                cntl%overlapp_comm_comp=.TRUE.
+                IF ( keyword_contains(line,'OFF') ) THEN
+                   cntl%overlapp_comm_comp=.FALSE.
+                ELSE
+                   cntl%overlapp_comm_comp=.TRUE.
+                ENDIF
              ELSEIF ( keyword_contains(line,'BLOCKSIZE_USPP') ) THEN
                 READ(iunit,'(A)',iostat=ierr) line
                 CALL readsi(line,1,last,cnti%blocksize_uspp,erread)
