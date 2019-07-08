@@ -1,5 +1,6 @@
 MODULE timer
   USE envj,                            ONLY: tjlimit
+  USE benc,                            ONLY: ibench
   USE kinds,                           ONLY: int_1,&
                                              int_2,&
                                              int_4,&
@@ -338,6 +339,9 @@ CONTAINS
        ENDDO
        IF (j.EQ.1) THEN
           cpthrs=cpmax/1000._real_8
+          IF(ibench(2).eq.1) THEN
+              cpthrs=0._real_8
+          ENDIF
        ENDIF
        IF (cpmax.LT.cpthrs) THEN
           GOTO 100
