@@ -17,7 +17,8 @@ MODULE rhov_utils
   USE geq0mod,                         ONLY: geq0
   USE ions,                            ONLY: ions0,&
                                              ions1
-  USE kinds,                           ONLY: real_8
+  USE kinds,                           ONLY: real_8,&
+                                             int_8
   USE mp_interface,                    ONLY: mp_sum
   USE nlps,                            ONLY: imagp,&
                                              nlps_com
@@ -71,7 +72,8 @@ CONTAINS
     INTEGER                                  :: ig, isub, isub1, ig_start, nhg_loc, &
                                                 na(2,ions1%nsp), nst(2,0:parai%nproc-1), &
                                                 na_grp(2,ions1%nsp,0:parai%cp_nogrp-1), &
-                                                il_deltar(1), ierr
+                                                ierr
+    INTEGER(int_8)                           :: il_deltar(1)
 #ifdef _USE_SCRATCHLIBRARY
     COMPLEX(real_8), POINTER __CONTIGUOUS    :: deltar(:)
 #else
@@ -152,9 +154,8 @@ CONTAINS
     REAL(real_8),INTENT(IN)                  :: fnl_p(il_fnl_packed(1),*)
 
     INTEGER                                  :: is, isa0, nhh0, offset_fnl0, nhh, num_orb, &
-                                                blocksize, blocks, last_block, ig, &
-                                                il_dia(1), il_ctmp(2), il_fnlt(3), &
-                                                ierr
+                                                blocksize, blocks, last_block, ig, ierr
+    INTEGER(int_8)                           :: il_dia(1), il_ctmp(2), il_fnlt(3)
 #ifdef _USE_SCRATCHLIBRARY
     REAL(real_8), POINTER __CONTIGUOUS       :: dia(:), fnlt(:,:,:)
     COMPLEX(real_8), POINTER __CONTIGUOUS    :: ctmp(:,:)

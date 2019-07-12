@@ -11,7 +11,9 @@ MODULE rnlsm2_utils
                                              sort_dfnl
   USE ions,                            ONLY: ions0,&
                                              ions1
-  USE kinds,                           ONLY: real_8
+  USE kinds,                           ONLY: real_8,&
+                                             int_8,&
+                                             int_4
   USE kpnt,                            ONLY: eigkr,&
                                              rk
   USE kpts,                            ONLY: tkpts
@@ -90,10 +92,10 @@ CONTAINS
                                                 methread, nthreads, nested_threads, &
                                                 tot_work, start_dai, ld_dai, end_dai, &
                                                 na_grp(2,ions1%nsp,0:parai%cp_nogrp-1), &
-                                                il_gktemp(2),il_eiscr(2),na(2,ions1%nsp),&
-                                                il_t(1),il_dai(1),ia_sum,start_ia,end_ia,&
-                                                buffcount, buff,igeq0,&
-                                                ld_buffer(maxbuff), start_buffer(maxbuff)
+                                                na(2,ions1%nsp), ia_sum,start_ia,end_ia,&
+                                                buffcount, buff, igeq0, ld_buffer(maxbuff),&
+                                                start_buffer(maxbuff)
+    INTEGER(int_8)                           :: il_gktemp(2), il_eiscr(2), il_t(1), il_dai(1)
     INTEGER,ALLOCATABLE                      :: na_buff(:,:,:)
     REAL(real_8),POINTER __CONTIGUOUS        :: dai(:)
 #ifdef _USE_SCRATCHLIBRARY
@@ -144,7 +146,7 @@ CONTAINS
             __LINE__,__FILE__)
 #endif
     ELSE
-       CALL reshape_inplace(dfnl_packed, (/il_dai(1)/), dai)
+       CALL reshape_inplace(dfnl_packed, (/INT(il_dai(1),kind=int_4)/), dai)
     END IF
 #ifdef _USE_SCRATCHLIBRARY
     CALL request_scratch(il_eiscr,eiscr,procedureN//'_eiscr')
@@ -322,7 +324,7 @@ CONTAINS
              autotune_it=autotune_it+1
              IF(paral%parent)THEN
                 CALL tune_rnlsm(cnti%rnlsm2_bc,cntr%rnlsm2_b1,&
-                     cntr%rnlsm2_b2,timings,il_dfnl_packed(1),nstate)
+                     cntr%rnlsm2_b2,timings,INT(il_dfnl_packed(1),KIND=int_4),nstate)
                 WRITE(6,*) "####rnlsm2_autotuning results####"
                 WRITE(6,*) cnti%rnlsm2_bc
                 WRITE(6,*) cntr%rnlsm2_b1

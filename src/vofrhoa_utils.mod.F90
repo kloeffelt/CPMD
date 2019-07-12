@@ -9,7 +9,8 @@ MODULE vofrhoa_utils
   USE error_handling,                  ONLY: stopgm
   USE fftmain_utils,                   ONLY: fwfftn
   USE htrstr_utils,                    ONLY: htrstr
-  USE kinds,                           ONLY: real_8
+  USE kinds,                           ONLY: real_8,&
+                                             int_8
   USE mp_interface,                    ONLY: mp_sum
   USE nvtx_utils
   USE parac,                           ONLY: parai
@@ -66,8 +67,8 @@ CONTAINS
 #else
     COMPLEX(real_8), ALLOCATABLE             :: eirop(:), eivps(:)
 #endif
-    INTEGER                                  :: ierr, isub, nnrs ,il_eirop(1), &
-                                                il_eivps(1)
+    INTEGER                                  :: ierr, isub, nnrs
+    INTEGER(int_8)                           :: il_eivps(1), il_eirop(1)
     REAL(real_8)                             :: ehs
 
 ! Variables

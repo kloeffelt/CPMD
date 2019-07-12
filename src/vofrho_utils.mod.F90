@@ -5,7 +5,8 @@ MODULE vofrho_utils
   USE forcep_utils,                    ONLY: rhoe_psi_size
   USE isos,                            ONLY: isos1,&
                                              isos3
-  USE kinds,                           ONLY: real_8
+  USE kinds,                           ONLY: real_8,&
+                                             int_8
   USE poin,                            ONLY: potr
   USE spin,                            ONLY: clsd,&
                                              lspin2
@@ -60,8 +61,8 @@ CONTAINS
 #else
     COMPLEX(real_8), ALLOCATABLE             :: vtemp(:,:)
 #endif
-    INTEGER                                  :: ierr, il_rhoe_1d, il_rhoe_2d, &
-                                                isub, il_vtemp(2)
+    INTEGER                                  :: ierr, isub, il_rhoe_1d, il_rhoe_2d
+    INTEGER(int_8)                           :: il_vtemp(2)
 
     CALL tiset(procedureN,isub)
     il_vtemp(1)=ncpw%nhg

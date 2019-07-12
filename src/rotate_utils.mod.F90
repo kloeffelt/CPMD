@@ -5,7 +5,9 @@ MODULE rotate_utils
                                              cp_grp_redist_array_f
   USE distribution_utils,              ONLY: dist_entity
   USE error_handling,                  ONLY: stopgm
-  USE kinds,                           ONLY: real_8
+  USE kinds,                           ONLY: real_8,&
+                                             int_8,&
+                                             int_4
   USE mp_interface,                    ONLY: mp_win_alloc_shared_mem,&
                                              mp_win_sync,&
                                              mp_sync
@@ -265,12 +267,12 @@ CONTAINS
     LOGICAL,INTENT(IN)                       :: redist
     CHARACTER(*), PARAMETER                  :: procedureN = 'rotate_c0_fnl'
 
-    INTEGER                                  :: isub, loc_work, start_work,&
-                                                proc, nmin, nchunk, &
-                                                nmin_2,nchunk_2,&
+    INTEGER                                  :: isub, loc_work, start_work, ierr,&
+                                                proc, nmin, nchunk, ibeg_c0, &
+                                                nmin_2, nchunk_2, ngw_local, &
                                                 work_proc(2,0:parai%nproc-1),&
-                                                methread, nthreads, nested_threads, &
-                                                il_temp(3), ierr, ngw_local, ibeg_c0
+                                                methread, nthreads, nested_threads, nbmax
+    INTEGER(int_8)                           :: il_temp(3)
 #ifdef _USE_SCRATCHLIBRARY
     REAL(real_8), POINTER __CONTIGUOUS       :: temp(:,:,:)
 #else
@@ -291,8 +293,9 @@ CONTAINS
     ENDIF
     !end spin settings
     !get local fnl chunk
-    CALL dist_entity(ldf,parai%nproc,work_proc,nbmax=il_temp(1),nblocal=loc_work,&
+    CALL dist_entity(ldf,parai%nproc,work_proc,nbmax=nbmax,nblocal=loc_work,&
          iloc=parai%me)
+    il_temp(1)=INT(nbmax,kind=int_8)
     start_work=work_proc(1,parai%me)
     !end local fnl chunk
     !allocate fnlgam buffer
@@ -308,11 +311,11 @@ CONTAINS
 #endif
     CALL dsymm('R','U',loc_work,nchunk,1.0_real_8,&
          gam(nmin,nmin),nstate,fnl_p(start_work,nmin),ldf,&
-         0.0_real_8,temp(1,nmin,proc),il_temp(1))
+         0.0_real_8,temp(1,nmin,proc),INT(il_temp(1),kind=int_4))
     IF(cntl%tlsd)THEN
        CALL dsymm('R','U',loc_work,nchunk_2,1.0_real_8,&
             gam(nmin_2,nmin_2),nstate,fnl_p(start_work,nmin_2),ldf,&
-            0.0_real_8,temp(1,nmin_2,proc),il_temp(1))
+            0.0_real_8,temp(1,nmin_2,proc),INT(il_temp(1),kind=int_4))
     END IF
     IF(cntl%overlapp_comm_comp)THEN
        nthreads=MIN(2,parai%ncpus)
@@ -388,12 +391,12 @@ CONTAINS
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'rottr_c0_fnl'
 
-    INTEGER                                  :: isub, loc_work, start_work,&
-                                                proc, nmin, nchunk, &
-                                                nmin_2,nchunk_2,&
+    INTEGER                                  :: isub, loc_work, start_work, ierr,&
+                                                proc, nmin, nchunk, ibeg_c0, &
+                                                nmin_2, nchunk_2, ngw_local, &
                                                 work_proc(2,0:parai%nproc-1),&
-                                                methread, nthreads, nested_threads, &
-                                                il_temp(3), ierr, ngw_local, ibeg_c0
+                                                methread, nthreads, nested_threads, nbmax
+    INTEGER(int_8)                           :: il_temp(3)
 #ifdef _USE_SCRATCHLIBRARY
     REAL(real_8), POINTER __CONTIGUOUS       :: temp(:,:,:)
 #else
@@ -415,8 +418,9 @@ CONTAINS
     ENDIF
     !end spin settings
     !get local fnl chunk
-    CALL dist_entity(ldf,parai%nproc,work_proc,nbmax=il_temp(1),nblocal=loc_work,&
+    CALL dist_entity(ldf,parai%nproc,work_proc,nbmax=nbmax,nblocal=loc_work,&
          iloc=parai%me)
+    il_temp(1)=INT(nbmax,KIND=int_4)
     start_work=work_proc(1,parai%me)
     !end local fnl chunk
     !allocate fnlgam buffer
@@ -438,7 +442,7 @@ CONTAINS
                fnl(start_work,nmin_2),ldf)
        END IF
     END IF
-    CALL copy_in(temp(:,:,parai%me+1),fnl,work_proc(:,parai%me),il_temp(1),nstate)
+    CALL copy_in(temp(:,:,parai%me+1),fnl,work_proc(:,parai%me),INT(il_temp(1),KIND=int_4),nstate)
     IF(cntl%overlapp_comm_comp)THEN
        nthreads=MIN(2,parai%ncpus)
        nested_threads=(MAX(parai%ncpus-1,1))

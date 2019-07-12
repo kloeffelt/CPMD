@@ -9,7 +9,8 @@ MODULE spsi_utils
   USE error_handling,                  ONLY: stopgm
   USE ions,                            ONLY: ions0,&
                                              ions1
-  USE kinds,                           ONLY: real_8
+  USE kinds,                           ONLY: real_8,&
+                                             int_8
   USE nlps,                            ONLY: nghtol,&
                                              nlps_com,&
                                              imagp
@@ -56,13 +57,12 @@ CONTAINS
     LOGICAL,INTENT(IN)                       :: redist
 
     character(*), PARAMETER                  :: proceduren = 'spsi'
-    INTEGER                                  :: i, offset_fnl, offset_dai, isa0, &
+    INTEGER                                  :: i, offset_fnl, offset_dai, isa0, ibeg, ngw_local,&
                                                 is, ia_sum, fnl_start, ia_fnl, isub, ierr, &
-                                                na_grp(2,ions1%nsp,0:parai%cp_nogrp-1), &
-                                                ld_grp(0:parai%cp_nogrp-1), il_dai(3), &
-                                                il_eiscr(2), na(2,ions1%nsp), grp, &
-                                                na_fnl(2,ions1%nsp), il_t(1), nthreads, &
-                                                ibeg, ngw_local, methread, nested_threads
+                                                na_grp(2,ions1%nsp,0:parai%cp_nogrp-1), methread,&
+                                                ld_grp(0:parai%cp_nogrp-1),na(2,ions1%nsp), grp,&
+                                                na_fnl(2,ions1%nsp), nthreads, nested_threads
+    INTEGER(int_8)                           :: il_dai(3), il_eiscr(2), il_t(1)
 #ifdef _USE_SCRATCHLIBRARY
     COMPLEX(real_8),POINTER __CONTIGUOUS     :: eiscr(:,:)
     REAL(real_8),POINTER __CONTIGUOUS        :: dai(:,:,:), t(:)

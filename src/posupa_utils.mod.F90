@@ -12,7 +12,8 @@ MODULE posupa_utils
                                              wdsgt,&
                                              xmu
   USE jrotation_utils,                 ONLY: set_orbdist
-  USE kinds,                           ONLY: real_8
+  USE kinds,                           ONLY: real_8,&
+                                             int_8
   USE kpts,                            ONLY: tkpts
   USE mp_interface,                    ONLY: mp_sum
   USE nort,                            ONLY: nort_com
@@ -65,7 +66,8 @@ CONTAINS
 
     INTEGER                                  :: i, ig, isub, nstx, ibeg_c0,&
                                                 iend_c0, ngw_local, ierr, &
-                                                il_ai(2), gid
+                                                gid
+    INTEGER(int_8)                           :: il_ai(2)
     LOGICAL                                  :: prtev, tnon, cp_active, geq0_local
     REAL(real_8)                             :: odt, pf1, pf2, pf3, &
                                                 pf4, xi, xi_dt_elec

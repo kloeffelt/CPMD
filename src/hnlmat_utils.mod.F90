@@ -8,7 +8,8 @@ MODULE hnlmat_utils
   USE error_handling,                  ONLY: stopgm
   USE ions,                            ONLY: ions0,&
                                              ions1
-  USE kinds,                           ONLY: real_8
+  USE kinds,                           ONLY: real_8,&
+                                             int_8
   USE nlps,                            ONLY: imagp,&
                                              nghtol,&
                                              nlps_com,&
@@ -47,10 +48,10 @@ CONTAINS
                                                 ia_sum, tot_work, ns(2), nmin(2), off_i, &
                                                 off_mat, off_fnl, ia_fnl, start_fnl, &
                                                 end_fnl, fnl_start, start_mat, end_mat, &
-                                                il_fnlat(3), il_fnlatj(3),na(2,ions1%nsp), &
-                                                na_fnl(2,ions1%nsp), il_hmat_loc(2), &
+                                                na(2,ions1%nsp), na_fnl(2,ions1%nsp),  &
                                                 na_grp(2,ions1%nsp,0:parai%cp_nogrp-1),&
                                                 isub, ierr
+    INTEGER(int_8)                           :: il_fnlat(3), il_fnlatj(3), il_hmat_loc(2)
     LOGICAL                                  :: need_hmat_loc, non_uspp
     REAL(real_8)                             :: ffi, fac, sum , fractions(parai%nproc)
 #ifdef _USE_SCRATCHLIBRARY

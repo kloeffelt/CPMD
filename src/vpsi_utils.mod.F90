@@ -61,7 +61,8 @@ MODULE vpsi_utils
                                              invfftn_batch
   USE fftnew_utils,                    ONLY: setfftn
   USE geq0mod,                         ONLY: geq0
-  USE kinds,                           ONLY: real_8
+  USE kinds,                           ONLY: real_8,&
+                                             int_8
   USE kpclean_utils,                   ONLY: c_clean
   USE kpnt,                            ONLY: hgkm,&
                                              hgkp,&
@@ -1043,9 +1044,10 @@ CONTAINS
     INTEGER :: i, iclpot = 0, id, ierr, ig, &
       ir, is1, is2, isub, isub2, isub3, iwf, ixx, ixxs, iyy, izz, jj, &
       leadx, lspin(2,fft_batchsize), njump, nnrx, nostat, nrxyz1s, nrxyz2, stream_idx, &
-      ist,states_fft, il_wfng(2), bsize, ibatch, istate, ir1, first_state, &
-      il_wfnr(2), il_wfnr1(1), il_xf(2), i_start1, i_start2, i_start3, me_grp, n_grp, &
+      ist,states_fft,  bsize, ibatch, istate, ir1, first_state, &
+      i_start1, i_start2, i_start3, me_grp, n_grp, &
       offset_state, nthreads, nested_threads, methread, count, swap, int_mod
+    INTEGER(int_8)                           :: il_wfng(2), il_wfnr(2), il_wfnr1(1), il_xf(2)
     REAL(real_8)                             :: chksum, csmult, fi, fip1,&
                                                 xskin
     REAL(real_8), ALLOCATABLE                :: vpotx3a(:,:,:), vpotx3b(:,:,:)

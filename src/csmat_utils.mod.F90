@@ -7,7 +7,8 @@ MODULE csmat_utils
   USE ions,                            ONLY: ions0,&
                                              ions1
   USE distribution_utils,              ONLY: dist_atoms
-  USE kinds,                           ONLY: real_8
+  USE kinds,                           ONLY: real_8,&
+                                             int_8
   USE mp_interface,                    ONLY: mp_sum
   USE nlps,                            ONLY: nlps_com
   USE nort,                            ONLY: nort_com,&
@@ -52,10 +53,10 @@ CONTAINS
                                                 ia_sum, tot_work, ns(2), nmin(2), &
                                                 off_i, off_mat, off_fnl, ia_fnl, &
                                                 start_fnl, end_fnl, fnl_start, start_mat, &
-                                                end_mat, il_fnlat(3), il_fnlatj(3), &
+                                                end_mat, isub, ierr, &
                                                 na(2,ions1%nsp),na_fnl(2,ions1%nsp),&
-                                                na_grp(2,ions1%nsp,0:parai%cp_nogrp-1),&
-                                                isub, ierr
+                                                na_grp(2,ions1%nsp,0:parai%cp_nogrp-1)
+    INTEGER(int_8)                           :: il_fnlat(3), il_fnlatj(3)
     REAL(real_8)                             :: fractions(parai%nproc),selem, temp
     CHARACTER(*), PARAMETER                  :: procedureN = 'csmat'
 #ifdef _USE_SCRATCHLIBRARY
@@ -239,7 +240,7 @@ CONTAINS
        END DO
     END IF
     !lapack only needs upper or lower part
-    CALL summat(nort_ovlap,nstate,symmetrization=.FALSE.,lsd=.TRUE.,gid=parai%cp_grp,&
+    CALL summat(nort_ovlap,nstate,symmetrization=cntl%use_elpa,lsd=.TRUE.,gid=parai%cp_grp,&
          parent=.FALSE.)
     !always check threshold.
     temp=0.0_real_8

@@ -7,7 +7,8 @@ MODULE rpiiint_utils
   USE error_handling,                  ONLY: stopgm
   USE ions,                            ONLY: ions0,&
                                              ions1
-  USE kinds,                           ONLY: real_8
+  USE kinds,                           ONLY: real_8,&
+                                             int_8
   USE metr,                            ONLY: metr_com
   USE mp_interface,                    ONLY: mp_sum
   USE parac,                           ONLY: parai,&
@@ -56,8 +57,8 @@ CONTAINS
 
     INTEGER                                  :: iat, inf, ishft, isub, ix, &
                                                 iy, iz, j, k, l, lax, m, ierr, methread, &
-                                                ia, is, thread, il_ftmp(4), il_rxlm(3), &
-                                                il_ht(2), il_erre2(3)
+                                                ia, is, thread
+    INTEGER(int_8)                           :: il_ftmp(4), il_rxlm(3), il_ht(2), il_erre2(3)
     INTEGER, SAVE                            :: iflag = 0
     LOGICAL                                  :: tzero
     REAL(real_8) :: addesr, addpre, arg,  esrtzero, rckj, repand, rlm, &

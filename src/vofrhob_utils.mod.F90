@@ -21,7 +21,8 @@ MODULE vofrhob_utils
   USE geq0mod,                         ONLY: geq0
   USE graden_utils,                    ONLY: graden
   USE isos,                            ONLY: isos3
-  USE kinds,                           ONLY: real_8
+  USE kinds,                           ONLY: real_8,&
+                                             int_8
   USE linres,                          ONLY: lrf4
   USE meta_localizespin_utils,         ONLY: localizespin
   USE newd_utils,                      ONLY: newd
@@ -95,10 +96,10 @@ CONTAINS
     CHARACTER(*), PARAMETER                  :: procedureN = 'vofrhob'
 
     COMPLEX(real_8), POINTER                 :: dqg_1d(:)
-    INTEGER                                  :: ierr, ig, il_grad(2), il_rhoval(2), &
-                                                il_vpt1(1), il_vpt2(1), il_vtmp(2), &
-                                                il_rvtmp(2), ir, isub, kk, nnrs, &
+    INTEGER                                  :: ierr, ig, ir, isub, kk, nnrs, &
                                                 i_start, i_end
+    INTEGER(int_8)                           :: il_grad(2), il_rhoval(2), il_rvtmp(2),&
+                                                il_vpt1(1), il_vpt2(1), il_vtmp(2)
     LOGICAL                                  :: debug
     REAL(real_8)                             :: sgcc, sgcx, sxc, vgc
 #ifdef _USE_SCRATCHLIBRARY

@@ -3,11 +3,7 @@
 MODULE utils
   USE error_handling,                  ONLY: stopgm
   USE geq0mod,                         ONLY: geq0
-  USE kinds,                           ONLY: int_1,&
-                                             int_2,&
-                                             int_4,&
-                                             int_8,&
-                                             real_4,&
+  USE kinds,                           ONLY: int_8,&
                                              real_8
   USE parac,                           ONLY: parai
   USE reshaper,                        ONLY: reshape_inplace
@@ -354,8 +350,8 @@ CONTAINS
     INTEGER,INTENT(IN)                       :: n
     REAL(real_8),INTENT(INOUT) __CONTIGUOUS  :: w(:), a(:,:)
 #ifdef _HAS_LIBELPA
-    INTEGER                                  :: i, j, id, success, isub,&
-                                                il_aux(2), il_c(2)
+    INTEGER                                  :: i, j, id, success, isub
+    INTEGER(int_8)                           :: il_aux(2), il_c(2)
     LOGICAL                                  :: create
 #ifdef _USE_SCRATCHLIBRARY
     REAL(real_8), POINTER __CONTIGUOUS       :: aux(:,:), c(:,:)
@@ -460,7 +456,8 @@ CONTAINS
     INTEGER,INTENT(IN)                       :: iopt, n
     REAL(real_8),INTENT(INOUT)               :: w(:), a(:,:)
     !local
-    INTEGER                                  :: il_work(1), il_iwork, dummy_int(1)
+    INTEGER                                  :: il_iwork, dummy_int(1)
+    INTEGER(int_8)                           :: il_work(1)
 #ifdef _USE_SCRATCHLIBRARY
     REAL(real_8), POINTER __CONTIGUOUS       :: work(:)
 #else
@@ -529,7 +526,8 @@ CONTAINS
     REAL(real_8),INTENT(IN)                  :: abstol
     REAL(real_8),INTENT(INOUT)               :: w(:), a(:,:), z(:,:)
     !local
-    INTEGER                                  :: il_work(1), il_iwork, il_ifail, m
+    INTEGER                                  :: il_iwork, il_ifail, m
+    INTEGER(int_8)                           :: il_work(1)
 #ifdef _USE_SCRATCHLIBRARY
     REAL(real_8), POINTER __CONTIGUOUS       :: work(:)
 #else

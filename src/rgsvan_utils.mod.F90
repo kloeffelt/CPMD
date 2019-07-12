@@ -8,7 +8,9 @@ MODULE rgsvan_utils
   USE geq0mod,                         ONLY: geq0
   USE fnl_utils,                       ONLY: unpack_fnl
   USE ions,                            ONLY: ions1
-  USE kinds,                           ONLY: real_8
+  USE kinds,                           ONLY: real_8,&
+                                             int_8,&
+                                             int_4
   USE mp_interface,                    ONLY: mp_bcast
   USE parac,                           ONLY: parai,&
                                              paral
@@ -53,8 +55,9 @@ CONTAINS
                                              :: c0(:,:)
     INTEGER                                  :: nstate
     REAL(real_8)                             :: smat(nstate,nstate)
-    INTEGER                                  :: il_smatpacked(1), ierr, isub,&
+    INTEGER                                  :: ierr, isub,&
                                                 na_grp(2,ions1%nsp,0:parai%cp_nogrp-1)
+    INTEGER(int_8)                           :: il_smatpacked(1)
     CHARACTER(*), PARAMETER                  :: procedureN = 'rgsvan'
     LOGICAL, INTENT(IN)                      :: store_nonort
 #ifdef _USE_SCRATCHLIBRARY
@@ -88,7 +91,7 @@ CONTAINS
           CALL symmat_pack(smat,smatpacked,nstate,nstate,0)
        ENDIF
     END IF
-    CALL mp_bcast(smatpacked,il_smatpacked(1),parai%io_source,parai%cp_grp)
+    CALL mp_bcast(smatpacked,INT(il_smatpacked(1),KIND=int_4),parai%io_source,parai%cp_grp)
     IF(cntl%tlsd)THEN
        CALL symmat_unpack(smat,smatpacked,nstate,spin_mod%nsup,spin_mod%nsdown,.FALSE.)
     ELSE
@@ -103,11 +106,11 @@ CONTAINS
 #endif
     IF(pslo_com%tivan)THEN
        IF(cntl%distribute_fnl_rot)THEN
-          CALL rottr_c0_fnl(ncpw%ngw,c0,il_fnl_packed(1),fnl_packed,smat,nstate,redist=.TRUE.)
+          CALL rottr_c0_fnl(ncpw%ngw,c0,INT(il_fnl_packed(1),KIND=int_4),fnl_packed,smat,nstate,redist=.TRUE.)
        ELSE
           CALL rottr(1._real_8,c0,smat,"N",nstate,ncpw%ngw,cntl%tlsd,spin_mod%nsup,&
                spin_mod%nsdown,use_cp=.TRUE.,redist=.TRUE.)
-          CALL rottr_fnl(il_fnl_packed(1),fnl_packed,nstate,smat)
+          CALL rottr_fnl(INT(il_fnl_packed(1),KIND=int_4),fnl_packed,nstate,smat)
        END IF
        IF(pslo_com%mixed_psp.OR.ropt_mod%calste) THEN
           CALL cp_grp_split_atoms(na_grp)

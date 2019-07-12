@@ -24,7 +24,8 @@ MODULE forces_driver
   USE hubbardu_utils,                  ONLY: add_hubbardu
   USE ions,                            ONLY: ions1
   USE jrotation_utils,                 ONLY: set_orbdist
-  USE kinds,                           ONLY: real_8
+  USE kinds,                           ONLY: real_8,&
+                                             int_8
   USE kpts,                            ONLY: tkpts
   USE mp_interface,                    ONLY: mp_sum
   USE nlforce_utils,                   ONLY: nlforce
@@ -125,9 +126,10 @@ CONTAINS
 #endif
     COMPLEX(real_8), EXTERNAL                :: zdotc
     COMPLEX(real_8), POINTER __CONTIGUOUS    :: cgam(:), c0_ptr(:,:,:)
-    INTEGER :: first_g, i, ierr, ik, ikind, il_auxc, il_fsc, il_gam(2), &
+    INTEGER :: first_g, i, ierr, ik, ikind, il_auxc, il_fsc,  &
       il_psiab, il_scrdip, ipp, isub, isub2, isub3, j, jj, last_g,  &
-      naa, ngw_l, nstx, NSTX_grp, is, il_c0_ort(3), il_smat(2)
+      naa, ngw_l, nstx, NSTX_grp, is
+    INTEGER(int_8)                           :: il_c0_ort(3), il_smat(2), il_gam(2)
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: NWA12_grp
     LOGICAL                                  :: debug, redist_c2, &
                                                 case1, case2, case3, case4

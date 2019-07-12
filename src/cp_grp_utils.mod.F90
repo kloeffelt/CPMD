@@ -280,7 +280,8 @@ CONTAINS
     INTEGER,INTENT(IN)                       :: ld,n
     COMPLEX(real_8),INTENT(INOUT)            :: data(ld,*)
     INTEGER                                  :: ld_group(3,parai%cp_nogrp),&
-                                                  revcnt,i,ig,ierr,group, il_buffer(3)
+                                                  revcnt,i,ig,ierr,group
+    INTEGER(int_8)                           :: il_buffer(3)
 #ifdef _USE_SCRATCHLIBRARY
     COMPLEX(real_8), POINTER __CONTIGUOUS    :: buffer(:,:,:)
 #else
@@ -455,8 +456,9 @@ CONTAINS
     INTEGER,INTENT(IN)                     :: nstate, ikind
     CHARACTER(*), PARAMETER                :: procedureN = 'cp_grp_redist_dfnl_fnl'
     INTEGER                                :: na_grp(2,ions1%nsp,parai%cp_nogrp),&
-                                              worksum(parai%cp_nogrp), il_temp(3),&
-                                              is, ierr, grp, sendcnt, isub, ii
+                                              worksum(parai%cp_nogrp), is,ierr, ii,&
+                                              sendcnt, grp, isub
+    INTEGER(int_8)                         :: il_temp(3)
 #ifdef _USE_SCRATCHLIBRARY
     REAL(real_8), POINTER __CONTIGUOUS     :: temp(:,:,:)
 #else

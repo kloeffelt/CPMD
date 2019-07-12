@@ -10,7 +10,8 @@ MODULE rortv_utils
   USE harm,                            ONLY: dtan2w,&
                                              xmu
   USE jrotation_utils,                 ONLY: set_orbdist
-  USE kinds,                           ONLY: real_8
+  USE kinds,                           ONLY: real_8,&
+                                             int_8
   USE linalg_utils,                    ONLY: symm_da
   USE mp_interface,                    ONLY: mp_sum
   USE nort,                            ONLY: nort_com
@@ -59,7 +60,8 @@ CONTAINS
 
     INTEGER                                  :: i, ig, ip, j, nstx, nx,&
                                                 ngw_local, ibeg_c0, iend_c0, &
-                                                isub, il_yi_n(1), ierr, gid
+                                                isub, ierr, gid
+    INTEGER(int_8)                           :: il_yi_n(1)
     LOGICAL                                  :: geq0_local,cp_active
     REAL(real_8)                             :: ai, bi, pf4, s2, yi
     REAL(real_8), ALLOCATABLE                :: a1mat(:,:), a2mat(:,:)

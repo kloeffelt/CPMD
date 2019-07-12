@@ -1,7 +1,8 @@
 #include "cpmd_global.h"
 
 MODULE sfac
-  USE kinds,                           ONLY: real_8
+  USE kinds,                           ONLY: real_8,&
+                                             int_8
 
   IMPLICIT NONE
 
@@ -21,7 +22,7 @@ MODULE sfac
   REAL(real_8), POINTER __CONTIGUOUS :: fnlgam_packed(:,:)
   REAL(real_8), POINTER __CONTIGUOUS :: dfnl_packed(:,:)
 
-  INTEGER                            :: il_dfnl_packed(2) = 0,&
+  INTEGER(int_8)                     :: il_dfnl_packed(2) = 0,&
                                         il_fnl_packed(2) = 0
 
   ! NOTE: not clear what happens with this var... 

@@ -13,7 +13,8 @@ MODULE nlforce_utils
   USE error_handling,                  ONLY: stopgm
   USE ions,                            ONLY: ions0,&
                                              ions1
-  USE kinds,                           ONLY: real_8
+  USE kinds,                           ONLY: real_8,&
+                                             int_8
   USE mp_interface,                    ONLY: mp_sum
   USE nlps,                            ONLY: imagp,&
                                              nghtol,&
@@ -75,10 +76,10 @@ CONTAINS
     INTEGER                                  :: i, ispin, offset_fnl, offset_dai, isa0, &
                                                 is, ia_sum, start_isa, ia_fnl, isub, ierr, &
                                                 na_grp(2,ions1%nsp,0:parai%cp_nogrp-1), &
-                                                ld_grp(0:parai%cp_nogrp-1), il_dai(3), &
-                                                il_eiscr(2), na(2,ions1%nsp), grp, &
-                                                na_fnl(2,ions1%nsp), il_t(1), nthreads, &
+                                                ld_grp(0:parai%cp_nogrp-1), na(2,ions1%nsp), &
+                                                na_fnl(2,ions1%nsp), grp, nthreads, &
                                                 ibeg, ngw_local, methread, nested_threads
+    INTEGER(int_8)                           :: il_eiscr(2), il_dai(3), il_t(1)
     REAL(real_8)                             :: ffi
 #ifdef _USE_SCRATCHLIBRARY
     COMPLEX(real_8),POINTER __CONTIGUOUS     :: eiscr(:,:)

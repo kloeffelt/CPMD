@@ -68,7 +68,8 @@ MODULE rhoofr_utils
   USE ions,                            ONLY: ions0,&
                                              ions1
   USE kin_energy_utils,                ONLY: kin_energy
-  USE kinds,                           ONLY: real_8
+  USE kinds,                           ONLY: real_8,&
+                                             int_8
   USE moverho_utils,                   ONLY: give_scr_moverho,&
                                              moverho
   USE mp_interface,                    ONLY: mp_comm_dup,&
@@ -793,19 +794,16 @@ CONTAINS
     INTEGER                                  :: i, ierr, ir, is1, is2, iwf, &
                                                 ibatch, isub, isub3, bsize, &
                                                 first_state, offset_state, i_start, i_end, &
-                                                il_wfng(2), il_wfnr(2), i_start1, i_start2, &
-                                                i_start3, il_xf(2), me_grp, n_grp, &
+                                                i_start1, i_start2, i_start3,  me_grp, n_grp, &
                                                 nthreads, nested_threads, methread, count, &
-                                                swap, il_wfnr1(1), int_mod, start_loop, &
-                                                end_loop
+                                                swap,  int_mod, start_loop, end_loop
+    INTEGER(int_8)                           :: il_wfng(2), il_wfnr(2), il_xf(2)
     REAL(real_8)                             :: chksum, ral, rbe, rsp, rsum, rsum1, &
                                                 rsum1abs, rsumv, rto, temp(4), inv_omega
 !    REAL(real_8), ALLOCATABLE                :: coef4(:), coef3(:)
     REAL(real_8)                            :: coef4(fft_batchsize), coef3(fft_batchsize)
 !    INTEGER, ALLOCATABLE                     :: ispin(:,:)
     INTEGER                      :: ispin(2,fft_batchsize)
-    real(real_8) :: ti(20), ti_te
-    ti=0.0_real_8
     CALL tiset(procedureN,isub)
     ! ==--------------------------------------------------------------==
     CALL kin_energy(c0,nstate,rsum)
@@ -903,7 +901,7 @@ CONTAINS
     methread=0
     !$ locks_inv=.TRUE.
     !$OMP parallel IF(nthreads.EQ.2) num_threads(2) &
-    !$omp private(methread,ibatch,bsize,offset_state,swap,count,is1,is2,ti_te) &
+    !$omp private(methread,ibatch,bsize,offset_state,swap,count,is1,is2) &
     !$omp proc_bind(close)
     !$ methread = omp_get_thread_num()
     !$ IF (methread.EQ.1) THEN
@@ -927,9 +925,7 @@ CONTAINS
              END IF
              IF(bsize.NE.0)THEN
                 ! Loop over the electronic states of this batch
-                ti_te=m_walltime()
                 CALL set_psi_batch_g(c0,wfn_g,il_wfng(1),i_start1,bsize,nstate,me_grp,n_grp)
-                ti(1)=ti(1)+m_walltime()-ti_te
                 ! ==--------------------------------------------------------------==
                 ! ==  Fourier transform the wave functions to real space.         ==
                 ! ==  In the array PSI was used also the fact that the wave       ==
@@ -945,9 +941,7 @@ CONTAINS
                 ! ==  to swap                                                     ==
                 ! ==--------------------------------------------------------------==
                 swap=mod(ibatch,int_mod)+1
-                ti_te=m_walltime()
                 CALL invfftn_batch(wfn_g,bsize,swap,1,ibatch)
-                ti(2)=ti(2)+m_walltime()-ti_te
                 i_start1=i_start1+bsize*2
              END IF
           END IF
@@ -963,9 +957,7 @@ CONTAINS
              END IF
              IF(bsize.NE.0)THEN
                 swap=mod(ibatch,int_mod)+1
-                ti_te=m_walltime()
                 CALL invfftn_batch(wfn_r,bsize,swap,2,ibatch)
-                ti(3)=ti(3)+m_walltime()-ti_te
              END IF
           END IF
        END IF
@@ -980,9 +972,7 @@ CONTAINS
              IF(bsize.NE.0)THEN
                 swap=mod(ibatch-start_loop,int_mod)+1
                 IF(rsactive) wfn_r1=>wfn_r(:,ibatch-start_loop)
-                ti_te=m_walltime()
                 CALL invfftn_batch(wfn_r1,bsize,swap,3,ibatch-start_loop)
-                ti(4)=ti(4)+m_walltime()-ti_te
                 ! Compute the charge density from the wave functions
                 ! in real space
                 ! Decode fft batch, setup (lsd) spin settings                     
@@ -1007,10 +997,8 @@ CONTAINS
                       coef4(count)=crge%f(is2,1)*inv_omega
                    END IF
                 END DO
-                ti_te=m_walltime()
                 CALL build_density_sum_batch(coef3,coef4,wfn_r1,rhoe_p,&
                      fpar%kr1*fpar%kr2s,bsize,fpar%kr3s,ispin,clsd%nlsd)
-                ti(5)=ti(5)+m_walltime()-ti_te
                 !some extra loop in case of lse
                 IF (lspin2%tlse) THEN
                    ispin=1
@@ -1061,7 +1049,6 @@ CONTAINS
     !$ END IF
 
     !$omp end parallel
-    if(paral%io_parent) write(6,'(1X,5E12.5,A)') ti(1:5),'f'
 
     ! ==--------------------------------------------------------------==
     ! redistribute RHOE over the groups if needed

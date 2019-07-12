@@ -2,11 +2,8 @@
 
 MODULE summat_utils
   USE error_handling,                  ONLY: stopgm
-  USE kinds,                           ONLY: int_1,&
-                                             int_2,&
-                                             int_4,&
+  USE kinds,                           ONLY: int_4,&
                                              int_8,&
-                                             real_4,&
                                              real_8
   USE mp_interface,                    ONLY: mp_sum
   USE nlps,                            ONLY: imagp
@@ -42,8 +39,9 @@ CONTAINS
     LOGICAL,INTENT(IN),OPTIONAL              :: symmetrization,lsd,parent
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'summat'
-    
-    INTEGER                                  :: ierr, isub, ntr(1)
+
+    INTEGER                                  :: ierr, isub
+    INTEGER(int_8)                           :: il_aux(1)
     LOGICAL                                  :: full,lsd_active,is_parent,&
          only_parent
     INTEGER                                  :: mpi_com,parent_rank
@@ -61,7 +59,7 @@ CONTAINS
     ! communicator can be changed via optional flag gid
     ! summat_parent is obsolete via optional flag parent
     ! able to pack both spins in a single mpi call via optional flag lsd
-    ! without optional flags, returns to the original version com=allgrp 
+    ! without optional flags, returns to the original version com=allgrp
     ! symmetrization = .true.
     ! ==--------------------------------------------------------------==
 
@@ -100,15 +98,15 @@ CONTAINS
          __LINE__,__FILE__)
     END IF
     IF(lsd_active.AND.cntl%tlsd)THEN
-       ntr=spin_mod%nsup*(spin_mod%nsup+1)/2+&
+       il_aux(1)=spin_mod%nsup*(spin_mod%nsup+1)/2+&
          spin_mod%nsdown*(spin_mod%nsdown+1)/2
     ELSE
-       ntr=nstate*(nstate+1)/2
+       il_aux=nstate*(nstate+1)/2
     END IF
 #ifdef _USE_SCRATCHLIBRARY
-    CALL request_scratch(ntr,aux,procedureN//'_aux')
+    CALL request_scratch(il_aux,aux,procedureN//'_aux')
 #else
-    ALLOCATE(aux(ntr(1)),STAT=ierr)
+    ALLOCATE(aux(il_aux(1)),STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
          __LINE__,__FILE__)
 #endif
@@ -118,9 +116,9 @@ CONTAINS
        CALL symmat_pack(a,aux,nstate,nstate,0)
     END IF
     IF(only_parent)THEN
-       CALL mp_sum(aux,ntr(1),parent_rank,mpi_com)
+       CALL mp_sum(aux,INT(il_aux(1),KIND=int_4),parent_rank,mpi_com)
     ELSE
-       CALL mp_sum(aux,ntr(1),mpi_com)
+       CALL mp_sum(aux,INT(il_aux(1),KIND=int_4),mpi_com)
     END IF
     IF(.NOT.(only_parent.AND..NOT.is_parent))THEN
        IF(lsd_active.AND.cntl%tlsd)THEN
@@ -130,7 +128,7 @@ CONTAINS
        END IF
     END IF
 #ifdef _USE_SCRATCHLIBRARY
-    CALL free_scratch(ntr,aux,procedureN//'_aux')    
+    CALL free_scratch(il_aux,aux,procedureN//'_aux')
 #else
     DEALLOCATE(aux,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &

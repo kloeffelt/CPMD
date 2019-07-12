@@ -44,7 +44,8 @@ MODULE fftmain_utils
                                              pack_x2y_n,&
                                              unpack_y2x,&
                                              unpack_y2x_n
-  USE kinds,                           ONLY: real_8
+  USE kinds,                           ONLY: real_8,&
+                                             int_8
   USE mltfft_utils,                    ONLY: mltfft_cuda,&
                                              mltfft_default,&
                                              mltfft_essl,&
@@ -95,7 +96,8 @@ CONTAINS
 
     COMPLEX(real_8), DIMENSION(:), &
       POINTER __CONTIGUOUS                   :: xf_ptr, yf_ptr
-    INTEGER                                  :: lda, m, mm, n1o, n1u, il_xf(2)
+    INTEGER                                  :: lda, m, mm, n1o, n1u
+    INTEGER(int_8)                           :: il_xf(2)
     REAL(real_8)                             :: scale
 
 #ifdef _USE_SCRATCHLIBRARY

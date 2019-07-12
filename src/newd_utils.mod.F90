@@ -11,11 +11,7 @@ MODULE newd_utils
   USE geq0mod,                         ONLY: geq0
   USE ions,                            ONLY: ions0,&
                                              ions1
-  USE kinds,                           ONLY: int_1,&
-                                             int_2,&
-                                             int_4,&
-                                             int_8,&
-                                             real_4,&
+  USE kinds,                           ONLY: int_8,&
                                              real_8
   USE mp_interface,                    ONLY: mp_sum
   USE nlps,                            ONLY: nlps_com
@@ -133,9 +129,9 @@ CONTAINS
 #endif
 
     INTEGER                                  :: i, is, ia, blocksize, blocks, last_block, &
-                                                isa0, nhh0, nhh, num_orb, &
-                                                offset_fnl0, il_qg1(3), il_ylm(2),&
-                                                il_fnlt(3), il_gk_trans(3), ierr
+                                                isa0, nhh0, nhh, num_orb, offset_fnl0, ierr
+    INTEGER(int_8)                           :: il_qg1(3), il_ylm(2),&
+                                                il_fnlt(3), il_gk_trans(3)
     CHARACTER(*), PARAMETER                  :: procedureN='prep_bigmem'
 
     !blocking parameters
@@ -578,7 +574,7 @@ END MODULE newd_utils
 ! ==================================================================
 SUBROUTINE cftemp(nhg,qg,vtmp,gk,k,ftmp)
   ! ==--------------------------------------------------------------==
-  USE kinds, ONLY: real_4, real_8, int_1, int_2, int_4, int_8
+  USE kinds, ONLY: real_8
   USE error_handling, ONLY: stopgm
   USE timer, ONLY: tiset, tihalt
   IMPLICIT NONE

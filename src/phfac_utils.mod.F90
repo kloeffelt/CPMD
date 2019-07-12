@@ -6,7 +6,8 @@ MODULE phfac_utils
   USE gvec,                            ONLY: gvec_com
   USE ions,                            ONLY: ions0,&
                                              ions1
-  USE kinds,                           ONLY: real_8
+  USE kinds,                           ONLY: real_8,&
+                                             int_8
   USE kpnt,                            ONLY: eigkr,&
                                              eikr,&
                                              rk
@@ -57,8 +58,8 @@ CONTAINS
                                                 ei30, svtmpm, svtmpp, zsum
     INTEGER                                  :: i, ia, ierr, ig, ik, ikk, &
                                                 ikpt, is, isa, isub, j, k, &
-                                                nh1, nh2, nh3, il_ei1t(2), &
-                                                il_ei2t(2), il_ei3t(2), methread
+                                                nh1, nh2, nh3,  methread
+    INTEGER(int_8)                           :: il_ei2t(2), il_ei3t(2), il_ei1t(2)
     INTEGER, SAVE                            :: ifirst = 0
     REAL(real_8)                             :: ar1, ar2, ar3, sum, sum1, &
                                                 sum2, sum3
