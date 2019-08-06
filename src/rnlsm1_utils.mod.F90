@@ -86,10 +86,10 @@ CONTAINS
     INTEGER                                  :: isub, isub2, ierr, buffcount, buff, igeq0,&
                                                 methread, nthreads, nested_threads, &
                                                 tot_work, start_dai, ld_dai, end_dai, &
-                                                na_grp(2,ions1%nsp,0:parai%cp_nogrp-1),&
                                                 ld_buffer(maxbuff), start_buffer(maxbuff)
     INTEGER(int_8)                           :: il_eiscr(2),il_t(1),il_dai(1)
-    INTEGER,ALLOCATABLE                      :: na_buff(:,:,:)
+    INTEGER,ALLOCATABLE                      :: na_buff(:,:,:), na_grp(:,:,:)
+
     REAL(real_8),POINTER __CONTIGUOUS        :: dai(:)
 #ifdef _USE_SCRATCHLIBRARY
     COMPLEX(real_8),POINTER __CONTIGUOUS     :: eiscr(:,:)
@@ -113,7 +113,11 @@ CONTAINS
     ELSE
        unpack=.TRUE.
     END IF
-    ! split states between cp groups
+    ! split atoms between cp groups
+    ALLOCATE(na_grp(2,ions1%nsp,0:parai%cp_nogrp-1), stat=ierr)
+    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate na_grp',&
+         __LINE__,__FILE__)
+
     CALL cp_grp_split_atoms(na_grp)
     ! set autotuning stuff
     CALL set_buffers(autotune_it,maxbuff,timings,cnti%rnlsm1_bc,cntr%rnlsm1_b1,&
@@ -307,6 +311,9 @@ CONTAINS
     END IF
     DEALLOCATE(na_buff, stat=ierr)
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate na_buff',&
+         __LINE__,__FILE__)
+    DEALLOCATE(na_grp, stat=ierr)
+    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate na_grp',&
          __LINE__,__FILE__)
 
     __NVTX_TIMER_STOP

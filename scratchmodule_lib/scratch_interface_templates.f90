@@ -9,7 +9,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_r)
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     call segment_interface(len=len,tag=tag,task=1,arrayout=tmp)
     c_addr=c_loc(tmp)
     call c_f_pointer(c_addr,ptr,(/il_r(1)/))
@@ -27,7 +27,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_r)
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     call segment_interface(len=len,tag=tag,task=4,arrayout=tmp)
     c_addr=c_loc(tmp)
     call c_f_pointer(c_addr,ptr,(/il_r(1)/))
@@ -45,7 +45,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_r)
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     c_addr=c_loc(ptr)
     call c_f_pointer(c_addr,tmp,(/len/))
     call segment_interface(len=len,tag=tag,task=2,arrayin=tmp)
@@ -63,7 +63,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_r)
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     c_addr=c_loc(ptr)
     call c_f_pointer(c_addr,tmp,(/len/))
     call segment_interface(len=len,tag=tag,task=3,arrayin=tmp)
@@ -80,7 +80,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_r)
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     call segment_interface(len=len,tag=tag,task=1,arrayout=tmp)
     c_addr=c_loc(tmp)
     call c_f_pointer(c_addr,ptr,(/il_r(1),il_r(2)/))
@@ -98,7 +98,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_r)
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     call segment_interface(len=len,tag=tag,task=4,arrayout=tmp)
     c_addr=c_loc(tmp)
     call c_f_pointer(c_addr,ptr,(/il_r(1),il_r(2)/))
@@ -116,7 +116,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_r)
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     c_addr=c_loc(ptr)
     call c_f_pointer(c_addr,tmp,(/len/))
     call segment_interface(len=len,tag=tag,task=2,arrayin=tmp)
@@ -134,7 +134,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_r)
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     c_addr=c_loc(ptr)
     call c_f_pointer(c_addr,tmp,(/len/))
     call segment_interface(len=len,tag=tag,task=3,arrayin=tmp)
@@ -151,7 +151,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_r)
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     call segment_interface(len=len,tag=tag,task=1,arrayout=tmp)
     c_addr=c_loc(tmp)
     call c_f_pointer(c_addr,ptr,(/il_r(1),il_r(2),il_r(3)/))
@@ -169,7 +169,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_r)
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     call segment_interface(len=len,tag=tag,task=4,arrayout=tmp)
     c_addr=c_loc(tmp)
     call c_f_pointer(c_addr,ptr,(/il_r(1),il_r(2),il_r(3)/))
@@ -187,7 +187,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_r)
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     c_addr=c_loc(ptr)
     call c_f_pointer(c_addr,tmp,(/len/))
     call segment_interface(len=len,tag=tag,task=2,arrayin=tmp)
@@ -205,7 +205,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_r)
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     c_addr=c_loc(ptr)
     call c_f_pointer(c_addr,tmp,(/len/))
     call segment_interface(len=len,tag=tag,task=3,arrayin=tmp)
@@ -222,7 +222,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_r)
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     call segment_interface(len=len,tag=tag,task=1,arrayout=tmp)
     c_addr=c_loc(tmp)
     call c_f_pointer(c_addr,ptr,(/il_r(1),il_r(2),il_r(3),il_r(4)/))
@@ -240,7 +240,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_r)
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     call segment_interface(len=len,tag=tag,task=4,arrayout=tmp)
     c_addr=c_loc(tmp)
     call c_f_pointer(c_addr,ptr,(/il_r(1),il_r(2),il_r(3),il_r(4)/))
@@ -258,7 +258,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_r)
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     c_addr=c_loc(ptr)
     call c_f_pointer(c_addr,tmp,(/len/))
     call segment_interface(len=len,tag=tag,task=2,arrayin=tmp)
@@ -276,7 +276,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_r)
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     c_addr=c_loc(ptr)
     call c_f_pointer(c_addr,tmp,(/len/))
     call segment_interface(len=len,tag=tag,task=3,arrayin=tmp)
@@ -293,7 +293,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_r)
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     call segment_interface(len=len,tag=tag,task=1,arrayout=tmp)
     c_addr=c_loc(tmp)
     call c_f_pointer(c_addr,ptr,(/il_r(1),il_r(2),il_r(3),il_r(4),il_r(5)/))
@@ -311,7 +311,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_r)
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     call segment_interface(len=len,tag=tag,task=4,arrayout=tmp)
     c_addr=c_loc(tmp)
     call c_f_pointer(c_addr,ptr,(/il_r(1),il_r(2),il_r(3),il_r(4),il_r(5)/))
@@ -329,7 +329,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_r)
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     c_addr=c_loc(ptr)
     call c_f_pointer(c_addr,tmp,(/len/))
     call segment_interface(len=len,tag=tag,task=2,arrayin=tmp)
@@ -347,7 +347,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_r)
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     c_addr=c_loc(ptr)
     call c_f_pointer(c_addr,tmp,(/len/))
     call segment_interface(len=len,tag=tag,task=3,arrayin=tmp)
@@ -364,7 +364,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_r)
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     call segment_interface(len=len,tag=tag,task=1,arrayout=tmp)
     c_addr=c_loc(tmp)
     call c_f_pointer(c_addr,ptr,(/il_r(1),il_r(2),il_r(3),il_r(4),il_r(5),il_r(6)/))
@@ -382,7 +382,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_r)
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     call segment_interface(len=len,tag=tag,task=4,arrayout=tmp)
     c_addr=c_loc(tmp)
     call c_f_pointer(c_addr,ptr,(/il_r(1),il_r(2),il_r(3),il_r(4),il_r(5),il_r(6)/))
@@ -400,7 +400,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_r)
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     c_addr=c_loc(ptr)
     call c_f_pointer(c_addr,tmp,(/len/))
     call segment_interface(len=len,tag=tag,task=2,arrayin=tmp)
@@ -418,7 +418,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_r)
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     c_addr=c_loc(ptr)
     call c_f_pointer(c_addr,tmp,(/len/))
     call segment_interface(len=len,tag=tag,task=3,arrayin=tmp)
@@ -435,7 +435,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_c)*2
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     call segment_interface(len=len,tag=tag,task=1,arrayout=tmp)
     c_addr=c_loc(tmp)
     call c_f_pointer(c_addr,ptr,(/il_c/))
@@ -453,7 +453,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_c)*2
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     call segment_interface(len=len,tag=tag,task=4,arrayout=tmp)
     c_addr=c_loc(tmp)
     call c_f_pointer(c_addr,ptr,(/il_c/))
@@ -471,7 +471,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_c)*2
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     c_addr=c_loc(ptr)
     call c_f_pointer(c_addr,tmp,(/len/))
     call segment_interface(len=len,tag=tag,task=2,arrayin=tmp)
@@ -489,7 +489,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_c)*2
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     c_addr=c_loc(ptr)
     call c_f_pointer(c_addr,tmp,(/len/))
     call segment_interface(len=len,tag=tag,task=3,arrayin=tmp)
@@ -506,7 +506,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_c)*2
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     call segment_interface(len=len,tag=tag,task=1,arrayout=tmp)
     c_addr=c_loc(tmp)
     call c_f_pointer(c_addr,ptr,(/il_c(1),il_c(2)/))
@@ -524,7 +524,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_c)*2
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     call segment_interface(len=len,tag=tag,task=4,arrayout=tmp)
     c_addr=c_loc(tmp)
     call c_f_pointer(c_addr,ptr,(/il_c(1),il_c(2)/))
@@ -542,7 +542,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_c)*2
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     c_addr=c_loc(ptr)
     call c_f_pointer(c_addr,tmp,(/len/))
     call segment_interface(len=len,tag=tag,task=2,arrayin=tmp)
@@ -560,7 +560,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_c)*2
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     c_addr=c_loc(ptr)
     call c_f_pointer(c_addr,tmp,(/len/))
     call segment_interface(len=len,tag=tag,task=3,arrayin=tmp)
@@ -577,7 +577,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_c)*2
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     call segment_interface(len=len,tag=tag,task=1,arrayout=tmp)
     c_addr=c_loc(tmp)
     call c_f_pointer(c_addr,ptr,(/il_c(1),il_c(2),il_c(3)/))
@@ -595,7 +595,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_c)*2
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     call segment_interface(len=len,tag=tag,task=4,arrayout=tmp)
     c_addr=c_loc(tmp)
     call c_f_pointer(c_addr,ptr,(/il_c(1),il_c(2),il_c(3)/))
@@ -613,7 +613,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_c)*2
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     c_addr=c_loc(ptr)
     call c_f_pointer(c_addr,tmp,(/len/))
     call segment_interface(len=len,tag=tag,task=2,arrayin=tmp)
@@ -631,7 +631,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_c)*2
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     c_addr=c_loc(ptr)
     call c_f_pointer(c_addr,tmp,(/len/))
     call segment_interface(len=len,tag=tag,task=3,arrayin=tmp)
@@ -648,7 +648,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_c)*2
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     call segment_interface(len=len,tag=tag,task=1,arrayout=tmp)
     c_addr=c_loc(tmp)
     call c_f_pointer(c_addr,ptr,(/il_c(1),il_c(2),il_c(3),il_c(4)/))
@@ -666,7 +666,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_c)*2
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     call segment_interface(len=len,tag=tag,task=4,arrayout=tmp)
     c_addr=c_loc(tmp)
     call c_f_pointer(c_addr,ptr,(/il_c(1),il_c(2),il_c(3),il_c(4)/))
@@ -684,7 +684,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_c)*2
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     c_addr=c_loc(ptr)
     call c_f_pointer(c_addr,tmp,(/len/))
     call segment_interface(len=len,tag=tag,task=2,arrayin=tmp)
@@ -702,7 +702,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_c)*2
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     c_addr=c_loc(ptr)
     call c_f_pointer(c_addr,tmp,(/len/))
     call segment_interface(len=len,tag=tag,task=3,arrayin=tmp)
@@ -719,7 +719,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_c)*2
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     call segment_interface(len=len,tag=tag,task=1,arrayout=tmp)
     c_addr=c_loc(tmp)
     call c_f_pointer(c_addr,ptr,(/il_c(1),il_c(2),il_c(3),il_c(4),il_c(5)/))
@@ -737,7 +737,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_c)*2
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     call segment_interface(len=len,tag=tag,task=4,arrayout=tmp)
     c_addr=c_loc(tmp)
     call c_f_pointer(c_addr,ptr,(/il_c(1),il_c(2),il_c(3),il_c(4),il_c(5)/))
@@ -755,7 +755,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_c)*2
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     c_addr=c_loc(ptr)
     call c_f_pointer(c_addr,tmp,(/len/))
     call segment_interface(len=len,tag=tag,task=2,arrayin=tmp)
@@ -773,7 +773,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_c)*2
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     c_addr=c_loc(ptr)
     call c_f_pointer(c_addr,tmp,(/len/))
     call segment_interface(len=len,tag=tag,task=3,arrayin=tmp)
@@ -790,7 +790,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_c)*2
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     call segment_interface(len=len,tag=tag,task=1,arrayout=tmp)
     c_addr=c_loc(tmp)
     call c_f_pointer(c_addr,ptr,(/il_c(1),il_c(2),il_c(3),il_c(4),il_c(5),il_c(6)/))
@@ -808,7 +808,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_c)*2
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     call segment_interface(len=len,tag=tag,task=4,arrayout=tmp)
     c_addr=c_loc(tmp)
     call c_f_pointer(c_addr,ptr,(/il_c(1),il_c(2),il_c(3),il_c(4),il_c(5),il_c(6)/))
@@ -826,7 +826,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_c)*2
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     c_addr=c_loc(ptr)
     call c_f_pointer(c_addr,tmp,(/len/))
     call segment_interface(len=len,tag=tag,task=2,arrayin=tmp)
@@ -844,7 +844,7 @@
     tag=trim(adjustl(tagin))
     len=product(il_c)*2
     !quick return if len <=0
-    if(len.le.0)return
+    if(len.le.0) len=1
     c_addr=c_loc(ptr)
     call c_f_pointer(c_addr,tmp,(/len/))
     call segment_interface(len=len,tag=tag,task=3,arrayin=tmp)

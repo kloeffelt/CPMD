@@ -55,8 +55,8 @@ CONTAINS
                                              :: c0(:,:)
     INTEGER                                  :: nstate
     REAL(real_8)                             :: smat(nstate,nstate)
-    INTEGER                                  :: ierr, isub,&
-                                                na_grp(2,ions1%nsp,0:parai%cp_nogrp-1)
+    INTEGER                                  :: ierr, isub
+    INTEGER, ALLOCATABLE                     :: na_grp(:,:,:)
     INTEGER(int_8)                           :: il_smatpacked(1)
     CHARACTER(*), PARAMETER                  :: procedureN = 'rgsvan'
     LOGICAL, INTENT(IN)                      :: store_nonort
@@ -113,9 +113,15 @@ CONTAINS
           CALL rottr_fnl(INT(il_fnl_packed(1),KIND=int_4),fnl_packed,nstate,smat)
        END IF
        IF(pslo_com%mixed_psp.OR.ropt_mod%calste) THEN
+          ALLOCATE(na_grp(2,ions1%nsp,0:parai%cp_nogrp-1), stat=ierr)
+          IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate na_grp',&
+               __LINE__,__FILE__)
           CALL cp_grp_split_atoms(na_grp)
           CALL unpack_fnl(na_grp(:,:,parai%cp_inter_me),fnl_packed,unpacked=fnla)
           IF(parai%cp_nogrp.GT.1)CALL cp_grp_redist_dfnl_fnl(.TRUE.,.FALSE.,nstate,1)
+          DEALLOCATE(na_grp, stat=ierr)
+          IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate na_grp',&
+               __LINE__,__FILE__)
        END IF
     ELSE
        IF (ncpw%ngw.GT.0)&

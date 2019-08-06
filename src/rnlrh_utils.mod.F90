@@ -57,8 +57,9 @@ CONTAINS
 
     INTEGER                                  :: i, ia, ii, ik, is, isa, isa0, &
                                                 isub, iv, jv, ki, kj, l, l2, &
-                                                li, lj ,ia_sum, na(2,ions1%nsp), offset, &
-                                                na_grp(2,ions1%nsp,0:parai%cp_nogrp-1)
+                                                li, lj ,ia_sum, na(2,ions1%nsp), &
+                                                offset, ierr
+    INTEGER, ALLOCATABLE                     :: na_grp(:,:,:)
     REAL(real_8)                             :: sum, weight
     CHARACTER(*), PARAMETER                  :: procedureN = 'rnlrh'
 
@@ -70,6 +71,10 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     ! == Compute the non-local contribution to the total energy (ENL) ==
     ! ==--------------------------------------------------------------==
+    ALLOCATE(na_grp(2,ions1%nsp,0:parai%cp_nogrp-1), stat=ierr)
+    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate na_grp',&
+         __LINE__,__FILE__)
+
     CALL cp_grp_split_atoms(na_grp)
     na(:,:)=na_grp(:,:,parai%cp_inter_me)
     IF(pslo_com%tivan)THEN
@@ -199,6 +204,10 @@ CONTAINS
     ENDDO
     IF (lspin2%tlse .AND. lspin2%tcas22) CALL rnlcas
     IF(parai%cp_nogrp.GT.1) CALL mp_sum(enl,parai%cp_inter_grp)
+    DEALLOCATE(na_grp, stat=ierr)
+    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate na_grp',&
+         __LINE__,__FILE__)
+
     CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==
     RETURN

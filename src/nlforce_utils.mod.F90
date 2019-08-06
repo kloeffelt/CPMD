@@ -75,10 +75,9 @@ CONTAINS
     character(*), PARAMETER                  :: proceduren = 'nlforce'
     INTEGER                                  :: i, ispin, offset_fnl, offset_dai, isa0, &
                                                 is, ia_sum, start_isa, ia_fnl, isub, ierr, &
-                                                na_grp(2,ions1%nsp,0:parai%cp_nogrp-1), &
-                                                ld_grp(0:parai%cp_nogrp-1), na(2,ions1%nsp), &
-                                                na_fnl(2,ions1%nsp), grp, nthreads, &
+                                                ld_grp(0:parai%cp_nogrp-1), grp, nthreads, &
                                                 ibeg, ngw_local, methread, nested_threads
+    INTEGER, ALLOCATABLE                     :: na_grp(:,:,:), na(:,:), na_fnl(:,:)
     INTEGER(int_8)                           :: il_eiscr(2), il_dai(3), il_t(1)
     REAL(real_8)                             :: ffi
 #ifdef _USE_SCRATCHLIBRARY
@@ -109,6 +108,11 @@ CONTAINS
             __LINE__,__FILE__)
     ENDIF
     ! ==--------------------------------------------------------------==
+    ALLOCATE(na_grp(2,ions1%nsp,0:parai%cp_nogrp-1), na(2,ions1%nsp), na_fnl(2,ions1%nsp),&
+         stat=ierr)
+    IF (ierr /= 0) CALL stopgm(procedureN, 'allocation problem)',&
+         __LINE__,__FILE__)
+
     CALL cp_grp_split_atoms(na_grp)
     na_fnl(:,:)=na_grp(:,:,parai%cp_inter_me)
     !if cp_groups are used we exchange the dai arrays between cp_groups
@@ -231,9 +235,11 @@ CONTAINS
           !$omp parallel num_threads(nested_threads)
           CALL build_beta(na_grp(:,:,grp),eigr,twnl(:,:,:,1),eiscr,t,ncpw%ngw,ibeg,ngw_local)
           !$omp end parallel
-          CALL DGEMM('N','N',2*ngw_local,nstate,ld_grp(grp)&
-               ,1._real_8,eiscr(1,1),2*ngw_local&
-               ,dai(1,1,grp+1),il_dai(1),1.0_real_8,c2(ibeg,1),2*ncpw%ngw)
+          IF(ld_grp(grp).GT.0)THEN
+             CALL DGEMM('N','N',2*ngw_local,nstate,ld_grp(grp)&
+                  ,1._real_8,eiscr(1,1),2*ngw_local&
+                  ,dai(1,1,grp+1),il_dai(1),1.0_real_8,c2(ibeg,1),2*ncpw%ngw)
+          END IF
           !$ IF(methread.EQ.1) THEN
           !$    CALL omp_set_num_threads(parai%ncpus)
 #ifdef _INTEL_MKL
@@ -251,9 +257,11 @@ CONTAINS
              CALL build_beta(na_grp(:,:,grp),eigr,twnl(:,:,:,1),eiscr,t,ncpw%ngw,ibeg,&
                   ngw_local)
              !$omp end parallel
-             CALL DGEMM('N','N',2*ngw_local,nstate,ld_grp(grp)&
-                  ,1._real_8,eiscr(1,1),2*ngw_local&
-                  ,dai(1,1,grp+1),il_dai(1),1.0_real_8,c2(ibeg,1),2*ncpw%ngw)
+             IF(ld_grp(grp).GT.0)THEN
+                CALL DGEMM('N','N',2*ngw_local,nstate,ld_grp(grp)&
+                     ,1._real_8,eiscr(1,1),2*ngw_local&
+                     ,dai(1,1,grp+1),il_dai(1),1.0_real_8,c2(ibeg,1),2*ncpw%ngw)
+             END IF
           END DO
        END IF
     END IF
@@ -272,6 +280,10 @@ CONTAINS
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate eiscr',&
          __LINE__,__FILE__)
 #endif
+    DEALLOCATE(na_grp, na, na_fnl, stat=ierr)
+    IF (ierr /= 0) CALL stopgm(procedureN, 'deallocation problem)',&
+         __LINE__,__FILE__)
+
     CALL tihalt(procedureN,isub)
     !check for mixed psp and call nlforce old
     mixed_psp=.FALSE.

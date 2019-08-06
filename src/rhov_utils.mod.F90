@@ -70,9 +70,8 @@ CONTAINS
          __CONTIGUOUS                        :: psi(:)
 
     INTEGER                                  :: ig, isub, isub1, ig_start, nhg_loc, &
-                                                na(2,ions1%nsp), nst(2,0:parai%nproc-1), &
-                                                na_grp(2,ions1%nsp,0:parai%cp_nogrp-1), &
                                                 ierr
+    INTEGER, ALLOCATABLE                     :: na_grp(:,:,:), na(:,:), nst(:,:)
     INTEGER(int_8)                           :: il_deltar(1)
 #ifdef _USE_SCRATCHLIBRARY
     COMPLEX(real_8), POINTER __CONTIGUOUS    :: deltar(:)
@@ -87,6 +86,10 @@ CONTAINS
     IF (imagp.EQ.2)CALL stopgm(procedureN,'K-POINT NOT IMPLEMENTED',&
          __LINE__,__FILE__)
     CALL setfftn(0)
+    ALLOCATE(na_grp(2,ions1%nsp,0:parai%cp_nogrp-1), na(2,ions1%nsp), nst(2,0:parai%nproc-1),&
+         stat=ierr)
+    IF (ierr /= 0) CALL stopgm(procedureN, 'allocation problem)',&
+         __LINE__,__FILE__)
 
     CALL cp_grp_get_sizes(first_nhg=ig_start,nhg_l=nhg_loc)
     CALL dist_entity(i_end-i_start+1,parai%nproc,nst)
@@ -140,6 +143,10 @@ CONTAINS
     IF (PRESENT(psi)) THEN
        CALL invfftn(psi, .FALSE.,parai%allgrp)
     END IF
+    DEALLOCATE(na_grp, na, nst, stat=ierr)
+    IF (ierr /= 0) CALL stopgm(procedureN, 'deallocation problem)',&
+         __LINE__,__FILE__)
+
     ! ==--------------------------------------------------------------==
     CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==

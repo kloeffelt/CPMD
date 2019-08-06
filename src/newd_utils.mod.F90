@@ -63,15 +63,20 @@ CONTAINS
     INTEGER,INTENT(IN)                       :: i_start, i_end
     REAL(real_8),INTENT(IN)                  :: f(*)
     LOGICAL,INTENT(IN)                       :: tfor
-    INTEGER                                  :: is, ia, isub, nst(2,0:parai%nproc-1), &
-                                                na_grp(2,ions1%nsp,0:parai%cp_nogrp-1), &
-                                                na(2,ions1%nsp), ig_start, nhg_loc
+    INTEGER                                  :: is, ia, isub, ig_start, nhg_loc, ierr
+    INTEGER, ALLOCATABLE                     :: na_grp(:,:,:), na(:,:), nst(:,:)
 
     CHARACTER(*), PARAMETER                  :: procedureN='newd'
 
     CALL tiset(procedureN,isub)
     IF (cntl%tfdist) CALL stopgm(procedureN,'TFDIST NOT IMPLEMENTED',&
          __LINE__,__FILE__)
+    
+    ALLOCATE(na_grp(2,ions1%nsp,0:parai%cp_nogrp-1), na(2,ions1%nsp), nst(2,0:parai%nproc-1),&
+         stat=ierr)
+    IF (ierr /= 0) CALL stopgm(procedureN, 'allocation problem)',&
+         __LINE__,__FILE__)
+
     CALL cp_grp_split_atoms(na_grp)
     na(:,:)=na_grp(:,:,parai%cp_inter_me)
     CALL cp_grp_get_sizes(first_nhg=ig_start,nhg_l=nhg_loc)
@@ -105,6 +110,10 @@ CONTAINS
           CALL mp_sum(fion,3*maxsys%nax*maxsys%nsx,parai%cp_inter_grp)
        END IF
     END IF
+    DEALLOCATE(na_grp, na, nst, stat=ierr)
+    IF (ierr /= 0) CALL stopgm(procedureN, 'deallocation problem)',&
+         __LINE__,__FILE__)
+
     CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==
     RETURN
@@ -122,16 +131,16 @@ CONTAINS
 
 #ifdef _USE_SCRATCHLIBRARY
     COMPLEX(real_8), POINTER __CONTIGUOUS    :: qg1(:,:,:), vtmp(:)
-    REAL(real_8), POINTER __CONTIGUOUS       :: fnlt(:,:,:),gk_trans(:,:,:),ylm(:,:)
+    REAL(real_8), POINTER __CONTIGUOUS       :: fnlt(:,:,:),gk_trans(:,:),ylm(:,:)
 #else
-    REAL(real_8), ALLOCATABLE                :: fnlt(:,:,:),gk_trans(:,:,:),ylm(:,:)
+    REAL(real_8), ALLOCATABLE                :: fnlt(:,:,:),gk_trans(:,:),ylm(:,:)
     COMPLEX(real_8), ALLOCATABLE             :: qg1(:,:,:), vtmp(:)
 #endif
 
     INTEGER                                  :: i, is, ia, blocksize, blocks, last_block, &
                                                 isa0, nhh0, nhh, num_orb, offset_fnl0, ierr
     INTEGER(int_8)                           :: il_qg1(3), il_ylm(2),&
-                                                il_fnlt(3), il_gk_trans(3)
+                                                il_fnlt(3), il_gk_trans(2)
     CHARACTER(*), PARAMETER                  :: procedureN='prep_bigmem'
 
     !blocking parameters
@@ -162,7 +171,6 @@ CONTAINS
     !SDF allocate gk even if not requiered
     il_gk_trans(1)=blocksize
     il_gk_trans(2)=3
-    il_gk_trans(3)=1
     il_fnlt(1)=1
     il_fnlt(2)=1
     il_fnlt(3)=1
@@ -172,8 +180,6 @@ CONTAINS
        il_fnlt(1)=num_orb
        il_fnlt(2)=maxsys%nhxs
        il_fnlt(3)=parai%ncpus
-       il_gk_trans(3)=blocks
-       IF(last_block.GT.0) il_gk_trans(3)=blocks+1
     END IF
 #ifdef _USE_SCRATCHLIBRARY
     CALL request_scratch(il_fnlt,fnlt,procedureN//'_fnlt')
@@ -184,7 +190,7 @@ CONTAINS
     ALLOCATE(fnlt(il_fnlt(1),il_fnlt(2),il_fnlt(3)), stat=ierr)
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate fnlt)',&
          __LINE__,__FILE__)
-    ALLOCATE(gk_trans(il_gk_trans(1),il_gk_trans(2), il_gk_trans(3)), stat=ierr)
+    ALLOCATE(gk_trans(il_gk_trans(1),il_gk_trans(2)), stat=ierr)
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate gk_trans)',&
          __LINE__,__FILE__)
     ALLOCATE(qg1(il_qg1(1),il_qg1(2),il_qg1(3)), stat=ierr)
@@ -194,7 +200,6 @@ CONTAINS
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate ylm)',&
          __LINE__,__FILE__)
 #endif
-    IF(tfor) CALL transpose_gk(blocks,blocksize,last_block,ig_start,gk,gk_trans)
 
     isa0=0
     nhh0=1
@@ -204,7 +209,7 @@ CONTAINS
           nhh=(nlps_com%ngh(is)*(nlps_com%ngh(is)+1))/2
           CALL evaluate_bigmem_newd(isa0,ions0%na(is),na(2,is)-na(1,is)+1,nlps_com%ngh(is),&
                nhh,offset_fnl0,na(1,is)-1,num_orb,ig_start,blocksize,last_block,blocks,tfor, &
-               f(nst(1)),vpot,deeq,qg(1,nhh0),gk_trans,fnlt,qg1,ylm,&
+               f(nst(1)),vpot,deeq,qg(1,nhh0),gk_trans,gk,fnlt,qg1,ylm,&
                fnl_p(1,nst(1)),fion(:,:,is))
           nhh0=nhh0+nhh
        END IF
@@ -234,14 +239,15 @@ CONTAINS
   END SUBROUTINE prep_bigmem_newd
   ! ==================================================================
   SUBROUTINE evaluate_bigmem_newd(isa0,ia_sum,ia_fnl,ngh,nhh,offset_fnl0,offset_ylm,num_orb, &
-       ig_start,blocksize,last_block,blocks,tfor,f,vpot,deeq,qg_,gk_trans,fnlt,qg1,ylm, &
+       ig_start,blocksize,last_block,blocks,tfor,f,vpot,deeq,qg_,gk_trans,gk_,fnlt,qg1,ylm, &
        fnl_p,fion)
     INTEGER,INTENT(IN)                       :: isa0, ia_sum, ia_fnl, ngh, nhh, offset_fnl0,&
                                                  offset_ylm, num_orb, ig_start, blocksize, &
                                                  last_block, blocks
     LOGICAL,INTENT(IN)                       :: tfor
-    REAL(real_8),INTENT(IN)                  :: gk_trans(blocksize,3,*), f(*), &
-                                                fnl_p(il_fnl_packed(1),*)
+    REAL(real_8),INTENT(IN)                  :: f(*), fnl_p(il_fnl_packed(1),*)
+    REAL(real_8),INTENT(OUT)                 :: gk_trans(blocksize,3)
+    REAL(real_8),INTENT(IN) __CONTIGUOUS     :: gk_(:,:)
     REAL(real_8), INTENT(OUT)                :: fnlt(num_orb,ngh,*), &
                                                 ylm(ia_sum,nhh,*)
     REAL(real_8), INTENT(INOUT)              :: deeq(ions1%nat,maxsys%nhxs,*)
@@ -266,7 +272,7 @@ CONTAINS
     fac=0.0_real_8
     DO iblock=1,blocks
        CALL evaluate_block_newd(blocksize,blocksize,istart,qgstart,isa0,ia_sum,start_ylm, &
-            nhh,fac,tfor,gk_trans(1,1,iblock),qg1,ylm,vpot(istart+1),qg_(1,1))
+            nhh,fac,tfor,gk_trans,gk_,qg1,ylm,vpot(istart+1),qg_)
 
        IF(iblock.EQ.1)THEN
           fac=1.0_real_8
@@ -285,7 +291,7 @@ CONTAINS
     IF(last_block.GT.0)THEN
        iblock=blocks+1
        CALL evaluate_block_newd(blocksize,last_block,istart,qgstart,isa0,ia_sum,start_ylm, &
-            nhh,fac,tfor,gk_trans(1,1,iblock),qg1,ylm,vpot(istart+1),qg_(1,1))
+            nhh,fac,tfor,gk_trans,gk_,qg1,ylm,vpot(istart+1),qg_)
     END IF
 
     IF(tfor)THEN
@@ -344,7 +350,7 @@ CONTAINS
        !$omp do __COLLAPSE2
        DO ig=1,blocksize
           DO k=1,3
-             gktrans(ig,k,iblock)=gk(k,istart+ig)
+             gktrans(ig,k,iblock)=gk_(k,istart+ig)
           END DO
        END DO
        !$omp end do nowait
@@ -355,7 +361,7 @@ CONTAINS
        !$omp do __COLLAPSE2
        DO ig=1,last_block
           DO k=1,3
-             gktrans(ig,k,iblock)=gk(k,istart+ig)
+             gktrans(ig,k,iblock)=gk_(k,istart+ig)
           END DO
        END DO
        !$omp end do nowait
@@ -405,18 +411,30 @@ CONTAINS
   END SUBROUTINE calc_rho
   ! ==================================================================
   SUBROUTINE evaluate_block_newd(ld_qg1,blocksize,block_start,qgstart,isa0,ia_sum,start_ylm, &
-       nhh,fac,tfor,gk_trans,qg1,ylm,vpot,qg_)
+       nhh,fac,tfor,gk_trans,gk_,qg1,ylm,vpot,qg_)
     ! ==--------------------------------------------------------------==
     INTEGER,INTENT(IN)                         :: ld_qg1, blocksize, block_start, isa0, &
                                                   ia_sum, start_ylm, nhh, qgstart
     LOGICAL,INTENT(IN)                         :: tfor
-    REAL(real_8),INTENT(IN)                    :: fac, gk_trans(ld_qg1,3)
+    REAL(real_8),INTENT(OUT)                   :: gk_trans(ld_qg1,3)
+    REAL(real_8),INTENT(IN)                    :: fac
+    REAL(real_8),INTENT(IN) __CONTIGUOUS       :: gk_(:,:)
     COMPLEX(real_8),INTENT(IN)                 :: vpot(blocksize), qg_(ncpw%nhg,*)
     COMPLEX(real_8),INTENT(OUT)                :: qg1(blocksize,nhh,*)
     REAL(real_8)                               :: ylm(ia_sum,nhh,*)
     INTEGER                                    :: ijv,ig,k,ig2,len_qg1
 
     !$omp parallel private(ijv,ig,k,ig2)
+    IF(tfor)THEN
+       !$omp do 
+       DO ig=1,blocksize
+          ig2=qgstart+ig
+          DO k=1,3
+             gk_trans(ig,k)=gk_(k,ig2)
+          END DO
+       END DO
+       !$omp end do nowait
+    END IF
     DO ijv=1,nhh
        IF(tfor)THEN
           !$omp do

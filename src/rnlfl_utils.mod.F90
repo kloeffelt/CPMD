@@ -47,11 +47,11 @@ CONTAINS
                                                 fnlgam_p(il_fnl_packed(1),nstate)
 
     INTEGER                                  :: i, ia, is, isa0, k, ia_sum, iac, &
-                                                na_grp(2,ions1%nsp,0:parai%cp_nogrp-1), &
-                                                na(2,ions1%nsp), start_ia, end_ia, &
+                                                start_ia, end_ia, &
                                                 offset_fnl, offset_dfnl, offset_base, &
                                                 methread, ispin, start_isa, il_fiont(4), &
                                                 isub, ierr
+    INTEGER, ALLOCATABLE                     :: na_grp(:,:,:), na(:,:)
 
     REAL(real_8), ALLOCATABLE                :: fiont(:,:,:,:)
     REAL(real_8)                             :: ft(maxsys%nax,3),weight,fac
@@ -66,6 +66,10 @@ CONTAINS
          __LINE__,__FILE__)
 
     IF(pslo_com%tivan) THEN
+       ALLOCATE(na_grp(2,ions1%nsp,0:parai%cp_nogrp-1), na(2,ions1%nsp), stat=ierr)
+       IF (ierr /= 0) CALL stopgm(procedureN, 'allocation problem',&
+            __LINE__,__FILE__)
+
        ! split atoms between cp groups
        CALL cp_grp_split_atoms(na_grp)
        na(:,:)=na_grp(:,:,parai%cp_inter_me)
@@ -146,6 +150,10 @@ CONTAINS
        IF (parai%cp_nogrp.GT.1 ) THEN
           CALL mp_sum(fion,3*maxsys%nax*maxsys%nsx,parai%cp_inter_grp)
        END IF
+
+       DEALLOCATE(na_grp, na, stat=ierr)
+       IF (ierr /= 0) CALL stopgm(procedureN, 'deallocation problem',&
+            __LINE__,__FILE__)
 
     END IF
 

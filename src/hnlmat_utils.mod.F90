@@ -48,8 +48,6 @@ CONTAINS
                                                 ia_sum, tot_work, ns(2), nmin(2), off_i, &
                                                 off_mat, off_fnl, ia_fnl, start_fnl, &
                                                 end_fnl, fnl_start, start_mat, end_mat, &
-                                                na(2,ions1%nsp), na_fnl(2,ions1%nsp),  &
-                                                na_grp(2,ions1%nsp,0:parai%cp_nogrp-1),&
                                                 isub, ierr
     INTEGER(int_8)                           :: il_fnlat(3), il_fnlatj(3), il_hmat_loc(2)
     LOGICAL                                  :: need_hmat_loc, non_uspp
@@ -61,6 +59,8 @@ CONTAINS
 #endif
     REAL(real_8),POINTER __CONTIGUOUS        :: hmat_loc(:,:)
     INTEGER,ALLOCATABLE,SAVE                 :: na_buff(:,:,:)
+    INTEGER,ALLOCATABLE                      :: na(:,:), na_fnl(:,:),na_grp(:,:,:)
+
     CHARACTER(*), PARAMETER                  :: procedureN = 'hnlmat'
     ! ==--------------------------------------------------------------==
     ! == Compute the non-local contribution to the Hamilton matrix    ==
@@ -89,6 +89,11 @@ CONTAINS
           nspin=2
           fac=-1.0_real_8
        ENDIF
+       ALLOCATE(na(2,ions1%nsp),na_fnl(2,ions1%nsp),na_grp(2,ions1%nsp,0:parai%cp_nogrp-1)&
+            , stat=ierr)
+       IF (ierr /= 0) CALL stopgm(procedureN, 'allocation problem',&
+            __LINE__,__FILE__)
+       !get cp_grp atom distribution
        CALL cp_grp_split_atoms(na_grp)
        na_fnl(:,:)=na_grp(:,:,parai%cp_inter_me)
        IF (.NOT. ALLOCATED(na_buff))THEN
@@ -225,6 +230,9 @@ CONTAINS
                   __LINE__,__FILE__)
           END IF
        END IF
+       DEALLOCATE(na,na_fnl,na_grp, stat=ierr)
+       IF (ierr /= 0) CALL stopgm(procedureN, 'deallocation problem',&
+            __LINE__,__FILE__)
     END IF
 
     !!END VANDERBILT OPTIMIZED!!

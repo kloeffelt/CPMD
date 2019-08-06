@@ -455,9 +455,9 @@ CONTAINS
     LOGICAL,INTENT(IN)                     :: redist_fnl, redist_dfnl
     INTEGER,INTENT(IN)                     :: nstate, ikind
     CHARACTER(*), PARAMETER                :: procedureN = 'cp_grp_redist_dfnl_fnl'
-    INTEGER                                :: na_grp(2,ions1%nsp,parai%cp_nogrp),&
-                                              worksum(parai%cp_nogrp), is,ierr, ii,&
+    INTEGER                                :: worksum(parai%cp_nogrp), is,ierr, ii,&
                                               sendcnt, grp, isub
+    INTEGER, ALLOCATABLE                   :: na_grp(:,:,:)
     INTEGER(int_8)                         :: il_temp(3)
 #ifdef _USE_SCRATCHLIBRARY
     REAL(real_8), POINTER __CONTIGUOUS     :: temp(:,:,:)
@@ -471,6 +471,9 @@ CONTAINS
     IF (parai%cp_nogrp.EQ.1) RETURN
     CALL tiset(procedureN,isub)
     !get cp_grp atomwise (d)fnl distribution
+    ALLOCATE(na_grp(2,ions1%nsp,parai%cp_nogrp), stat=ierr)
+    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate na_grp',&
+         __LINE__,__FILE__)
     CALL cp_grp_split_atoms(na_grp)
 
     worksum=0
@@ -557,6 +560,10 @@ CONTAINS
             __LINE__,__FILE__)
 #endif
     END IF
+
+    DEALLOCATE(na_grp, stat=ierr)
+    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate na_grp',&
+         __LINE__,__FILE__)
 
     CALL tihalt(procedureN,isub)
     RETURN

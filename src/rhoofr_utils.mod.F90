@@ -70,6 +70,7 @@ MODULE rhoofr_utils
   USE kin_energy_utils,                ONLY: kin_energy
   USE kinds,                           ONLY: real_8,&
                                              int_8
+  USE fft_maxfft,                      ONLY: maxfft
   USE moverho_utils,                   ONLY: give_scr_moverho,&
                                              moverho
   USE mp_interface,                    ONLY: mp_comm_dup,&
@@ -844,6 +845,7 @@ CONTAINS
     il_wfng(2)=fft_batchsize
 
     il_wfnr(1)=fpar%kr1*fpar%kr2s*fpar%kr3s*fft_batchsize
+    IF(il_wfnr(1).EQ.0)il_wfnr(1)=fpar%kr2s*fpar%kr3s*fft_batchsize
     il_wfnr(1)=il_wfnr(1)+MOD(il_wfnr(1),4)
     il_wfnr(2)=1
     IF(rsactive)THEN
@@ -851,6 +853,7 @@ CONTAINS
        IF(fft_residual.GT.0) il_wfnr(2)=fft_numbatches+1
     END IF
     il_xf(1)=fpar%nnr1*fft_batchsize
+    IF(il_xf(1).EQ.0) il_xf(1)=maxfft*fft_batchsize
     il_xf(1)=il_xf(1)+MOD(il_xf(1),4)
     il_xf(2)=2
 

@@ -68,6 +68,7 @@ MODULE vpsi_utils
                                              hgkp,&
                                              rk
   USE kpts,                            ONLY: tkpts
+  USE fft_maxfft,                      ONLY: maxfft
   USE mp_interface,                    ONLY: mp_comm_dup,&
                                              mp_comm_free,&
                                              mp_comm_null
@@ -1094,10 +1095,12 @@ CONTAINS
     il_wfnr1(1)=fpar%kr1*fpar%kr2s*fpar%kr3s*fft_batchsize
 
     il_wfnr(1)=fpar%kr1*fpar%kr2s*fpar%kr3s*fft_batchsize
+    IF(il_wfnr(1).EQ.0)il_wfnr(1)=fpar%kr2s*fpar%kr3s*fft_batchsize
     il_wfnr(1)=il_wfnr(1)+MOD(il_wfnr(1),4)
     il_wfnr(2)=1
 
     il_xf(1)=fpar%nnr1*fft_batchsize
+    IF(il_xf(1).EQ.0) il_xf(1)=maxfft*fft_batchsize
     il_xf(1)=il_xf(1)+MOD(il_xf(1),4)
     il_xf(2)=3
 

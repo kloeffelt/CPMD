@@ -35,13 +35,17 @@ CONTAINS
     REAL(real_8),INTENT(OUT)                 :: first,others
     INTEGER                                  :: tot_work
 
+    IF(work.LE.0) THEN
+       count=0
+       RETURN
+    END IF
     !computation .GT. communication?
     IF(timings(1).GT.timings(2))THEN
        tot_work=work
        !work for overlapping part
        tot_work=CEILING(REAL(tot_work,kind=real_8)*timings(2)/timings(1))
        !take at least 300 in each buffer
-       count=tot_work/300
+       count=CEILING(REAL(tot_work,KIND=real_8)/300_real_8)
        !failsave for small amount of work
        IF(count.EQ.1)THEN
           count=2
@@ -52,7 +56,7 @@ CONTAINS
        END IF
        IF(count.GT.1) THEN
           first=1.0_real_8-timings(2)/timings(1)
-          others=timings(2)/timings(1)/real(count-1,kind=real_8)
+          others=timings(2)/timings(1)/REAL(count-1,kind=real_8)
        ELSE
           first=1.0_real_8
           others=0.0_real_8
@@ -60,11 +64,11 @@ CONTAINS
     ELSE
        !communication has won.. set arbitrary number of buffers
        tot_work=work
-       count=tot_work/300
+       count=CEILING(REAL(tot_work,KIND=real_8)/300_real_8)
        !prevent more than 15 buffers
        IF(count.GT.15) count=15
-       first=1.0_real_8/real(count)
-       others=1.0_real_8/real(count)
+       first=1.0_real_8/REAL(count,KIND=real_8)
+       others=1.0_real_8/REAL(count,KIND=real_8)
     END IF
   END SUBROUTINE tune_rnlsm
   ! ==================================================================

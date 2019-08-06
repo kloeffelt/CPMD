@@ -436,18 +436,13 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     ! INITIALIZE BATCH FFT ALGORITHM
     IF(batch_fft)THEN
-       lwdim = fpar%nnr1
-       CALL mp_max(lwdim,parai%allgrp)
-
        nstate = crge%n
        CALL part_1d_get_blk_bounds(nstate,parai%cp_inter_me,parai%cp_nogrp,first,last)
        nstate = last - first +1
        IF(tkpts%tkpnt) nstate = nstate*nkpt%nkpnt
        maxstates = nstate
-       rstate=1._real_8
-       ldim  = (maxstates+1)/2 * lwdim
-       IF (tkpts%tkpnt) ldim = ldim*2
-       if (lwdim .gt. 0 ) fft_total=ldim/lwdim
+       fft_total=(maxstates+1)/2
+       IF (tkpts%tkpnt) fft_total=maxstates+1
        lda=ngrm*nr1m
        !calculate blocking so that we get something less than a2a_msgsize to send per proc (sparse fft)
        fft_batchsize=1
@@ -455,9 +450,18 @@ CONTAINS
        DO i=1,fft_total
           IF (lda*i.LT.a2a_msgsize) fft_batchsize=fft_batchsize + 1
        END DO
-       IF (fft_batchsize.GT.1) fft_batchsize=fft_batchsize - 1
+       IF (fft_batchsize.GT.1) THEN
+          fft_batchsize=fft_batchsize - 1
+       ELSEIF(fft_batchsize.LE.0) THEN
+          fft_batchsize=1
+       END IF
        fft_residual=MOD(fft_total,fft_batchsize)
        fft_numbatches=(fft_total-fft_residual)/fft_batchsize
+       IF(fft_numbatches.LE.1)THEN
+          fft_numbatches=2
+          fft_batchsize=fft_total/2
+          fft_residual=MOD(fft_total,fft_batchsize)
+       END IF
        CALL mp_bcast(fft_numbatches,parai%io_source,parai%allgrp)
        CALL mp_bcast(fft_residual,parai%io_source,parai%allgrp)
        CALL mp_bcast(fft_batchsize,parai%io_source,parai%allgrp)

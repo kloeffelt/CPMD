@@ -53,9 +53,7 @@ CONTAINS
                                                 ia_sum, tot_work, ns(2), nmin(2), &
                                                 off_i, off_mat, off_fnl, ia_fnl, &
                                                 start_fnl, end_fnl, fnl_start, start_mat, &
-                                                end_mat, isub, ierr, &
-                                                na(2,ions1%nsp),na_fnl(2,ions1%nsp),&
-                                                na_grp(2,ions1%nsp,0:parai%cp_nogrp-1)
+                                                end_mat, isub, ierr
     INTEGER(int_8)                           :: il_fnlat(3), il_fnlatj(3)
     REAL(real_8)                             :: fractions(parai%nproc),selem, temp
     CHARACTER(*), PARAMETER                  :: procedureN = 'csmat'
@@ -65,7 +63,7 @@ CONTAINS
     REAL(real_8),ALLOCATABLE                 :: fnlat(:,:,:), fnlatj(:,:,:)
 #endif
     INTEGER,ALLOCATABLE,SAVE                 :: na_buff(:,:,:)
-
+    INTEGER,ALLOCATABLE                      :: na(:,:), na_fnl(:,:), na_grp(:,:,:)
     CALL tiset(procedureN,isub)
     IF (cntl%tfdist) CALL stopgm('CSMAT','TFDIST NOT IMPLEMENTED',&
          __LINE__,__FILE__)
@@ -75,6 +73,11 @@ CONTAINS
     IF(store_nonort) CALL store_ovlap(a,nstate)
 
     IF (pslo_com%tivan) THEN
+       ALLOCATE(na(2,ions1%nsp),na_fnl(2,ions1%nsp),na_grp(2,ions1%nsp,0:parai%cp_nogrp-1)&
+            , stat=ierr)
+       IF (ierr /= 0) CALL stopgm(procedureN, 'allocation problem',&
+            __LINE__,__FILE__)
+       !get cp_grp atom distribution
        CALL cp_grp_split_atoms(na_grp)
        na_fnl(:,:)=na_grp(:,:,parai%cp_inter_me)
        IF (.NOT.ALLOCATED(na_buff))THEN
@@ -183,9 +186,15 @@ CONTAINS
                __LINE__,__FILE__)
 #endif
        END IF
+       
+       DEALLOCATE(na,na_fnl,na_grp, stat=ierr)
+       IF (ierr /= 0) CALL stopgm(procedureN, 'deallocation problem',&
+            __LINE__,__FILE__)
+
     END IF
     CALL summat(a,nstate,symmetrization=full,lsd=.TRUE.,gid=parai%cp_grp,&
          parent=only_parent)
+
     CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==
     RETURN
