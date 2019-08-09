@@ -388,6 +388,8 @@ CONTAINS
 
           IF (tkpts%tkpnt) nstate = nstate*nkpt%nkpnt
        ENDIF
+       !TK sometimes we have no real space plane...nnr1=0!
+       IF(lwdim.eq.0) CALL mp_max(lwdim,parai%allgrp)
        !
        ! SuperDirtyFix (SDF): allocate all the memory when CP_NOGRP.GT.1
        IF (cntr%memsize.LT.0.OR.parai%cp_nogrp.GT.1) THEN
