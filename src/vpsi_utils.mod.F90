@@ -1462,7 +1462,12 @@ CONTAINS
             __LINE__,__FILE__)
     END IF
 #endif
-    deallocate(locks_inv,locks_fw)
+    !$ DEALLOCATE(locks_fw,STAT=ierr)
+    !$ IF(ierr/=0) CALL stopgm(procedureN,'cannot deallocate locks_fw', &
+    !$      __LINE__,__FILE__)
+    !$ DEALLOCATE(locks_inv,STAT=ierr)
+    !$ IF(ierr/=0) CALL stopgm(procedureN,'cannot deallocate locks_inv', &
+    !$      __LINE__,__FILE__)
     IF (tkpts%tkpnt) CALL c_clean(c2,nstate,ikind)
     ! SPECIAL TERMS FOR LSE METHODS
     IF (lspin2%tlse) CALL vpsi_lse(c0,c2,f,vpot,psi,nstate,.TRUE.)
