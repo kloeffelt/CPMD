@@ -16,8 +16,7 @@ MODULE mdshop_cp_utils
   USE csize_utils,                     ONLY: csize
   USE ddipo_utils,                     ONLY: ddipo,&
                                              give_scr_ddipo
-  USE deort_utils,                     ONLY: deort,&
-                                             give_scr_deort
+  USE deort_utils,                     ONLY: deort
   USE detdof_utils,                    ONLY: detdof
   USE dispp_utils,                     ONLY: dispp
   USE dynit_utils,                     ONLY: dynit
@@ -303,8 +302,8 @@ CONTAINS
        crge%n=ntmp
     ENDIF
     IF (pslo_com%tivan) THEN
-       CALL deort(ncpw%ngw,sh02%nst_s0,eigm,eigv,c0(1,1,1),sc0)
-       CALL deort(ncpw%ngw,sh02%nst_s1,eigm,eigv,c0(1,ns1,1),sc0)
+       CALL deort(sh02%nst_s0,c0(:,:,1))
+       CALL deort(sh02%nst_s1,c0(:,ns1:sh02%nst_s1,1))
     ENDIF
     ! INITIALIZE VELOCITIES
     IF (paral%parent) CALL detdof(tau0,taur)
@@ -860,7 +859,7 @@ CONTAINS
     INTEGER                                  :: lmdshop
     CHARACTER(len=30)                        :: tag
 
-    INTEGER                                  :: lcopot, lddipo, ldeort, &
+    INTEGER                                  :: lcopot, lddipo,  &
                                                 lforcedr, linitrun, lortho, &
                                                 lposupa, lquenbo, lrhopri, &
                                                 lrortv, nstate
@@ -870,20 +869,18 @@ CONTAINS
     lcopot=0
     lortho=0
     lquenbo=0
-    ldeort=0
     lrhopri=0
     lddipo=0
     CALL give_scr_initrun(linitrun,tag)
     IF (corel%tinlc) CALL give_scr_copot(lcopot,tag)
     IF (cntl%trane) CALL give_scr_ortho(lortho,tag,nstate)
     IF (cntl%quenchb) CALL give_scr_quenbo(lquenbo,tag)
-    IF (pslo_com%tivan) CALL give_scr_deort(ldeort,tag,nstate)
     IF (cntl%tdipd) CALL give_scr_ddipo(lddipo,tag)
     CALL give_scr_forcedr(lforcedr,tag,nstate,.FALSE.,.TRUE.)
     CALL give_scr_rortv(lrortv,tag,nstate)
     CALL give_scr_posupa(lposupa,tag,nstate)
     IF (rout1%rhoout) CALL give_scr_rhopri(lrhopri,tag,nstate)
-    lmdshop=MAX(lcopot,lortho,lquenbo,ldeort,lforcedr,&
+    lmdshop=MAX(lcopot,lortho,lquenbo,lforcedr,&
          lrortv,lposupa,lrhopri,lddipo,linitrun)
     ! ==--------------------------------------------------------------==
     RETURN

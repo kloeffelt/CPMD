@@ -454,15 +454,7 @@ CONTAINS
           CALL quenbo(c0(:,:,ipx),c2(1,1,ipx),sc0,taur,rhoe,psi)
        ENDIF
        IF (pslo_com%tivan) THEN
-          IF (cntl%tlsd) THEN
-             CALL deort(ncpw%ngw,spin_mod%nsup,eigm(1,ipx),eigv(1,ipx),&
-                  c0(:,1:spin_mod%nsup,ipx),sc0(1,1))
-             CALL deort(ncpw%ngw,spin_mod%nsdown,eigm(1,ipx),eigv(1,ipx),&
-                  c0(:,spin_mod%nsup+1:spin_mod%nsup+spin_mod%nsdown,ipx),sc0(1,spin_mod%nsup+1))
-          ELSE
-             CALL deort(ncpw%ngw,crge%n,eigm(1,ipx),eigv(1,ipx),&
-                  c0(:,:,ipx),sc0)
-          ENDIF
+          CALL deort(crge%n,c0(:,:,ipx))
        ENDIF
        ! ..Initialize velocities
        IF (.NOT.restart1%rvel) THEN

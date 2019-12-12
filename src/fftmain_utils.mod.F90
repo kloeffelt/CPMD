@@ -46,6 +46,7 @@ MODULE fftmain_utils
                                              unpack_y2x_n
   USE kinds,                           ONLY: real_8,&
                                              int_8
+  USE machine,                         ONLY: m_walltime
   USE mltfft_utils,                    ONLY: mltfft_cuda,&
                                              mltfft_default,&
                                              mltfft_essl,&
@@ -212,7 +213,7 @@ CONTAINS
 
     REAL(real_8)                             :: scale
     INTEGER                                  :: lda, m, mm, n1o, n1u
-
+    REAL(real_8)                             :: temp
 
     LDA=HUGE(0);MM=HUGE(0);N1U=HUGE(0);N1O=HUGE(0);M=HUGE(0)
     scale=HUGE(0.0_real_8)
@@ -625,12 +626,20 @@ CONTAINS
     COMPLEX(real_8), INTENT(INOUT)           :: f(fpar%kr1*fpar%kr2s*fpar%kr3s*fft_batchsize)
     CHARACTER(*), PARAMETER                  :: procedureN = 'fwfftn_batch'
 
-    INTEGER                                  :: isign, isub
+    INTEGER                                  :: isign, isub, isub1
 
-    CALL tiset(procedureN,isub)
+    IF(cntl%fft_tune_batchsize) THEN
+       CALL tiset(procedureN//'tune',isub1)
+    ELSE
+       CALL tiset(procedureN,isub)
+    END IF
     isign=1
     CALL fftnew_batch(isign,f,n,swap,step,parai%allgrp,ibatch)
-    CALL tihalt(procedureN,isub)
+    IF(cntl%fft_tune_batchsize) THEN
+       CALL tihalt(procedureN//'tune',isub1)
+    ELSE
+       CALL tihalt(procedureN,isub)
+    END IF
     ! ==--------------------------------------------------------------==
   END SUBROUTINE fwfftn_batch
   ! ==================================================================
@@ -644,12 +653,21 @@ CONTAINS
     COMPLEX(real_8), INTENT(INOUT)           :: f(fpar%kr1*fpar%kr2s*fpar%kr3s*fft_batchsize)
     CHARACTER(*), PARAMETER                  :: procedureN = 'invfftn_batch'
 
-    INTEGER                                  :: isign, isub
+    INTEGER                                  :: isign, isub, isub1
 
-    CALL tiset(procedureN,isub)
+    
+    IF(cntl%fft_tune_batchsize) THEN
+       CALL tiset(procedureN//'tune',isub1)
+    ELSE
+       CALL tiset(procedureN,isub)
+    END IF
     isign=-1
     CALL fftnew_batch(isign,f,n,swap,step,parai%allgrp,ibatch)
-    CALL tihalt(procedureN,isub)
+    IF(cntl%fft_tune_batchsize) THEN
+       CALL tihalt(procedureN//'tune',isub1)
+    ELSE
+       CALL tihalt(procedureN,isub)
+    END IF
     ! ==--------------------------------------------------------------==
   END SUBROUTINE invfftn_batch
   ! ==================================================================
@@ -701,7 +719,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: int_mod
     CHARACTER(*), PARAMETER                  :: procedureN = 'fwfftn_batch_com'
 
-    INTEGER                                  :: ibatch,n,lda,isub, swap
+    INTEGER                                  :: ibatch,n,lda,isub, swap, isub1
 
     CALL tiset(procedureN,isub)
     DO ibatch=1,fft_numbatches+1
@@ -726,7 +744,6 @@ CONTAINS
           !$omp flush(locks_fw)
        END IF
     END DO
-
     CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==
   END SUBROUTINE fwfftn_batch_com

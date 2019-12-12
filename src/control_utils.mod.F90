@@ -3695,6 +3695,20 @@ CONTAINS
              ELSEIF ( keyword_contains(line,'ALL2ALL_BATCHSIZE') ) THEN
                 READ(iunit,'(A)',iostat=ierr) line
                 CALL readsi(line,1,last,a2a_msgsize,erread)
+             ELSEIF ( keyword_contains(line,'TUNE_FFT_BATCHSIZE') ) THEN
+                IF ( keyword_contains(line,'OFF') ) THEN
+                   cntl%fft_tune_batchsize=.FALSE.
+                ELSE
+                   cntl%fft_tune_batchsize=.TRUE.
+                   READ(iunit,'(A)',iostat=ierr) line
+                   CALL readsi(line,1,last,cnti%fft_tune_it_per_batch,erread)
+                   IF (erread) THEN
+                      error_message        = "ERROR WHILE READING VALUE"
+                      something_went_wrong = .true.
+                      go_on_reading        = .false.
+                   ENDIF
+                   
+                ENDIF
              ELSEIF ( keyword_contains(line,'RNLSM1_BLOCKCOUNT') ) THEN
                 READ(iunit,'(A)',iostat=ierr) line
                 CALL readsi(line,1,last,cnti%rnlsm1_bc,erread)
@@ -3748,14 +3762,18 @@ CONTAINS
                 ENDIF
 
              ELSEIF ( keyword_contains(line,'RNLSM_AUTOTUNE') ) THEN
-                READ(iunit,'(A)',iostat=ierr) line
-                CALL readsi(line,1,last,cnti%rnlsm_autotune_maxit,erread)
-                IF (erread) THEN
-                   error_message        = "ERROR WHILE READING VALUE"
-                   something_went_wrong = .true.
-                   go_on_reading        = .false.
+                IF ( keyword_contains(line,'OFF') ) THEN
+                   cntl%rnlsm_autotune=.FALSE.
+                ELSE
+                   cntl%rnlsm_autotune=.TRUE.
+                   READ(iunit,'(A)',iostat=ierr) line
+                   CALL readsi(line,1,last,cnti%rnlsm_autotune_maxit,erread)
+                   IF (erread) THEN
+                      error_message        = "ERROR WHILE READING VALUE"
+                      something_went_wrong = .true.
+                      go_on_reading        = .false.
+                   ENDIF
                 ENDIF
-
              ELSEIF ( keyword_contains(line,'SPLINE') ) THEN
                 IF ( keyword_contains(line,'POINTS') ) THEN
                    ! Number of spline points

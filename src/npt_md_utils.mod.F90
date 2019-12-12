@@ -18,7 +18,6 @@ MODULE npt_md_utils
                                              give_scr_copot
   USE csize_utils,                     ONLY: csize
   USE ddipo_utils,                     ONLY: give_scr_ddipo
-  USE deort_utils,                     ONLY: give_scr_deort
   USE detdof_utils,                    ONLY: detdof
   USE dispp_utils,                     ONLY: dispp
   USE dynit_utils,                     ONLY: dynit
@@ -605,7 +604,7 @@ CONTAINS
     INTEGER                                  :: lnpt_md
     CHARACTER(len=30)                        :: tag
 
-    INTEGER :: lcopot, lddipo, ldeort, lforcedr, linitrun, lnewcell, lortho, &
+    INTEGER :: lcopot, lddipo, lforcedr, linitrun, lnewcell, lortho, &
       lposupa, lquenbo, lrhopri, lrortv, nstate
 
     nstate=crge%n
@@ -613,21 +612,19 @@ CONTAINS
     lcopot=0
     lortho=0
     lquenbo=0
-    ldeort=0
     lrhopri=0
     linitrun=0
     CALL give_scr_initrun(linitrun,tag)
     IF (corel%tinlc) CALL give_scr_copot(lcopot,tag)
     IF (cntl%trane) CALL give_scr_ortho(lortho,tag,nstate)
     IF (cntl%quenchb) CALL give_scr_quenbo(lquenbo,tag)
-    IF (pslo_com%tivan) CALL give_scr_deort(ldeort,tag,nstate)
     CALL give_scr_forcedr(lforcedr,tag,nstate,.FALSE.,.TRUE.)
     CALL give_scr_rortv(lrortv,tag,nstate)
     CALL give_scr_newcell(lnewcell,tag)
     CALL give_scr_posupa(lposupa,tag,nstate)
     IF (rout1%rhoout) CALL give_scr_rhopri(lrhopri,tag,nstate)
     IF (vdwl%vdwd) CALL give_scr_ddipo(lddipo,tag)
-    lnpt_md=MAX(lcopot,lortho,lquenbo,ldeort,lforcedr,&
+    lnpt_md=MAX(lcopot,lortho,lquenbo,lforcedr,&
          lrortv,lposupa,lrhopri,linitrun,&
          lnewcell,lddipo)
     lnpt_md=lnpt_md+10000

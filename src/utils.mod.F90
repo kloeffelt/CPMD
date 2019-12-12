@@ -538,6 +538,8 @@ CONTAINS
     CHARACTER(1)                             :: jobz, uplo, range
     CHARACTER(*),PARAMETER                   :: procedureN='dsyevr_driver'
     INTEGER                                  :: info, ierr
+
+    IF(iu-il+1.LE.0)RETURN
     IF(iopt.EQ.0)THEN
        jobz='N'
        uplo='L'

@@ -686,9 +686,12 @@ CONTAINS
     cntr%rnlsm2_b2=0.3
     !TK autotuning disabled
     cnti%rnlsm_autotune_maxit=0
+    !TK do not tune fft batchsize
+    cntl%fft_tune_batchsize=.FALSE.
+    cnti%fft_tune_it_per_batch=1
     !TK blockingfactor for new/rhov bigmem
     cnti%blocksize_uspp=1200
-    !TK use elpa
+    !TK do not use elpa
     cntl%use_elpa=.FALSE.
     cnti%elpa_num_proc=-1
     cntl%use_elpa_autotune=.FALSE.

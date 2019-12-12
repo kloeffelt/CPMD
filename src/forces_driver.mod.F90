@@ -1,6 +1,7 @@
 #include "cpmd_global.h"
 
 MODULE forces_driver
+  USE autotune_utils,                  ONLY: autotune
   USE cp_grp_utils,                    ONLY: cp_grp_get_cp_rank,&
                                              cp_grp_get_sizes,&
                                              cp_grp_redist,&
@@ -209,6 +210,12 @@ CONTAINS
     ELSE
        c0_ptr=>c0
     END IF
+
+    !autotuning of rhoofr/vpsi/rnlsm
+    IF(cntl%rnlsm_autotune.OR.cntl%fft_tune_batchsize)THEN
+       CALL autotune(c0_ptr(:,:,1),c2,rhoe,psi,nstate)
+    END IF
+
 
     gnmax=0.0_real_8
     gnorm=0.0_real_8
@@ -688,5 +695,6 @@ CONTAINS
     RETURN
   END SUBROUTINE gscal_c
   ! ==================================================================
+  
 
 END MODULE forces_driver

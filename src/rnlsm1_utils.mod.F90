@@ -83,7 +83,7 @@ CONTAINS
     CHARACTER(*), PARAMETER                  :: procedureN = 'rnlsm1'
     INTEGER, PARAMETER                       :: maxbuff=15
     REAL(real_8)                             :: temp
-    INTEGER                                  :: isub, isub2, ierr, buffcount, buff, igeq0,&
+    INTEGER                                  :: isub, isub2, isub3, ierr, buffcount, buff, igeq0,&
                                                 methread, nthreads, nested_threads, &
                                                 tot_work, start_dai, ld_dai, end_dai, &
                                                 ld_buffer(maxbuff), start_buffer(maxbuff)
@@ -106,7 +106,6 @@ CONTAINS
     ! IF no non-local components -> return.
     IF (nlm.EQ.0) RETURN
     ! ==--------------------------------------------------------------==
-    CALL tiset(procedureN,isub)
     __NVTX_TIMER_START ( procedureN )
     IF (present(fnl_unpack) ) THEN
        unpack=fnl_unpack
@@ -123,6 +122,12 @@ CONTAINS
     CALL set_buffers(autotune_it,maxbuff,timings,cnti%rnlsm1_bc,cntr%rnlsm1_b1,&
          cntr%rnlsm1_b2,na_grp(:,:,parai%cp_inter_me),na_buff,ld_buffer,start_buffer,&
          tot_work,nstate,imagp,.FALSE.)
+    IF(autotune_it.GT.0.AND.autotune_it.LE.cnti%rnlsm_autotune_maxit)THEN
+       CALL tiset(procedureN//'tuning',isub3)
+    ELSE
+       CALL tiset(procedureN,isub)
+    END IF
+
     buffcount=cnti%rnlsm1_bc
     ! allocate memory
     il_fnl_packed(1)=tot_work
@@ -269,26 +274,6 @@ CONTAINS
        IF(parai%cp_nogrp.GT.1)CALL cp_grp_redist_dfnl_fnl(.TRUE.,.FALSE.,nstate,ikind)
     END IF
        
-    !set buffcount/buffsizes
-    IF(cnti%rnlsm_autotune_maxit.GT.0)THEN
-       IF(autotune_it.EQ.cnti%rnlsm_autotune_maxit)THEN
-          !stop timemeasurements
-          autotune_it=autotune_it+1
-          IF(paral%parent)THEN
-             CALL tune_rnlsm(cnti%rnlsm1_bc,cntr%rnlsm1_b1,&
-                  cntr%rnlsm1_b2,timings,INT(il_fnl_packed(1),KIND=int_4),nstate)
-             WRITE(6,*) "####rnlsm1_autotuning results####"
-             WRITE(6,*) cnti%rnlsm1_bc
-             WRITE(6,*) cntr%rnlsm1_b1
-             WRITE(6,*) cntr%rnlsm1_b2
-             WRITE(6,*) timings
-          END IF
-          !broadcast results
-          CALL mp_bcast(cnti%rnlsm1_bc,parai%source,parai%allgrp)
-          CALL mp_bcast(cntr%rnlsm1_b1,parai%source,parai%allgrp)
-          CALL mp_bcast(cntr%rnlsm1_b2,parai%source,parai%allgrp)
-       END IF
-    END IF
 #ifdef _USE_SCRATCHLIBRARY 
     CALL free_scratch(il_t,t,procedureN//'_t')
     CALL free_scratch(il_eiscr,eiscr,procedureN//'_eiscr')
@@ -317,7 +302,31 @@ CONTAINS
          __LINE__,__FILE__)
 
     __NVTX_TIMER_STOP
-    CALL tihalt(procedureN,isub)
+    IF(autotune_it.GT.0.AND.autotune_it.LE.cnti%rnlsm_autotune_maxit)THEN
+       !set buffcount/buffsizes
+       IF(cnti%rnlsm_autotune_maxit.GT.0)THEN
+          IF(autotune_it.EQ.cnti%rnlsm_autotune_maxit)THEN
+             !stop timemeasurements
+             autotune_it=autotune_it+1
+             IF(paral%parent)THEN
+                CALL tune_rnlsm(cnti%rnlsm1_bc,cntr%rnlsm1_b1,&
+                     cntr%rnlsm1_b2,timings,INT(il_fnl_packed(1),KIND=int_4),nstate)
+                WRITE(6,*) "####rnlsm1_autotuning results####"
+                WRITE(6,*) cnti%rnlsm1_bc
+                WRITE(6,*) cntr%rnlsm1_b1
+                WRITE(6,*) cntr%rnlsm1_b2
+                WRITE(6,*) timings
+             END IF
+             !broadcast results
+             CALL mp_bcast(cnti%rnlsm1_bc,parai%source,parai%allgrp)
+             CALL mp_bcast(cntr%rnlsm1_b1,parai%source,parai%allgrp)
+             CALL mp_bcast(cntr%rnlsm1_b2,parai%source,parai%allgrp)
+          END IF
+       END IF
+       CALL tihalt(procedureN//'tuning',isub3)
+    ELSE
+       CALL tihalt(procedureN,isub)
+    END IF
     ! ==--------------------------------------------------------------==
 
   END SUBROUTINE rnlsm1

@@ -101,8 +101,6 @@ CONTAINS
           IF (autotune_it.EQ.0.AND.cnti%rnlsm_autotune_maxit.GT.0) THEN
              timings=0.0_real_8
              bc=1
-             b1=1.0_real_8
-             b2=0.0_real_8
           END IF
           !check if autotuning is active, count iteration
           IF (autotune_it.LT.cnti%rnlsm_autotune_maxit) autotune_it=autotune_it+1
@@ -137,6 +135,8 @@ CONTAINS
        ALLOCATE(na_out(2,ions1%nsp,1), stat=ierr)
        IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate na_out',& 
             __LINE__,__FILE__)
+       b1=1.0_real_8
+       b2=0.0_real_8
        na_out(:,:,1)=na_in(:,:)
        start=0
        start(1)=1

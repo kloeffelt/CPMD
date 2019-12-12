@@ -37,8 +37,7 @@ MODULE mdmain_utils
   USE csize_utils,                     ONLY: csize
   USE ddipo_utils,                     ONLY: ddipo,&
                                              give_scr_ddipo
-  USE deort_utils,                     ONLY: deort,&
-                                             give_scr_deort
+  USE deort_utils,                     ONLY: deort
   USE detdof_utils,                    ONLY: detdof
   USE dispp_utils,                     ONLY: dispp
   USE dynit_utils,                     ONLY: dynit
@@ -425,20 +424,15 @@ CONTAINS
        IF (cntl%tlsd) THEN
           bsclcs=1
           IF (cntl%bsymm)CALL setbsstate
-          CALL deort(ncpw%ngw,spin_mod%nsup,eigm,eigv,c0(:,1:spin_mod%nsup,1),sc0(1,1,1))
-          CALL deort(ncpw%ngw,spin_mod%nsdown,eigm,eigv,c0(:,spin_mod%nsup+1:spin_mod%nsup+spin_mod%nsdown,1),&
-               sc0(1,spin_mod%nsup+1,1))
+          CALL deort(nstate,c0(:,:,1))
           ! 
           IF (cntl%bsymm)THEN
              bsclcs=2
              CALL setbsstate
-             CALL deort(ncpw%ngw,spin_mod%nsup,eigm(1,2),eigv(1,2),c0(:,1:spin_mod%nsup,2),&
-                  sc0(1,1,2))
-             CALL deort(ncpw%ngw,spin_mod%nsdown,eigm(1,2),eigv(1,2),c0(:,spin_mod%nsup+1:spin_mod%nsup+spin_mod%nsdown,2),&
-                  sc0(1,spin_mod%nsup+1,2))
+             CALL deort(nstate,c0(:,:,2))
           ENDIF
        ELSE
-          CALL deort(ncpw%ngw,nstate,eigm,eigv,c0,sc0)
+          CALL deort(nstate,c0(:,:,1))
        ENDIF
     ENDIF
 
@@ -1278,7 +1272,7 @@ CONTAINS
     INTEGER                                  :: lmdmain
     CHARACTER(len=30)                        :: tag
 
-    INTEGER :: lcopot, lddipo, ldeort, lforcedr, linitrun, lmtd, lortho, &
+    INTEGER :: lcopot, lddipo, lforcedr, linitrun, lmtd, lortho, &
       lposupa, lquenbo, lrhopri, lrortv, nstate
 
     nstate=crge%n
@@ -1286,21 +1280,19 @@ CONTAINS
     lcopot=0
     lortho=0
     lquenbo=0
-    ldeort=0
     lrhopri=0
     lddipo=0
     CALL give_scr_initrun(linitrun,tag)
     IF (corel%tinlc) CALL give_scr_copot(lcopot,tag)
     IF (cntl%trane) CALL give_scr_ortho(lortho,tag,nstate)
     IF (cntl%quenchb) CALL give_scr_quenbo(lquenbo,tag)
-    IF (pslo_com%tivan) CALL give_scr_deort(ldeort,tag,nstate)
     IF (cntl%tdipd.OR.vdwl%vdwd) CALL give_scr_ddipo(lddipo,tag)
     CALL give_scr_forcedr(lforcedr,tag,nstate,.FALSE.,.TRUE.)
     CALL give_scr_rortv(lrortv,tag,nstate)
     CALL give_scr_posupa(lposupa,tag,nstate)
     IF (rout1%rhoout) CALL give_scr_rhopri(lrhopri,tag,nstate)
     CALL give_scr_meta_extlagr(lmtd,tag)
-    lmdmain=MAX(lcopot,lortho,lquenbo,ldeort,lforcedr,&
+    lmdmain=MAX(lcopot,lortho,lquenbo,lforcedr,&
          lrortv,lposupa,lrhopri,lddipo,linitrun,lmtd)
     ! ==--------------------------------------------------------------==
     RETURN

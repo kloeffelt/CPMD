@@ -567,6 +567,8 @@ MODULE system
      LOGICAL :: distribute_fnl_rot = .FALSE.
      LOGICAL :: use_elpa = .FALSE.
      LOGICAL :: use_elpa_autotune = .FALSE.
+     LOGICAL :: rnlsm_autotune
+     LOGICAL :: fft_tune_batchsize
   END TYPE cntl_t
   TYPE(cntl_t), SAVE, PUBLIC :: cntl
   ! ==================================================================
@@ -684,6 +686,7 @@ MODULE system
      INTEGER :: disortho_bsize = HUGE(0)
      INTEGER :: blocksize_uspp = HUGE(0)
      INTEGER :: elpa_num_proc = HUGE(0)
+     INTEGER :: fft_tune_it_per_batch = HUGE(0)
   END TYPE cnti_t
   TYPE(cnti_t), SAVE, PUBLIC :: cnti
   ! ==================================================================

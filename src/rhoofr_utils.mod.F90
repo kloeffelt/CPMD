@@ -51,6 +51,8 @@ MODULE rhoofr_utils
                                              fft_batchsize,&
                                              fft_residual,&
                                              fft_numbatches,&
+                                             fft_tune_num_it,&
+                                             fft_time_total,&
                                              wfn_g,&
                                              wfn_r,&
                                              xf,&
@@ -71,6 +73,7 @@ MODULE rhoofr_utils
   USE kinds,                           ONLY: real_8,&
                                              int_8
   USE fft_maxfft,                      ONLY: maxfft
+  USE machine,                         ONLY: m_walltime
   USE moverho_utils,                   ONLY: give_scr_moverho,&
                                              moverho
   USE mp_interface,                    ONLY: mp_comm_dup,&
@@ -793,19 +796,24 @@ CONTAINS
                                                 o3 = 0.33333333333333333_real_8
 
     INTEGER                                  :: i, ierr, ir, is1, is2, iwf, &
-                                                ibatch, isub, isub3, bsize, &
+                                                ibatch, isub, isub3, isub4, bsize, &
                                                 first_state, offset_state, i_start, i_end, &
                                                 i_start1, i_start2, i_start3,  me_grp, n_grp, &
                                                 nthreads, nested_threads, methread, count, &
                                                 swap,  int_mod, start_loop, end_loop
     INTEGER(int_8)                           :: il_wfng(2), il_wfnr(2), il_xf(2)
     REAL(real_8)                             :: chksum, ral, rbe, rsp, rsum, rsum1, &
-                                                rsum1abs, rsumv, rto, temp(4), inv_omega
-!    REAL(real_8), ALLOCATABLE                :: coef4(:), coef3(:)
-    REAL(real_8)                            :: coef4(fft_batchsize), coef3(fft_batchsize)
-!    INTEGER, ALLOCATABLE                     :: ispin(:,:)
-    INTEGER                      :: ispin(2,fft_batchsize)
-    CALL tiset(procedureN,isub)
+                                                rsum1abs, rsumv, rto, temp(4), inv_omega, temp_time
+    REAL(real_8), ALLOCATABLE                :: coef4(:), coef3(:)
+!    REAL(real_8)                            :: coef4(fft_batchsize), coef3(fft_batchsize)
+    INTEGER, ALLOCATABLE                     :: ispin(:,:)
+!    INTEGER                      :: ispin(2,fft_batchsize)
+
+    IF(cntl%fft_tune_batchsize) THEN
+       CALL tiset(procedureN//'_tuning',isub4)
+    ELSE
+       CALL tiset(procedureN,isub)
+    END IF
     ! ==--------------------------------------------------------------==
     CALL kin_energy(c0,nstate,rsum)
 
@@ -827,19 +835,20 @@ CONTAINS
 
     CALL reshape_inplace(rhoe, (/fpar%kr1*fpar%kr2s,fpar%kr3s,clsd%nlsd/), rhoe_p)
 
+
     !$ ALLOCATE(locks_inv(fft_numbatches+1,2),STAT=ierr)
     !$ IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
     !$      __LINE__,__FILE__)
-    
-!    ALLOCATE(coef3(fft_numbatches+1),STAT=ierr)
-!    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
-!         __LINE__,__FILE__)
-!    ALLOCATE(coef4(fft_numbatches+1),STAT=ierr)
-!    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
-!      __LINE__,__FILE__)
-!    ALLOCATE(ispin(2,fft_numbatches+1),STAT=ierr)
-!    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
-!      __LINE__,__FILE__)
+
+    ALLOCATE(coef3(fft_batchsize),STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+         __LINE__,__FILE__)
+    ALLOCATE(coef4(fft_batchsize),STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+         __LINE__,__FILE__)
+    ALLOCATE(ispin(2,fft_batchsize),STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+         __LINE__,__FILE__)
 
     il_wfng(1)=fpar%kr1s*msrays
     il_wfng(2)=fft_batchsize
@@ -867,7 +876,7 @@ CONTAINS
     start_loop=1
     end_loop=fft_numbatches+2
 
-    IF(cntl%overlapp_comm_comp)THEN
+    IF(cntl%overlapp_comm_comp.AND.fft_numbatches.GT.1)THEN
        nthreads=MIN(2,parai%ncpus)
        nested_threads=(MAX(parai%ncpus-1,1))
 #if !defined(_INTEL_MKL)
@@ -901,6 +910,7 @@ CONTAINS
 #endif
     ! 
     IF(.NOT.rsactive) wfn_r1=>wfn_r(:,1)
+    IF(cntl%fft_tune_batchsize) temp_time=m_walltime()
     methread=0
     !$ locks_inv=.TRUE.
     !$OMP parallel IF(nthreads.EQ.2) num_threads(2) &
@@ -1052,15 +1062,19 @@ CONTAINS
     !$ END IF
 
     !$omp end parallel
-
-    ! ==--------------------------------------------------------------==
-    ! redistribute RHOE over the groups if needed
-    !
-    IF (parai%cp_nogrp.GT.1) THEN
-       CALL tiset(procedureN//'_grps_b',isub3)
-       CALL cp_grp_redist(rhoe,fpar%nnr1,clsd%nlsd)
-       CALL tihalt(procedureN//'_grps_b',isub3)
-    ENDIF
+    IF(cntl%fft_tune_batchsize) fft_time_total(fft_tune_num_it)=m_walltime()-temp_time
+    !$ DEALLOCATE(locks_inv,STAT=ierr)
+    !$ IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+    !$      __LINE__,__FILE__)
+    DEALLOCATE(coef3,STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+         __LINE__,__FILE__)
+    DEALLOCATE(coef4,STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+         __LINE__,__FILE__)
+    DEALLOCATE(ispin,STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+         __LINE__,__FILE__)
     CALL free_scratch(il_xf,yf,procedureN//'_yf')
     CALL free_scratch(il_xf,xf,procedureN//'_xf')
     CALL free_scratch(il_wfng,wfn_g,'wfn_g')
@@ -1074,9 +1088,15 @@ CONTAINS
 #endif
     END IF
 
-    !$ DEALLOCATE(locks_inv,STAT=ierr)
-    !$ IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-    !$      __LINE__,__FILE__)
+    ! ==--------------------------------------------------------------==
+    ! redistribute RHOE over the groups if needed
+    !
+    IF (parai%cp_nogrp.GT.1) THEN
+       CALL tiset(procedureN//'_grps_b',isub3)
+       CALL cp_grp_redist(rhoe,fpar%nnr1,clsd%nlsd)
+       CALL tihalt(procedureN//'_grps_b',isub3)
+    ENDIF
+
 
     ! MOVE DENSITY ACCORDING TO MOVEMENT OF ATOMS
     IF (ropt_mod%modens) CALL moverho(rhoe,psi)
@@ -1237,7 +1257,11 @@ CONTAINS
     ! TAU FUNCTION
     IF (cntl%ttau) CALL tauofr(c0,psi,nstate)
     !
-    CALL tihalt(procedureN,isub)
+    IF(cntl%fft_tune_batchsize) THEN
+       CALL tihalt(procedureN//'_tuning',isub4)
+    ELSE
+       CALL tihalt(procedureN,isub)
+    END IF
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE rhoofr_batchfft

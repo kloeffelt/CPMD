@@ -70,7 +70,7 @@ CONTAINS
          __CONTIGUOUS                        :: psi(:)
 
     INTEGER                                  :: ig, isub, isub1, ig_start, nhg_loc, &
-                                                ierr
+                                                ierr, isub2
     INTEGER, ALLOCATABLE                     :: na_grp(:,:,:), na(:,:), nst(:,:)
     INTEGER(int_8)                           :: il_deltar(1)
 #ifdef _USE_SCRATCHLIBRARY
@@ -79,7 +79,11 @@ CONTAINS
     COMPLEX(real_8), ALLOCATABLE             :: deltar(:)
 #endif
     CHARACTER(*), PARAMETER                  :: procedureN='rhov'
-    CALL tiset(procedureN,isub)
+    IF(cntl%fft_tune_batchsize)THEN
+       CALL tiset(procedureN//'tuning',isub2)
+    ELSE
+       CALL tiset(procedureN,isub)
+    END IF
 
     IF (cntl%tfdist) CALL stopgm(procedureN,'TFDIST NOT IMPLEMENTED',&
          __LINE__,__FILE__)
@@ -148,7 +152,11 @@ CONTAINS
          __LINE__,__FILE__)
 
     ! ==--------------------------------------------------------------==
-    CALL tihalt(procedureN,isub)
+    IF(cntl%fft_tune_batchsize)THEN
+       CALL tihalt(procedureN//'tuning',isub2)
+    ELSE
+       CALL tihalt(procedureN,isub)
+    END IF
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE rhov

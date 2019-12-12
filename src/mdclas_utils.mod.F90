@@ -250,13 +250,7 @@ CONTAINS
        cntl%quenchb=.FALSE.
     ENDIF
     IF (pslo_com%tivan) THEN
-       IF (cntl%tlsd) THEN
-          CALL deort(ncpw%ngw,spin_mod%nsup,eigm,eigv,c0(:,1:spin_mod%nsup,1),sc0(1,1))
-          CALL deort(ncpw%ngw,spin_mod%nsdown,eigm,eigv,&
-               c0(:,spin_mod%nsup+1:spin_mod%nsup+spin_mod%nsdown,1),sc0(1,spin_mod%nsup+1))
-       ELSE
-          CALL deort(ncpw%ngw,nstate,eigm,eigv,c0,sc0)
-       ENDIF
+       CALL deort(nstate,c0(:,:,1))
     ENDIF
     ! INITIALIZE FORCES
     IF (clas7%tfreeze) THEN
