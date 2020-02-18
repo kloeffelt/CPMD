@@ -409,13 +409,28 @@ CONTAINS
     ! Initialization
 
     IF (ifirst.EQ.0) THEN
+       hllh0 = rmeta%hllh/rmeta%wtfac
+       IF(lmeta%well) THEN
+          IF(lmeta%hlore) THEN
+             CALL HILLS_LOR(cv_dyn,ncolvar,i_meta,ntot_iter,f_hill,1,0)
+          ELSEIF(lmeta%hratio) THEN
+             CALL HILLS_RATIO(cv_dyn,ncolvar,i_meta,ntot_iter,f_hill,hc_last,i_cvst,1,0)
+          ELSEIF(lmeta%hshift) THEN
+             CALL HILLS_SALS_SHIFT(cv_dyn,ncolvar,i_meta,ntot_iter,f_hill,hc_last,i_cvst,1,0)
+          ELSE IF(lmeta%sphere) THEN
+             CALL HILLS(cv_dyn,ncolvar,i_meta,ntot_iter,f_hill,1,0)
+          ELSE
+             CALL HILLS_SALS(cv_dyn,ncolvar,i_meta,ntot_iter,f_hill,hc_last,i_cvst,1,0)
+          ENDIF
+          rmeta%hllh_temp = hllh0*dexp(-rmeta%gausspot/rmeta%wtdt)
+          hllh_val(i_meta,1) = rmeta%hllh_temp
+       ENDIF
        IF (i_meta.EQ.1)THEN
           !$omp parallel do private(ICV)
           DO icv = 1,ncolvar
              hc_last(icv) = cv_ist(icv)
           ENDDO
        ENDIF
-       hllh0 = rmeta%hllh
        ifirst=1
        ! mb - do we really need to treat the spin CV differently ?
        ! ale    IF(.NOT. META_RESTART .AND. TLOCALIZESPIN) THEN
@@ -615,6 +630,22 @@ CONTAINS
           DO icv = 1,ncolvar
              hc_last(icv)   = cv_dyn(icv)
           ENDDO
+!	wt-mtd
+          IF(lmeta%WELL)THEN
+             IF(lmeta%hlore) THEN
+                CALL hills_lor(cv_dyn,ncolvar,i_meta+1,ntot_iter,f_hill,1,0)
+             ELSEIF(lmeta%hratio) THEN
+                CALL hills_ratio(cv_dyn,ncolvar,i_meta+1,ntot_iter,f_hill,hc_last,i_cvst,1,0)
+             ELSEIF(lmeta%hshift) THEN
+                CALL hills_sals_shift(cv_dyn,ncolvar,i_meta+1,ntot_iter,f_hill,hc_last,i_cvst,1,0)
+             ELSE IF(lmeta%SPHERE) THEN
+                CALL hills(cv_dyn,ncolvar,i_meta+1,ntot_iter,f_hill,1,0)
+             ELSE
+                CALL hills_sals(cv_dyn,ncolvar,i_meta+1,ntot_iter,f_hill,hc_last,i_cvst,1,0)
+          ENDIF
+             rmeta%hllh_temp = hllh0*dexp(-rmeta%gausspot/rmeta%wtdt)
+             hllh_val(i_meta+1,1) = rmeta%hllh_temp
+	  END IF
 
        ELSE
           ! ==--------------------------------------------------------------==
@@ -827,7 +858,7 @@ CONTAINS
        ENDIF
     ENDIF
 9999 CONTINUE
-    CALL mp_sync(parai%allgrp)
+    CALL mp_sync(parai%cp_grp)
     CALL mp_bcast(cv_dyn,SIZE(cv_dyn),parai%io_source,parai%cp_grp)
     CALL mp_bcast_byte(soft_com, size_in_bytes_of(soft_com),parai%io_source,parai%cp_grp)
     CALL mp_bcast(i_meta,parai%io_source,parai%cp_grp)

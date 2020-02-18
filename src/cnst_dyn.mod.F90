@@ -197,6 +197,9 @@ MODULE cnst_dyn
      REAL(real_8) :: hlow=0.0_real_8
      REAL(real_8) :: gausspot=0.0_real_8
      REAL(real_8) :: eham_hill=0.0_real_8
+     REAL(real_8) :: wtdt=0.0_real_8
+     REAL(real_8) :: wtfac=0.0_real_8
+     REAL(real_8) :: hllh_temp=0.0_real_8
      REAL(real_8) :: tolkin=0.0_real_8
      REAL(real_8) :: expup=0.0_real_8
      REAL(real_8) :: expdown=0.0_real_8
@@ -233,6 +236,7 @@ MODULE cnst_dyn
      LOGICAL :: qmmmorder
      LOGICAL :: skiphill_mw=.FALSE.
      LOGICAL :: randwalk
+     LOGICAL :: well
   END TYPE lmeta_t
   TYPE(lmeta_t), SAVE :: lmeta
 

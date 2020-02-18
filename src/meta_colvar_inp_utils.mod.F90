@@ -1,6 +1,6 @@
 MODULE meta_colvar_inp_utils
   USE chain_dr_utils,                  ONLY: chain_dr
-  USE cnst,                            ONLY: au_kcm
+  USE cnst,                            ONLY: au_kcm,factem
   USE cnst_dyn,                        ONLY: &
        atcvar, bbeta, cscl_fac, cv_dtemp, cv_dyn_0, cv_ist, cv_langamma, &
        cv_langevintemp, cv_mass, cv_temp, cv_temp0, cvpar, det_celvar, &
@@ -212,6 +212,9 @@ CONTAINS
     REAL(real_8), ALLOCATABLE                :: dummy(:)
 
     lmeta%lcolvardyn = .TRUE.
+    !WT-MTD
+    rmeta%wtfac=1.D0
+
     ! get total number of atoms and set indexing.
     IF (lqmmm%qmmm) THEN
        CALL mm_dim(mm_go_mm,status)
@@ -1961,6 +1964,7 @@ CONTAINS
              ENDIF
 
           ENDIF
+          IF(INDEX(LINE,'WELL').NE.0) lmeta%well= .TRUE.
           ii=INDEX(line,'=')
           IF (ii.NE.0) THEN
              IF (lmeta%tmulti) THEN
@@ -1977,6 +1981,15 @@ CONTAINS
                 ia = ie
                 CALL readsr(line,ia,ie,rmeta%hllh,   erread)
                 IF (erread) GOTO 20
+                !WT-MTD
+                IF(lmeta%WELL) THEN
+                   ia=ie
+                   CALL READSR(line,ia,ie,rmeta%wtdt,   erread)
+                   IF(ERREAD) GOTO 20
+                   rmeta%wtfac=(cntr%tempw+rmeta%wtdt)/rmeta%wtdt  !(T+dT)/dT factor of WT-MTD
+                   rmeta%wtdt=rmeta%wtdt/factem         ! from K to au
+                ENDIF
+
                 rmeta%hvol0 = rmeta%hllh * (rmeta%hllw)**REAL(ncolvar,kind=real_8)
              ENDIF
           ENDIF
@@ -2220,6 +2233,11 @@ CONTAINS
             ' the volume of the cell is constant'
        tvolbound = .FALSE.
     ENDIF
+    IF((.NOT.lmeta%lextlagrange .AND. lmeta%well).OR.(tmw.AND.lmeta%well)) THEN
+       CALL STOPGM('M_COLVAR_INP', 'Well Tempered is only implemented for ext. lag. metadyn.',&
+            __LINE__,__FILE__)
+    END IF
+
     ! ==--------------------------------------------------------------==
     ! Print initialization
 
@@ -2298,6 +2316,10 @@ CONTAINS
     IF (paral%io_parent)&
          WRITE(6,'(6x,A,I10,A)')&
          '- Collective variables written every ', imeta%wcv_freq, ' MD STEPS'
+    IF(paral%io_parent.AND.lmeta%well)& 
+       WRITE(6,'(6x,A,F10.2,A)')&
+       '- Well Tempered Metadynamics: Delta T= ', rmeta%WTDT*FACTEM, ' K'
+     WRITE(6,'(6x,A,I10,A)')
     IF (paral%io_parent)&
          WRITE(6,'(6x,A,I10,A)')&
          '- RESTART File Saved every ', imeta%st_freq, ' Metasteps'
@@ -2451,12 +2473,14 @@ CONTAINS
                cscl_fac(1,i),cscl_fac(2,i),cscl_fac(3,i),&
                (vbound(k,i),k=1,4)
        ELSEIF (ityp.EQ.30) THEN
+!SS-begin (ATCVAR(3,I))
           IF (paral%io_parent)&
                WRITE(6,'(A,4X,3I5,15X,2f8.4,4x,3F8.4,5x,4F8.4)') styp(ityp),&
-               nat_grm(atcvar(1,i)),nat_grm(atcvar(2,i)),atcvar(2,i),&
+               nat_grm(atcvar(1,i)),nat_grm(atcvar(2,i)),atcvar(3,i),&
                cvpar(1,i),cvpar(2,i),&
                cscl_fac(1,i),cscl_fac(2,i),cscl_fac(3,i),&
                (vbound(k,i),k=1,4)
+!SS-end
           ! COORSP
        ELSEIF (ityp.EQ.8) THEN
           IF (paral%io_parent)&
@@ -2770,7 +2794,7 @@ CONTAINS
     ! Assign the DPF that take part to the defined CV
     DO icv = 1,ncolvar
        ityp = tycvar(icv)
-       IF (ityp .NE. 6 .AND. ityp .LT. 8 ) THEN
+        IF((ITYP .NE. 6 .AND. ITYP .LT. 8) .OR. (ITYP .eq. 30 )) THEN
           ia = atcvar(1,icv)
           ib = atcvar(2,icv)
           ic = atcvar(3,icv)
@@ -2880,6 +2904,7 @@ CONTAINS
                                                 numO
     REAL(real_8) :: aa, bb, c_km, c_rc1, c_rc2, c_rcm, diff, dx(18), lambda, &
       r0_shift, rc_hy(3), sign, x1(3), x2(3), x3(3), x4(3), x5(3), x6(3)
+    integer:: ierr
 
     CALL tiset(' COLVAROFR',isub)
 
@@ -2996,6 +3021,13 @@ CONTAINS
           c_rcm    = cvpar(1,icv)
           r0_shift   = cvpar(2,icv)
           IF (specindex(icv).EQ.1) THEN
+             !
+             IF (.NOT.ALLOCATED(iatdlmn))THEN
+               ALLOCATE(iatdlmn(1),STAT=ierr)
+               IF(ierr/=0) CALL stopgm(' COLVAROFR','allocation problem',&
+                  __LINE__,__FILE__)
+             ENDIF
+             !
              CALL coorn_rf(iat(1),iat(2),iat(3),iat(4),c_rcm,r0_shift,&
                   tscr,det_colvar(1,icv),diff,cv_ist(icv),&
                   0.0_real_8,1,iatdlmn)
