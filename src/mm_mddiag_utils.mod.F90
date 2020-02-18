@@ -99,7 +99,8 @@ MODULE mm_mddiag_utils
   USE posupi_utils,                    ONLY: posupi
   USE printave_utils,                  ONLY: paccc
   USE printp_utils,                    ONLY: printp,&
-                                             printp2
+                                             printp2, &
+                                             print_mts_forces !SM
   USE prmem_utils,                     ONLY: prmem
   USE proppt_utils,                    ONLY: give_scr_propcal,&
                                              propcal
@@ -141,7 +142,7 @@ MODULE mm_mddiag_utils
        cprint, irec_ac, irec_nop1, irec_nop2, irec_nop3, irec_nop4, irec_vel, &
        restart1, rout1, store1
   USE system,                          ONLY: &
-       cnti, cntl, cntr, fpar, maxsys, nacc, ncpw, nkpt, restf
+       cnti, cntl, cntr, fpar, maxsys, nacc, ncpw, nkpt, restf, iatpt !SM
   USE td_input,                        ONLY: td_prop
   USE td_utils,                        ONLY: getnorm_k,&
                                              load_ex_states,&
@@ -160,6 +161,8 @@ MODULE mm_mddiag_utils
   USE wrener_utils,                    ONLY: wrprint_md
   USE wv30_utils,                      ONLY: zhwwf
   USE zeroing_utils,                   ONLY: zeroing
+  USE mts_utils,                       ONLY: mts,set_mts_functional !SM
+  USE ace_hfx  !SM
 
   IMPLICIT NONE
 
@@ -199,6 +202,20 @@ CONTAINS
     REAL(real_8), ALLOCATABLE :: eigv(:,:), norms(:), rhoe(:,:), rhoes(:), &
       rinp(:), rm1(:), scr(:), soc_array(:), taui(:,:,:), tauio(:,:), &
       taur(:,:,:)
+!=============================================
+    ! SM
+    ! MTS[
+    ! number of inner steps between two large steps and total number of large
+    ! steps
+    integer :: n_inner_steps, n_large_steps
+    ! logical to know if the current step is a large step in the MTS scheme
+    logical :: mts_large_step
+    ! high level ionic forces
+    real(real_8), allocatable :: fion_high(:,:,:)
+    ! high level wave-function parameters
+    complex(real_8), allocatable :: c0_high(:,:,:)
+    ! MTS]
+!=================================================
 
 ! Variables
 ! META DYNAMICS
@@ -242,9 +259,28 @@ CONTAINS
 #if defined (__GROMOS)
     time1 =m_walltime()
     CALL mm_dim(mm_go_mm,oldstatus)
+    !
     ! 
     nstate=crge%n
     IF (paral%qmnode) THEN
+    !
+!=============================================================
+!=======================================================================
+       IF(USE_ACE)THEN  !SM
+           allocate(XI(ncpw%ngw,NSTATE),stat=ierr)
+           if(ierr/=0) call stopgm(proceduren,'allocation problem: XI',&
+                __LINE__,__FILE__)
+       ENDIF
+    ! ==--------------------------------------------------------------==
+       !
+       if (cntl%use_mts) then
+          ! allocate high level WF param array only if needed
+          allocate( c0_high(size(c0,1),size(c0,2),size(c0,3)), stat=ierr )
+          if(ierr/=0) call stopgm(proceduren,'allocation problem : c0_high',&
+             __LINE__,__FILE__)
+          !
+       end if
+!=============================================================
        ! EHR[
        IF (cntl%tmdeh) THEN
           ! CALL MEMORY(IP_CTT,2*NGWK*N,'CTT')
@@ -427,6 +463,17 @@ CONTAINS
     restf%nfnow=1
     ! ==--------------------------------------------------------------==
     CALL mm_dim(mm_go_mm,statusdummy)
+!=============================================================
+    if (cntl%use_mts) then   !SM
+       ! allocate high level forces array
+       allocate(fion_high(3,maxsys%nax,maxsys%nsx),stat=ierr)
+       if(ierr/=0) call stopgm(proceduren,'allocation problem: fion_high',&
+          __LINE__,__FILE__)
+       call zeroing(fion_high)
+       !
+    end if
+!=============================================================
+
     ALLOCATE(fion(3,maxsys%nax,maxsys%nsx),STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
          __LINE__,__FILE__)
@@ -700,6 +747,23 @@ CONTAINS
             rhoe,psi,&
             tau0,velp,taui,fion,ifcalc,&
             irec,.TRUE.,.TRUE.)
+!==================================================================
+    ELSE IF (cntl%use_mts) then
+       n_inner_steps=0
+       n_large_steps=0
+
+       CALL wrapper_mm_forces_diag(.true.,n_inner_steps,n_large_steps, &
+            fion_high,c0_high(:,:,1), &
+            crge%n,c0(:,:,1),c1,c2,cm,sc0,cm(nx:),vpp,eigv,&
+            rhoe,psi, tau0,velp,taui,fion,ifcalc,&
+            irec,.TRUE.,.TRUE.)
+
+!       call get_mts_forces(.true.,.true.,n_inner_steps,n_large_steps,&
+!          mts_pure_dft,fion_high,c0_high,cold_high,nnow_high,numcold_high,infi,&
+!          nstate,c0,c2,cm,sc0,cm(nx:),vpp,eigv,&
+!          rhoe,psi,tau0,velp,taui,fion,ifcalc,irec,.true.,.true.)
+
+!==================================================================
     ELSE
        CALL mm_forces_diag(crge%n,c0(:,:,1),c1,c2,cm,sc0,cm(nx:),vpp,eigv,&
             rhoe,psi, tau0,velp,taui,fion,ifcalc,&
@@ -766,13 +830,30 @@ CONTAINS
     ! ==                 USING VELOCITY VERLET                        ==
     ! ==================================================================
     infi=0
+!--------------------------
+    n_inner_steps=0
+    n_large_steps=0
+!--------------------------
     nfimin=iteropt%nfi+1
     nfimax=iteropt%nfi+cnti%nomore
     DO loopnfi=nfimin,nfimax
+       !
        CALL mm_dim(mm_go_mm,statusdummy)
        CALL mp_sync(parai%qmmmgrp)
        ! call mp_sync(ALLGRP)
        infi=infi+1
+!==================================================
+       ! MTS time step counters
+       n_inner_steps=n_inner_steps+1
+       mts_large_step=.false.
+       ! check if it is a large step
+       if (n_inner_steps==mts%timestep_factor) then
+          mts_large_step=.true.
+          n_large_steps=n_large_steps+1
+          n_inner_steps=0
+       endif
+       !
+!==================================================
        ! ..TSH[
        IF (tshl%tdtully) tshi%shstep=tshi%shstep+1
        ! ..TSH]
@@ -868,10 +949,22 @@ CONTAINS
                   rhoe,psi,&
                   taup,velp,taui,fion,ifcalc,&
                   irec,.TRUE.,.FALSE.)
+!====================================================================
+          ELSE IF (cntl%use_mts) then
+             CALL wrapper_mm_forces_diag(mts_large_step,n_inner_steps,n_large_steps, &
+             fion_high,c0_high(:,:,1), &
+             crge%n,c0(:,:,1),c1,c2,cm,sc0,cm(nx:),vpp,eigv,&
+             rhoe,psi, taup,velp,taui,fion,ifcalc,&
+             irec,.TRUE.,.false.)     
+!====================================================================
           ELSE
              CALL mm_forces_diag(crge%n,c0(:,:,1),c1,c2,cm,sc0,cm(nx:),vpp,eigv,&
                   rhoe,psi, taup,velp,taui,fion,ifcalc,&
                   irec,.TRUE.,.FALSE.)
+             !
+             !CALL wrapper_mm_forces_diag(crge%n,c0(:,:,1),c1,c2,cm,sc0,cm(nx:),vpp,eigv,&
+             !     rhoe,psi, taup,velp,taui,fion,ifcalc,&
+             !     irec,.TRUE.,.FALSE.)
           ENDIF
           ! EHR]
        ENDIF
@@ -1163,6 +1256,21 @@ CONTAINS
 10000 CONTINUE
     ! ==--------------------------------------------------------------==
     IF (paral%qmnode) THEN
+       !
+!=======================================================================
+       IF(USE_ACE)THEN  !SM
+         DEALLOCATE(XI,STAT=ierr)
+         IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem: XI',&
+               __LINE__,__FILE__)
+       ENDIF
+!-----------------------------------------------------------------------
+!------------------------------------------------------
+       if (cntl%use_mts) then
+          deallocate(c0_high,stat=ierr)
+          if(ierr/=0) call stopgm(proceduren,'deallocation problem: c0_high',&
+             __LINE__,__FILE__)
+       endif
+!------------------------------------------------------
        DEALLOCATE(eigv,STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
             __LINE__,__FILE__)
@@ -1213,6 +1321,13 @@ CONTAINS
        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
             __LINE__,__FILE__)
     ENDIF ! (qmnode)
+!==========================================================
+    if (cntl%use_mts) then
+       deallocate(fion_high,stat=ierr)
+       if(ierr/=0) call stopgm(proceduren,'deallocation problem: fion_high',&
+          __LINE__,__FILE__)
+    endif
+!==========================================================
     ! EHR[
     DEALLOCATE(rhoes,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
@@ -1294,4 +1409,116 @@ CONTAINS
   END SUBROUTINE give_scr_mm_mddiag
   ! ==================================================================
 
+  ! ==================================================================
+  ! ==================================================================
+  SUBROUTINE wrapper_mm_forces_diag(large_step,n_inner_steps,n_large_steps,&
+       fion_high,c0_high,&
+       nstate,c0,c1,c2,cr,sc0,cscr,vpp,eigv,&
+       rhoe,psi,tau0,velp,taui,fion,ifcalc,irec,tfor,tinfo)
+    ! ==--------------------------------------------------------------==
+    ! == ENTER WITH THE IONIC POSITIONS IN TAU0 AND AN INPUT GUESS    ==
+    ! == FOR THE DENSITY IN RIN0, THIS ROUTINE RETURNS THE CONVERGED  ==
+    ! == DENSITY, WAVEFUNCTIONS AND IONIC FORCES.                     ==
+    ! ==--------------------------------------------------------------==
+    ! == TAU0: ATOMIC POSITION                                        ==
+    ! == VELP and TAUI are necessary for RESTART FILE                 ==
+    ! == FION: IONIC FORCES                                           ==
+    ! == IFCALC: total number of iterations                           ==
+    ! ==--------------------------------------------------------------==
+    logical, intent(in) :: large_step
+    integer, intent(inout) :: n_inner_steps
+    integer, intent(in) :: n_large_steps
+    !real(real_8), allocatable :: fion_high(:,:,:)
+    real(real_8) :: fion_high(:,:,:)
+    !complex(real_8), allocatable :: c0_high(:,:,:)
+    complex(real_8) :: c0_high(:,:)
+    INTEGER                                  :: nstate
+    COMPLEX(real_8)                          :: c0(:,:), c1(*), &   !SM dimension of c0
+                                                c2(nkpt%ngwk,nstate), cr(*), &
+                                                sc0(nkpt%ngwk,nstate), cscr(*)
+    REAL(real_8)                             :: vpp(ncpw%ngw), eigv(*), &
+                                                rhoe(:,:)
+    COMPLEX(real_8)                          :: psi(:,:)
+    REAL(real_8)                             :: tau0(:,:,:), velp(:,:,:), &
+                                                taui(:,:,:), fion(:,:,:)
+    INTEGER                                  :: ifcalc, irec(:)
+    LOGICAL                                  :: tfor, tinfo
+!========================================================================
+    CHARACTER(*), PARAMETER                  :: procedureN = 'wrapper_mm_forces_diag'
+
+    INTEGER                                  ::  isub
+    character(len=100) :: title
+    integer :: i, ia, is, x, N
+! Variables
+! ==--------------------------------------------------------------==
+
+    ! ==--------------------------------------------------------------==
+    CALL tiset(procedureN,isub)
+    ! GET LOW LEVEL FORCES
+    if (paral%io_parent) write(6,'(1x,3a)') 'MTS: LOW LEVEL FORCES: ', &
+        mts%low_level, mts%low_dft_func
+ 
+    call set_mts_functional('LOW')
+
+    if(use_ace)status_ace=.true. !SM
+    !
+    CALL mm_forces_diag(nstate,c0,c1,c2,cr,sc0,cscr,vpp,eigv,&
+                  rhoe,psi, tau0,velp,taui,fion,ifcalc,&
+                  irec,tfor,tinfo)
+
+    ! print low level forces to file
+    if (mts%print_forces) then
+        write(title,'(1x,a,i10,10x,a,i10)') 'STEP:',iteropt%nfi,'N_INNER_STEPS:',n_inner_steps
+        call print_mts_forces(fion, title, 'LOW')
+    end if
+
+    if (large_step) then
+    ! GET HIGH LEVEL FORCES
+        if (paral%io_parent) write(6,'(1x,3a)') 'MTS: HIGH LEVEL FORCES: ', &
+           mts%high_level, mts%high_dft_func
+ 
+        call set_mts_functional('HIGH')
+       
+        !call dcopy(2*size(c0,1)*size(c0,2)*size(c0,3),c0,1,c0_high,1)
+        call dcopy(2*size(c0,1)*size(c0,2),c0,1,c0_high,1)
+
+        if(use_ace)status_ace=.false. !SM
+        !
+        CALL mm_forces_diag(nstate,c0_high,c1,c2,cr,sc0,cscr,vpp,eigv,&
+                  rhoe,psi, tau0,velp,taui,fion_high,ifcalc,&
+                  irec,tfor,tinfo)
+
+        ! print high level forces to file
+        if (mts%print_forces) then
+           write(title,'(1x,a,i10,10x,a,i10)')'STEP:',iteropt%nfi,'N_LARGE_STEPS:',n_large_steps
+           call print_mts_forces(fion_high, title, 'HIGH')
+        end if
+
+        ! get effective forces from difference between high and low level
+        !
+        !     F = F_low + (F_high - F_low) * N 
+        !     F = F_high * N - F_low * (N - 1)
+        !     
+        !     where N is the MTS time-step factor
+        ! 
+        N = mts%timestep_factor
+        do i=1,ions1%nat
+           ia=iatpt(1,i)
+           is=iatpt(2,i)
+           do x=1,3
+              fion(x,ia,is) = fion_high(x,ia,is) * N - fion(x,ia,is) * (N - 1)
+           end do
+        end do
+
+        ! reinitialize inner counter
+        n_inner_steps = 0
+    end if
+    !
+    CALL tihalt(procedureN,isub)
+    ! 
+  RETURN
+  END SUBROUTINE wrapper_mm_forces_diag
+
+  ! ==================================================================
+  ! ==================================================================
 END MODULE mm_mddiag_utils
