@@ -61,6 +61,7 @@ MODULE forces_diag_utils
   USE wrener_utils,                    ONLY: wrprint_wfopt
   USE wv30_utils,                      ONLY: zhwwf
   USE zeroing_utils,                   ONLY: zeroing
+  USE ace_hfx,                         ONLY: use_ace,switch_ace,status_ace  !SM
 
   IMPLICIT NONE
 
@@ -238,6 +239,16 @@ CONTAINS
        DO infr=1,cnti%nomore_iter
           time1=m_walltime()
           ifcalc=ifcalc+1
+!==========================================================================!
+!SM          
+          IF(USE_ACE.and.status_ace)THEN 
+            !
+            switch_ace=.true.
+            if(infr.eq.1)switch_ace=.false.  !SM
+            !
+          ENDIF
+!SM          
+!==========================================================================!
           ! Diagonalization
           IF (cntl%tdiag) THEN
              CALL updrho(c0,c2,cr,sc0,cscr,vpp,tau0,fion,eigv,&

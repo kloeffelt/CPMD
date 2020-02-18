@@ -54,10 +54,16 @@ MODULE hfx_utils
   USE system,                          ONLY: cntl,&
                                              group,&
                                              ncpw,&
-                                             parm
+                                             parm, &
+                                             spar !SM
   USE timer,                           ONLY: tihalt,&
                                              tiset
   USE zeroing_utils,                   ONLY: zeroing
+  !
+  USE ace_hfx  !SAGAR
+  USE ovlap_utils,                     ONLY: ovlap
+  !
+  USE cp_grp_utils,                    ONLY: cp_grp_redist !sagar
 
   IMPLICIT NONE
 
@@ -74,8 +80,134 @@ MODULE hfx_utils
   !public :: hfxpb
   PUBLIC :: hfxrpa_old
   !public :: hfxrpav
+  PUBLIC :: hfx_scdm !SM
+  PUBLIC :: hfx_ace !SM
 
 CONTAINS
+
+
+!===================================================================!
+! SM ACE
+!================================================================== 
+  SUBROUTINE hfx_ace(c0,c2,f,psic,nstate,ehfx,vhfx)
+!==--------------------------------------------------------------==
+! Apply ACE projectors to calculate EHFX                            
+! ==--------------------------------------------------------------==
+    COMPLEX(real_8)                          :: c0(:,:), c2(:,:) 
+    REAL(real_8)                             :: f(:)
+    COMPLEX(real_8)                          :: psic(:)
+    INTEGER                                  :: nstate
+    REAL(real_8)                             :: ehfx, vhfx
+!====================================================================    
+    CHARACTER(*), PARAMETER                  :: procedureN = 'hfx_ace'
+    COMPLEX(real_8), PARAMETER               :: zone = (1.0_real_8,0.0_real_8)
+
+    COMPLEX(real_8), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: C2_ace, cmexx
+    
+    INTEGER                                  :: i, ierr, isub
+!=======================================================================
+    REAL(real_8), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: mexx
+!=======================================================================
+    REAL(real_8)                             :: ehfx_ace
+    INTEGER                                  :: info
+! ==------------------------------------------------------------------==
+
+    ehfx = 0.0_real_8
+    vhfx = 0.0_real_8
+
+    IF (func1%mhfx /= 1) RETURN
+
+    CALL tiset(procedureN,isub)
+!-------------------------------------------------------------------
+    ALLOCATE(cmexx(nstate,nstate),mexx(nstate,nstate),&
+         C2_ace(ncpw%ngw,nstate),&
+         stat=ierr)
+    IF (ierr /= 0) CALL stopgm( procedureN, 'Allocation problem' ,&
+         __LINE__,__FILE__)
+
+!-------------------------------------------------------------------
+!   Apply ACE projectors to calculate EHFX 
+! ==================================================================
+        ! COMPUTES THE OVERLAP MATRIX A = < C1 | C2 > 
+        ! ! <xi|phi> ACE potential
+        !CALL AZZERO(mexx,NSTATE*NSTATE)
+        CALL zeroing(mexx)
+        !
+        call OVLAP(NSTATE,mexx,xi,C0)
+        !
+        !CALL MY_SUM_D(mexx,NSTATE*NSTATE,ALLGRP)
+        CALL mp_sum(mexx,nstate*nstate,parai%allgrp)
+        !
+        ! |vv> = |vphi> + (-One) * |xi> * <xi|phi>
+        cmexx = (1.d0,0.d0)*mexx
+        !
+        !CALL ZAZZERO( C2_ace, NGW * NSTATE )
+        CALL zeroing(C2_ace)
+        !
+        CALL ZGEMM ('N','N',ncpw%ngw,nstate,nstate,(1.d0,0.d0),xi, &
+                   ncpw%ngw,cmexx,nstate,(1.d0,0.d0),c2_ace,ncpw%ngw)
+        !
+        !CALL AZZERO(mexx,NSTATE*NSTATE)
+        CALL zeroing(mexx)
+        !
+        call OVLAP(NSTATE,mexx,C0,c2_ace)
+        !
+        !CALL MY_SUM_D(mexx,NSTATE*NSTATE,ALLGRP)
+        CALL mp_sum(mexx,nstate*nstate,parai%allgrp)
+        !
+        ehfx_ace=0.0d0
+        !
+        do i=1,nstate
+         ehfx_ace=ehfx_ace+mexx(i,i)
+        end do
+        ehfx_ace=-ehfx_ace*0.5d0
+        !
+  !      DO IA=1,NSTATE
+  !         VHFX=VHFX+DOTP(NGW,C0(1,IA),C2_ace(1,IA))
+  !      ENDDO
+!---------------------------------------------------------------
+!   sagar hack TODO
+!    IF (parai%cp_nogrp > 1) THEN
+       !CALL tiset(procedureN//'_b',isub6)
+       !CALL mp_sum(ehfx,parai%cp_inter_grp)
+       !IF (redist_c2)
+!        CALL cp_grp_redist(C2_ace,ncpw%ngw,nstate)
+       !CALL tihalt(procedureN//'_b',isub6)
+!    ENDIF
+!---------------------------------------------------------------
+        if(parai%cp_inter_me.eq.0) & !hack fixed for CP_GRP sagar
+        CALL add_wfn(jgw,nstate,zone,C2_ace,ncpw%ngw,c2,ncpw%ngw)
+
+!  C     ENERGY
+  !      EHFX=EHFX*OMEGA
+  !      CALL MY_SUM_D(EHFX,1,ALLGRP)
+        EHFX  = ehfx_ace
+
+!  C     POTENTIAL
+        DO I=1,NSTATE
+           !VHFX=VHFX+DOTP(NGW,C0(1,IA),C2_hfx(1,IA))
+           VHFX=VHFX+DOTP(ncpw%ngw,C0(:,I),C2(:,I))
+        ENDDO
+        !CALL MY_SUM_D(VHFX,1,ALLGRP)
+        CALL mp_sum(vhfx,parai%allgrp)
+        !
+        !IF(me.eq.0)write(6,*)"EHFX=",EHFX, "VHFX=",VHFX
+!========================================================================
+! ACE stuff ends here
+!________________________________________________________________________
+    DEALLOCATE(c2_ace,cmexx, &
+         mexx,STAT=ierr)
+    IF (ierr /= 0) CALL stopgm(procedureN,'Deallocation problem',&
+         __LINE__,__FILE__)
+
+! ==================================================================
+
+    CALL tihalt(procedureN,isub)
+! ==--------------------------------------------------------------==
+  END SUBROUTINE hfx_ace
+! ==================================================================
 
   SUBROUTINE hfx_old(c0,c2,f,psia,nstate,ehfx,vhfx)
     ! ==================================================================
@@ -1671,5 +1803,1332 @@ CONTAINS
        ix = ix + incx
     ENDDO
   END FUNCTION dmaxloc
+!==========================================================!
+! HERE SCDM STUFF IS INCLUDED                              !
+! HFX_SCDM ROUTINE CALCULATES HFX PART USING               !
+!  SCMD BASED SCREENING                                    !
+!----------------------------------------------------------!
 
+!   ==================================================================
+!   ==================================================================
+    SUBROUTINE HFX_SCDM(C0,C2,F,PSIA,NSTATE,EHFX,VHFX,redist_c2)
+!   ==================================================================
+!   == HARTREE-FOCK EXCHANGE                                        ==
+!   ==--------------------------------------------------------------==
+!   Arguments
+    COMPLEX(real_8)                          :: c0(:,:), c2(:,:)
+    REAL(real_8)                             :: f(:)
+    COMPLEX(real_8)                          :: psia(:)
+    INTEGER                                  :: nstate
+    REAL(real_8)                             :: ehfx, vhfx
+    LOGICAL                                  :: redist_c2
+!============================================================
+!     Variables
+!------------------------------------------------------------
+    CHARACTER(*), PARAMETER                  :: procedureN = 'hfx_scdm'
+    COMPLEX(real_8), PARAMETER :: zone = (1.0_real_8,0.0_real_8), &
+      zzero = (0.0_real_8,0.0_real_8)
+
+    COMPLEX(real_8), ALLOCATABLE             :: psic(:), vpotg(:)
+    COMPLEX(real_8), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: C2_hfx, psib
+    INTEGER :: geo_iter, i, ia, ib1, ib2, ibin, ibuf, id_states(2,2), ierr, &
+      ig, int_i, int_ij, int_j, ispin, isub, isub2, isub3, isub4, isub5, &
+      isub6, iwf, j, jb1, jb2, my_pcol, my_prow, n_int, nbr_states(2), &
+      npcols, nprows, nspins, nst, nstates(2), st_offst
+    INTEGER(int_8) :: nbr_int_skiped_1, nbr_int_skiped_2, nbr_integrals, &
+      nbr_rwfn_precomputed, nbr_rwfn_recomputed
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: bin_vals, new_vals, &
+                                                psi_in_core
+    INTEGER, SAVE                            :: int_count = 0, &
+                                                prev_geo_id = -HUGE(0)
+    LOGICAL                                  :: init_ints, no_more_states
+    REAL(real_8) :: bin_max, bin_range, dab, dt, dt_tot, EHFX_loc, &
+      EHFX_loc_1, EHFX_loc_2, GHFX_loc, GHFX_loc_1, GHFX_loc_2, max_dab, &
+      old_DWFC, pfl, pfx, pfx1, pfx2, t1, t1_tot, t2, t2_tot
+    REAL(real_8), ALLOCATABLE                :: vpotr(:)
+    REAL(real_8), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: acc_vals, max_vals
+    REAL(real_8), ALLOCATABLE, &
+      DIMENSION(:, :), SAVE                  :: int_vals
+!-----------------------------------------------------------------
+    REAL(real_8),DIMENSION(:,:),ALLOCATABLE  :: U
+    LOGICAL                        :: NEGLECT
+!    REAL(real_8)                   :: DIST
+    REAL(real_8), ALLOCATABLE      :: RHOIJ(:),PSI(:,:)
+    INTEGER                        :: K, KA, KB, IR, ID
+    COMPLEX(real_8), ALLOCATABLE   :: C2_HFXKS(:,:)
+!C  ====--------------------------------------------------------------==
+!------------------------------------------------------------------------!
+!   sagar  ACE stuff
+    INTEGER                                    :: info
+    COMPLEX(real_8), ALLOCATABLE, &
+        DIMENSION(:, :)                        :: cmexx
+    REAL(real_8), ALLOCATABLE, &
+        DIMENSION(:, :)                        :: mexx
+!========================================================================!
+
+    ehfx=0._real_8
+    vhfx=0._real_8
+    IF (func1%mhfx.EQ.0) RETURN
+    !
+    CALL TISET(procedureN,ISUB)
+!-----------------------------------------------------------------------
+    !  write(6,*)"here",parai%me,scdm_cutoff,hfx_scdm_status
+    !scdm_dist=.false.  !todo
+    !scdm_norm=.true.
+    !scdm_max=.false.
+    !SCDM_CUTOFF=1.D-8
+!    do k=1,scdm_number
+!      write(6,*)"here",parai%me,scdm_cut(k),scdm_num(k)
+!    end do
+!    write(6,*)"here hfx_scdm",parai%me,scdm_dist,scdm_norm, & 
+!                              scdm_max,hfx_scdm_l,scdm_number
+!    write(6,*)"here hfx_scdm_lang",parai%me,lang_dyn,gamma,t_bath
+!=======================================================================
+    ALLOCATE(C2_hfxks(ncpw%ngw,nstate),stat=ierr)
+    IF (ierr.NE.0) CALL stopgm(procedureN,'Allocation problem',&
+         __LINE__,__FILE__)
+
+    CALL zero_wfn(jgw,nstate,C2_hfxks,ncpw%ngw)
+
+    ALLOCATE(PSI(LLR1,nstate),stat=ierr)
+    IF (ierr.NE.0) CALL stopgm(procedureN,'Allocation problem',&
+         __LINE__,__FILE__)
+
+    ALLOCATE(RHOIJ(LLR1),stat=ierr)
+    IF (ierr.NE.0) CALL stopgm(procedureN,'Allocation problem',&
+         __LINE__,__FILE__)
+
+    ! ==--------------------------------------------------------------==
+    ! sagar
+    IF(USE_ACE)THEN
+      ALLOCATE(cmexx(nstate,nstate),mexx(nstate,nstate),&
+           stat=ierr)
+      IF (ierr /= 0) CALL stopgm( procedureN, 'Allocation problem' ,&
+           __LINE__,__FILE__)
+    ENDIF
+    !
+    ! ==--------------------------------------------------------------==
+
+!    ALLOCATE(SCDM_CENTER(3,nstate),stat=ierr)
+!    IF (ierr.NE.0) CALL stopgm(procedureN,'Allocation problem',&
+!         __LINE__,__FILE__)
+
+!C     ==--------------------------------------------------------------==
+    ! decide if reinit intergrals
+    ! need to use the *right* geo iter counter (in the cpmd spirit)!
+    init_ints=.FALSE.
+    geo_iter=0
+    IF(.NOT.cntl%wfopt) geo_iter=infi
+    IF (prev_geo_id/=geo_iter) THEN
+       prev_geo_id=geo_iter
+       init_ints=.TRUE.
+    ENDIF
+!----------------------------------------
+    t1_tot=m_cputime()
+
+    IF(hfxc3%twscr.OR.cntl%krwfn)CALL STOPGM(procedureN, &
+          'TWSCR OR KRWFN NOT IMPLEMENTED WITH SCDM METHOD', &
+         __LINE__,__FILE__)
+    !IF(parai%cp_nogrp > 1)CALL STOPGM(procedureN, &
+    !      'CP_NOGRP>1 NOT IMPLEMENTED WITH ACE+SCDM METHOD', &
+    !     __LINE__,__FILE__)
+!-------------------------------------------------------------
+
+    IF (cntl%cdft.AND.parai%cp_nogrp>1) CALL stopgm(procedureN,&
+         'CDFT AND CP_NOGRP>1 NOT YET IMPLEMENTED',&
+         __LINE__,__FILE__)
+    IF (tkpts%tkpnt) CALL stopgm(procedureN,'K-POINTS NOT IMPLEMENTED',&
+         __LINE__,__FILE__)
+    IF (lspin2%tlse) CALL stopgm(procedureN,'NO LSE POSSIBLE',&
+         __LINE__,__FILE__)
+    IF (group%nogrp.GT.1) CALL stopgm(procedureN,&
+         'TASK GROUPS NOT IMPLEMENTED',&
+         __LINE__,__FILE__)
+
+!===============================================================
+
+!
+    CALL SETFFTN(IPOOLHFX)
+!
+!     Prepare the indeces for parallelization over the groups
+!C
+    CALL proc_to_grid2d(parai%cp_nogrp,parai%cp_inter_me,nprows,npcols,&
+         my_prow,my_pcol)
+
+!C
+!C     Need to allocate a buffer to accumulate the x part of C2
+!C
+
+    ALLOCATE(C2_hfx(ncpw%ngw,nstate),stat=ierr)
+    IF (ierr.NE.0) CALL stopgm(procedureN,'Allocation problem',&
+         __LINE__,__FILE__)
+
+    CALL zero_wfn(jgw,nstate,C2_hfx,ncpw%ngw)
+
+!C
+!C     For the moment we synchronize the C0 and C2 if the cp groups are used
+!C     That should be done else where
+!   TODO is it needed?
+    !IF (parai%cp_nogrp.GT.1) THEN
+    !   CALL tiset(procedureN//'_a',isub5)
+    !   CALL mp_bcast(c0,ncpw%ngw*nstate,0,parai%cp_inter_grp)
+    !   CALL mp_bcast(c2,ncpw%ngw*nstate,0,parai%cp_inter_grp)
+    !   CALL tihalt(procedureN//'_a',isub5)
+    !ENDIF
+
+!c
+!c     randomize the states to improve load balance
+!c
+!TODO
+
+!C
+    t1=m_cputime()
+
+!      CALL check_occupation(F,NSTATE,TLSD)
+
+!C
+!C     set the spins stuff
+!C
+    nstates = 0
+    IF (cntl%tlsd) THEN
+       nspins = 2
+       nstates(1) = spin_mod%nsup
+       nstates(2) = spin_mod%nsdown
+       pfl = 0.5_real_8
+    ELSE
+       nspins = 1
+       nstates(1) = nstate
+       pfl = 0.25_real_8
+    ENDIF
+
+    IF (cntl%thybrid) pfl=pfl*func3%phfx
+    ALLOCATE(psic(maxfftn),STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+         __LINE__,__FILE__)
+    ALLOCATE(vpotg(2*jhg),STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+         __LINE__,__FILE__)
+    ALLOCATE(vpotr(2*llr1),STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+         __LINE__,__FILE__)
+    ALLOCATE(psi_in_core(0:nstate),stat=ierr)
+    IF (ierr.NE.0) CALL stopgm(procedureN,'Allocation problem',&
+         __LINE__,__FILE__)
+    psi_in_core(:) = 0
+
+
+     IF (func1%mhfx.EQ.1) THEN
+       ! HARTREE-FOCK
+       ALLOCATE(psib(maxfftn,2),stat=ierr)
+       IF (ierr.NE.0) CALL stopgm(procedureN,'Allocation problem',&
+            __LINE__,__FILE__)
+       CALL zeroing(psib)!,2*maxfftn)
+!---------------------------------------------------------------------==
+       CALL G_TO_R_WF(C0,NSTATE,PSI)        !SAGAR HACK TODO
+!C     ==--------------------------------------------------------------==
+       CALL TISET(procedureN//'_outer',ISUB2)
+!C
+!C     loop over the spin
+!C
+       id_states(:,:) = 0
+       nbr_states(:) = 0
+       nbr_int_skiped_1 = 0; nbr_int_skiped_2 = 0;
+       nbr_integrals = 0
+       nbr_rwfn_precomputed = 0
+       nbr_rwfn_recomputed = 0
+       DO ispin = 1,nspins
+
+           nst = nstates(ispin)
+           st_offst = 0
+           IF(ispin.EQ.2) st_offst = nstates(1)
+!=======================================================================
+           !
+           ALLOCATE(U(NST,NST),STAT=ierr)
+           IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+              __LINE__,__FILE__)
+           !
+           CALL LOCALIZE_SCDM(PSI(1,1+ST_OFFST),NST,U)  ! TODO
+           !
+!==========================================================
+!           IF(SCDM_DIST)THEN
+!             DO ID=1+ST_OFFST,NST+ST_OFFST
+!               CALL FIND_CENTER(PSI(1,ID), &
+!               SCDM_CENTER(1,ID),SCDM_CENTER(2,ID),SCDM_CENTER(3,ID))
+!             END DO
+!           END IF
+!----------------------------------------------------------
+           !
+           CALL DSCAL(NST*LLR1,DSQRT(DFLOAT(spar%NR1S*spar%NR2S*spar%NR3S)), &
+               PSI(1,1+ST_OFFST),1)
+           !
+!C     ==--------------------------------------------------------------==
+
+        DO i = 1,part_1d_nbr_elems(nst,my_prow,nprows)
+           ia = part_1d_get_elem(i,my_prow,nprows)+st_offst
+           IF(F(IA).LT.1.e-6_real_8) CYCLE
+!======================================================================
+!          SAGAR HACK
+!----------------------------------------------------------------------
+           DO IR=1,LLR1
+             PSIA(IR)=DCMPLX(PSI(IR,IA),0.D0)
+           ENDDO
+!======================================================================
+!C     Handle the diagonal terms
+!C     Only when needed....
+             IF (part_1d_elem_to_proc(ia-st_offst,nprows).EQ.my_prow.AND.&
+                  part_1d_elem_to_proc(ia-st_offst,npcols).EQ.my_pcol) THEN
+                IF (parai%me.EQ.0)nbr_integrals=nbr_integrals+1
+                pfx=pfl*f(ia)*f(ia)
+                CALL hfxaa(EHFX_loc,GHFX_loc,pfx,psia,vpotg,vpotr,psic,&
+                     C2_hfx(1,ia))
+                ehfx=ehfx+EHFX_loc
+             ENDIF
+!C     Now for the other terms IA-IB
+!C     ==--------------------------------------------------------------==
+           CALL TISET(procedureN//'_inner',ISUB3)
+           j = 1
+           DO
+              no_more_states = j.GT.part_1d_nbr_elems(nst,my_pcol, &
+                   npcols)
+              IF(no_more_states) EXIT
+
+!c
+!c     find out the correct ib's
+              ib1 = 0; ib2 = 0;
+              DO
+!c     set id1
+                 IF(ib1.EQ.0) THEN
+                    ib1 = part_1d_get_elem(j,my_pcol,npcols)+st_offst
+                    j = j + 1
+                 ENDIF
+                 IF(ia.EQ.ib1) ib1 = 0
+                 IF(.NOT.part_1d_symm_holds_pair(ia,ib1)) ib1 = 0
+                 IF(ib1.NE.0) THEN
+                    IF(F(ib1).LT.1.e-6_real_8) ib1 = 0
+                 ENDIF
+!---------------------------------------------------------------------------------------
+                 IF(IB1.NE.0)THEN    !SAGAR HACK
+                  !
+!                  IF(.NOT.SCDM_DIST)THEN
+                   DO K=1,LLR1
+                     RHOIJ(K)=PSI(K,IA)*PSI(K,IB1)
+                   END DO
+!                  END IF
+                  !
+                  !IF(SCDM_MAX)THEN
+                  !  CALL SELECT_PAIR_1(RHOIJ,NEGLECT)
+                  !ELSE IF(SCDM_NORM)THEN
+                    CALL SELECT_PAIR(RHOIJ,NEGLECT)
+                  !ELSE IF(SCDM_DIST)THEN
+                  !  !
+                  !  CALL SCDM_SEPARATION &
+                  !  (SCDM_CENTER(1,IA),SCDM_CENTER(1,IB1),DIST)
+                  !  NEGLECT=.FALSE.
+                  !  IF(DIST.GT.SCDM_CUTOFF)NEGLECT=.TRUE.
+                  !  !
+                  !END IF
+                  !
+                  !IF(NEGLECT.and.(parai%me.eq.0))write(6,*)ia,ib1
+                  IF(NEGLECT)IB1=0
+                  !
+                 END IF
+!---------------------------------------------------------------------------------------
+                 no_more_states = j.GT.part_1d_nbr_elems(nst,my_pcol,  &
+                     npcols)
+                 IF(no_more_states) EXIT
+!c     set ib2
+                 IF(ib2.EQ.0) THEN
+                    ib2 = part_1d_get_elem(j,my_pcol,npcols)+st_offst
+                    j = j + 1
+                 ENDIF
+                 IF(ia.EQ.ib2) ib2 = 0
+                 IF(.NOT.part_1d_symm_holds_pair(ia,ib2)) ib2 = 0
+                 IF(ib2.NE.0) THEN
+                    IF(F(ib2).LT.1.e-6_real_8) ib2 = 0
+                 ENDIF
+!---------------------------------------------------------------------------------------
+                 IF(IB2.NE.0)THEN      !SAGAR HACK
+                  !
+                  !IF(.NOT.SCDM_DIST)THEN
+                   DO K=1,LLR1
+                     RHOIJ(K)=PSI(K,IA)*PSI(K,IB2)
+                   END DO
+                  !END IF
+                  !
+                  !IF(SCDM_MAX)THEN
+                  !  CALL SELECT_PAIR_1(RHOIJ,NEGLECT)
+                  !ELSE IF(SCDM_NORM)THEN
+                    CALL SELECT_PAIR(RHOIJ,NEGLECT)
+                  !ELSE IF(SCDM_DIST)THEN
+                  !  !
+                  !  CALL SCDM_SEPARATION  &
+                  ! (SCDM_CENTER(1,IA),SCDM_CENTER(1,IB2),DIST)
+                  !  NEGLECT=.FALSE.
+                  !  IF(DIST.GT.SCDM_CUTOFF)NEGLECT=.TRUE.
+                  !  !
+                  !END IF
+                  !
+                  !IF(NEGLECT.and.(parai%me.eq.0))write(6,*)ia,ib2
+                  IF(NEGLECT)IB2=0
+                  !
+                 END IF
+!---------------------------------------------------------------------------------------
+                 no_more_states = j.GT.part_1d_nbr_elems(nst,my_pcol, &
+                      npcols)
+                 IF(no_more_states) EXIT
+!c     are we set?
+                 IF(ib1.NE.0.AND.ib2.NE.0) EXIT
+              ENDDO
+
+!c      if(me.eq.0) write(*,*)cp_me,'ia,ib1,ib2',ia,ib1,ib2,no_more_states
+!------------------------------------------------------------------------
+!             SAGAR HACK
+!------------------------------------------------------------------------
+              IF(.NOT.(IB1.EQ.0.AND.IB2.EQ.0)) THEN
+                  !CALL ZAZZERO(PSIB(1,1),MAXFFTN)
+                  CALL zeroing(psib)
+                  IF(IB1.NE.0) THEN
+                     DO IR=1,LLR1
+                       PSIB(IR,1)=PSIB(IR,1)+DCMPLX(PSI(IR,IB1),0.D0)
+                     ENDDO
+                  ENDIF
+                  !
+                  IF(IB2.NE.0) THEN
+                     DO IR=1,LLR1
+                       PSIB(IR,1)=PSIB(IR,1)+UIMAG*  &
+                                 DCMPLX(PSI(IR,IB2),0.D0)
+                     ENDDO
+                  ENDIF
+              ENDIF
+!=======================================================================
+!C     ==--------------------------------------------------------------==
+              id_states(1,1) = ib1
+              id_states(2,1) = ib2
+              nbr_states(1) = 0
+              if(ib1.ne.0) nbr_states(1) = nbr_states(1) + 1
+              if(ib2.ne.0) nbr_states(1) = nbr_states(1) + 1
+
+              if(nbr_states(1).eq.1) then
+                 if(id_states(1,1).ne.0) then
+                    if(id_states(1,2).eq.0) then
+                       id_states(1,2) = id_states(1,1)
+                       CALL copy_re_to_re(LLR1,psib(:,1),psib(:,2))
+                    else
+                       id_states(2,2) = id_states(1,1)
+                       CALL copy_re_to_im(LLR1,psib(:,1),psib(:,2))
+                    endif
+                    id_states(1,1) = 0
+                 else
+                    if(id_states(1,2).eq.0) then
+                       id_states(1,2) = id_states(2,1)
+                       CALL copy_im_to_re(LLR1,psib(:,1),psib(:,2))
+                    else
+                       id_states(2,2) = id_states(2,1)
+                       CALL copy_im_to_im(LLR1,psib(:,1),psib(:,2))
+                    endif
+                    id_states(2,1) = 0
+                 endif
+                 nbr_states(1) = nbr_states(1) - 1
+                 nbr_states(2) = nbr_states(2) + 1
+              endif
+
+!C     ==--------------------------------------------------------------==
+
+              DO ibuf = 1,2
+                 IF(.NOT.no_more_states) THEN
+                    IF(nbr_states(ibuf).NE.2) CYCLE
+                 ENDIF
+                 jb1 = id_states(1,ibuf)
+                 jb2 = id_states(2,ibuf) 
+!C
+                 EHFX_loc = 0.0_real_8
+                 IF(JB1.NE.0 .AND. JB2.NE.0) THEN
+                    nbr_integrals=nbr_integrals+2
+                    PFX1=PFL*F(IA)*F(JB1)
+                    PFX2=PFL*F(IA)*F(JB2)
+                    CALL HFXAB2(EHFX_loc_1,EHFX_loc_2, &
+                        GHFX_loc_1,GHFX_loc_2, &
+                        PFX1,PFX2,PSIA, &
+                        PSIB(1,ibuf), &
+                        VPOTG,VPOTR,PSIC,C2_hfx(1,IA), &
+                        C2_hfx(1,JB1),C2_hfx(1,JB2)) 
+                    EHFX_loc = EHFX_loc_1 + EHFX_loc_2
+                 ELSEIF(JB1.NE.0 .AND. JB2.EQ.0) THEN
+!C     Terms IA*IB1
+                    nbr_integrals=nbr_integrals+1
+                    PFX=PFL*F(IA)*F(JB1)
+                    CALL HFXAB(EHFX_loc,GHFX_loc, &
+                        PFX,PSIA,PSIB(1,ibuf),1, &
+                        VPOTG,VPOTR,PSIC,C2_hfx(1,IA), &
+                        C2_hfx(1,JB1)) 
+                 ELSEIF(JB1.EQ.0 .AND. JB2.NE.0) THEN
+!C     Terms IA*IB2
+                    nbr_integrals=nbr_integrals+1
+                    PFX=PFL*F(IA)*F(JB2)
+                    CALL HFXAB(EHFX_loc,GHFX_loc,PFX, &
+                        PSIA,PSIB(1,ibuf),2, &
+                        VPOTG,VPOTR,PSIC,C2_hfx(1,IA), &
+                        C2_hfx(1,JB2))
+                 ENDIF
+                 EHFX=EHFX+EHFX_loc
+
+!C     reset the buffer
+                 id_states(:,ibuf) = 0
+                 nbr_states(ibuf) = 0 
+              ENDDO             !ibuf
+           ENDDO                !IB
+           CALL TIHALT(procedureN//'_inner',ISUB3)
+!C     ==--------------------------------------------------------------==
+ 101       CONTINUE
+       ENDDO                   !IA
+!=======================================================================
+!       SAGAR HACK todo change for ACE
+!-----------------------------------------------------------------------
+        DO KA=1+ST_OFFST,ST_OFFST+NST
+         DO K=1,ncpw%ngw
+          DO KB=1+ST_OFFST,ST_OFFST+NST
+            !
+            C2_HFXKS(K,KA)=C2_HFXKS(K,KA)+C2_HFX(K,KB) &
+                             *U(KA-ST_OFFST,KB-ST_OFFST)
+            !
+          END DO
+         END DO
+        END DO
+        !
+        DEALLOCATE(U,STAT=ierr)
+        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
+           __LINE__,__FILE__)
+!=======================================================================
+        ENDDO                     !ispin
+        CALL TIHALT(procedureN//'_outer',ISUB2)
+!C     ==--------------------------------------------------------------==
+
+     ELSE
+!C     HARTREE
+         DO IA=1,NSTATE
+            IF(F(IA).GT.1.e-6_real_8) THEN
+               !CALL ZAZZERO(PSIA,MAXFFTN)
+               CALL zeroing(psia)
+               DO IG=1,JGW
+                  PSIA(NZFS(IG))=C0(IG,IA)
+                  PSIA(INZS(IG))=DCONJG(C0(IG,IA))
+               ENDDO
+               IF(GEQ0) PSIA(NZFS(1))=C0(1,IA)
+!C     Transform the wavefunction to real space
+               !CALL INVFFTN(PSIA,.TRUE.)
+               CALL invfftn(psia,.TRUE.,parai%allgrp)
+               PFX=PFL*F(IA)*F(IA)
+               CALL HFXAA(EHFX_loc,GHFX_loc,PFX,PSIA,VPOTG,VPOTR, &
+                    PSIC,C2_hfx(1,IA))
+               EHFX=EHFX+EHFX_loc
+            ENDIF
+         ENDDO
+     ENDIF
+!C
+!C     free some memory
+!C
+
+    DEALLOCATE(psic,STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
+         __LINE__,__FILE__)
+    DEALLOCATE(vpotg,STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
+         __LINE__,__FILE__)
+    DEALLOCATE(vpotr,STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
+         __LINE__,__FILE__)
+
+    IF (func1%mhfx.EQ.1) THEN
+       DEALLOCATE(psib,stat=ierr)
+       IF (ierr.NE.0) CALL stopgm(procedureN,'Deallocation problem',&
+            __LINE__,__FILE__)
+    ENDIF
+
+    t2=m_cputime()
+    dt = t2 - t1
+
+
+!c
+!c     redistribute EHFX and C2_hfx over the groups if needed
+!c
+    IF (parai%cp_nogrp.GT.1) THEN
+       ! call mp_sync(CP_GRP)
+       CALL tiset(procedureN//'_b',isub6)
+       CALL mp_sum(ehfx,parai%cp_inter_grp)
+       ! call cp_grp_redist_z(C2_hfx,NGW,NSTATE)
+       !CALL mp_sum(C2_hfx,ncpw%ngw*nstate,parai%cp_inter_grp)
+       !CALL mp_sum(C2_hfxks,ncpw%ngw*nstate,parai%cp_inter_grp) !TODO
+       IF (redist_c2)CALL cp_grp_redist(C2_hfxks,ncpw%ngw,nstate)
+       CALL tihalt(procedureN//'_b',isub6)
+    ENDIF
+!c
+!c     add up the hfx contribution to C2
+!c
+      !CALL add_wfn(JGW,NSTATE,ZONE,C2_hfx,NGW,C2,NGW)  ! SAGAR HACK
+!     CALL add_wfn(jgw,nstate,zone,C2_hfx,ncpw%ngw,c2,ncpw%ngw)
+      !
+      !if(parai%cp_inter_me.eq.0) & !hack fixed for CP_GRP sagar
+      CALL add_wfn(JGW,NSTATE,ZONE,C2_HFXKS,ncpw%NGW,C2,ncpw%NGW)
+!=======================================================================
+!------------------
+    IF ((parai%cp_nogrp > 1).and.use_ace) THEN !bug fixed for CP_GRP sagar TODO
+      IF (.not.redist_c2) CALL cp_grp_redist(C2_hfxks,ncpw%ngw,nstate)
+    ENDIF
+    !write(6,*)redist_c2,parai%cp_inter_me
+    if(use_ace)call build_ace_proj()  !sagar
+!---------------------------
+
+!=-------------------------------------------------------------------------------------
+!C     ENERGY
+    ehfx=ehfx*parm%omega
+    CALL mp_sum(ehfx,parai%allgrp)
+    ! POTENTIAL
+    DO ia=1,nstate
+       vhfx=vhfx+dotp(ncpw%ngw,c0(:,ia),c2(:,ia))
+    ENDDO
+    CALL mp_sum(vhfx,parai%allgrp)
+    DEALLOCATE(psi_in_core,C2_hfx,stat=ierr)
+    IF (ierr.NE.0) CALL stopgm(procedureN,'Deallocation problem',&
+         __LINE__,__FILE__)
+
+!C
+!C     some infos
+!C 
+    t2_tot=m_cputime()
+    dt_tot = t2_tot - t1_tot
+!-------------------------------------------
+    IF (PRINT_GROUP_INFOS) THEN
+       IF (parai%me.EQ.0) THEN
+          WRITE(6,'(1X,6(A,I0),A,F0.2,A,F0.2)')&
+               procedureN//'| group ',parai%cp_inter_me,&
+               ' computed ',nbr_integrals,&
+               ' integrals, precomputed ',nbr_rwfn_precomputed,&
+               ', recomputed ',nbr_rwfn_recomputed,&
+               ' and skipped ',&
+               nbr_int_skiped_1,' + ',nbr_int_skiped_2,&
+               ', t_loc ',dt,&
+               ', t_per_1k_ints ',1.0e3_real_8*dt/(REAL(nbr_integrals,kind=real_8)+1.0e-6_real_8) ! to avoid NANs
+          CALL m_flush(6)
+       ENDIF
+
+       IF (parai%cp_nogrp.GT.1) THEN
+          CALL mp_sum(nbr_integrals,parai%cp_inter_grp)
+          CALL mp_sum(nbr_int_skiped_1,parai%cp_inter_grp)
+          CALL mp_sum(nbr_int_skiped_2,parai%cp_inter_grp)
+          CALL mp_sum(nbr_rwfn_precomputed,parai%cp_inter_grp)
+          CALL mp_sum(nbr_rwfn_recomputed,parai%cp_inter_grp)
+          CALL mp_max(dt_tot,parai%cp_inter_grp)
+          IF (parai%cp_me.EQ.0) THEN
+             WRITE(6,'(1X,5(A,I0),A,F0.2)')&
+                  procedureN//'| all the groups computed ',&
+                  nbr_integrals,' integrals, precomputed ',&
+                  nbr_rwfn_precomputed,&
+                  ', recomputed ',nbr_rwfn_recomputed,&
+                  ' and skipped ',&
+                  nbr_int_skiped_1,' + ',nbr_int_skiped_2,&
+                  ', t_tot ',dt_tot
+             CALL m_flush(6)
+          ENDIF
+       ENDIF
+    ENDIF
+
+!----------------------------------------------------
+    ! sagar
+    IF(USE_ACE)THEN
+      DEALLOCATE(cmexx,mexx,&
+           stat=ierr)
+      IF (ierr /= 0) CALL stopgm( procedureN, 'Deallocation problem' ,&
+           __LINE__,__FILE__)
+    ENDIF
+    !
+!----------------------------------------------------
+    DEALLOCATE(C2_HFXKS,STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
+         __LINE__,__FILE__)
+
+    DEALLOCATE(PSI,STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
+         __LINE__,__FILE__)
+
+    DEALLOCATE(RHOIJ,STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
+         __LINE__,__FILE__)
+
+!    DEALLOCATE(SCDM_CENTER,STAT=ierr)
+!    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
+!         __LINE__,__FILE__)
+
+!-----------==========================---------------
+    CALL TIHALT(procedureN,ISUB)
+!C     ==--------------------------------------------------------------==
+    !RETURN sagar
+    CONTAINS
+
+! ==================================================================
+    SUBROUTINE build_ace_proj()
+!-------------------------------------------------------------------
+!   Building the ACE projectors for use in the later part
+!===================================================================
+        ! copy c2_hfx to xi
+        ! |xi> = Vx[phi]|phi> 
+        !CALL DCOPY(2*ncpw%ngw*NSTATE,C2_hfx(1,1),1,xi(1,1),1) !TODO
+        CALL DCOPY(2*ncpw%ngw*NSTATE,C2_hfxKS(1,1),1,xi(1,1),1)
+        ! !   mexx = <phi|Vx[phi]|phi>
+        ! OVLAP(NSTATE,A,C1,C2)
+        ! COMPUTES THE OVERLAP MATRIX A = < C1 | C2 >
+        !CALL AZZERO(mexx,NSTATE*NSTATE)
+        CALL zeroing(mexx)
+        !call OVLAP(NSTATE,mexx,C0,xi)
+        call OVLAP(NSTATE,mexx,C0,xi)
+        !CALL MY_SUM_D(mexx,NSTATE*NSTATE,ALLGRP)
+        CALL mp_sum(mexx,nstate*nstate,parai%allgrp)
+        !
+  !----------------------------------------------------------
+  !       A=mexx & n=nstate
+  !--------------------
+          INFO = -1
+          CALL DPOTRF( 'L', nstate, mexx, nstate, INFO )
+          !
+          !IF(Info.NE.0) &
+          ! CALL STOPGM('ACE','ERROR IN DPOTRF')
+    IF (info /= 0) CALL stopgm(procedureN,'ERROR IN DPOTRF: ACE',&
+         __LINE__,__FILE__)
+          !
+          !CALL errinfo('DPOTRF','Cholesky failed in invchol.',INFO)
+          INFO = -1
+          CALL DTRTRI( 'L', 'N', nstate, mexx, nstate, INFO )
+          !IF(Info.NE.0) &
+          !CALL STOPGM('ACE','ERROR IN DTRTRI')
+    IF (info /= 0) CALL stopgm(procedureN,'ERROR IN DTRTRI: ACE',&
+         __LINE__,__FILE__)
+          !CALL errinfo('DTRTRI','inversion failed in invchol.',INFO)
+!==========================================================
+        !
+        cmexx = (1.d0,0.d0)*mexx
+        !
+        ! |xi> = -One * Vx[phi]|phi> * rmexx^T
+        CALL ZTRMM('R','L','C','N',ncpw%ngw,nstate,(1.d0,0.d0), &
+                   cmexx,nstate,xi,ncpw%ngw)
+        !
+!=========================================================
+    END SUBROUTINE build_ace_proj
+! ==================================================================
+
+    END SUBROUTINE HFX_SCDM
+!=======================================================================
+
+!==============================================================================
+!=========================================================================!
+      SUBROUTINE LOCALIZE_SCDM(PSI,NORB,U)
+!=========================================================================!
+!     Nisanth N. Nair, nnair@iitk.ac.in (June, 2015)                      !
+!                                                                         !
+!     Localized Orbitals from Selected Column Density Matrix Computation  !  
+!=========================================================================!
+!      IMPLICIT NONE
+!      INCLUDE 'system.h'
+!      INCLUDE 'parac.inc'
+!      INCLUDE 'fft.inc'
+!      INCLUDE 'irat.inc'
+!
+      INTEGER               :: NORB
+      REAL(real_8)          :: PSI(LLR1,NORB), u(norb,norb) !U(:,:)
+!--------------------------------------------------------------------------
+!     local variables
+      REAL(real_8),ALLOCATABLE :: C(:,:)
+      REAL(real_8)         :: DUM
+      INTEGER              :: NGRIDS, LSCR, IERR, IORB, JORB, IR, I, K, &
+                              MSGLEN, ISUB,MAXLLR1
+      !
+      REAL(real_8),ALLOCATABLE :: PSIT(:,:),QMAT(:),MYSCR(:), & 
+                                  PCMAT(:,:),SMAT(:,:),PSIC(:,:)
+      !
+      INTEGER, ALLOCATABLE     :: PIMAT(:), PIMATg(:), ME_LLR1(:) 
+!======================================================================
+      CALL TISET('LOCALIZE_SCDM',ISUB)
+!
+      IF(NORB.GT.LLR1)CALL STOPGM('LOCALIZE_SCDM', &
+       'NORB>LLR1 NOT IMPLEMENTED',__LINE__,__FILE__)
+!
+!=====================================================
+      ALLOCATE(C(NORB,NORB),STAT=IERR)
+      IF (ierr.NE.0) CALL stopgm('LOCALIZE_SCDM','allocation problem',&
+               __LINE__,__FILE__)
+      !
+      CALL zeroing(U)
+      CALL zeroing(C)
+!-----------------------------------------------------
+!#ifdef PARALLEL
+#ifdef __PARALLEL
+      ALLOCATE(ME_LLR1(PARAI%NPROC),STAT=IERR)
+      IF (ierr.NE.0) CALL stopgm('LOCALIZE_SCDM','allocation problem',&
+               __LINE__,__FILE__)
+      !
+      call zeroing(ME_LLR1)
+
+      ME_LLR1(PARAI%ME+1)=LLR1
+
+      CALL mp_sum(me_llr1,SIZE(me_llr1),parai%allgrp)
+
+      MAXLLR1=ME_LLR1(1)
+
+      DO I=1,PARAI%NPROC
+        MAXLLR1=MAX(MAXLLR1,ME_LLR1(I))
+      END DO
+
+      DEALLOCATE(ME_LLR1,stat=ierr)
+      IF (ierr.NE.0) CALL stopgm('LOCALIZE_SCDM','Deallocation problem',&
+         __LINE__,__FILE__)
+
+#else
+      MAXLLR1=LLR1
+#endif
+!
+!
+      ALLOCATE(PSIT(NORB,MAXLLR1),stat=ierr)
+      IF (ierr.NE.0) CALL stopgm('LOCALIZE_SCDM','Allocation problem',&
+         __LINE__,__FILE__)
+  
+      ALLOCATE(PIMAT(MAXLLR1),stat=ierr)
+      IF (ierr.NE.0) CALL stopgm('LOCALIZE_SCDM','Allocation problem',&
+         __LINE__,__FILE__)
+!------------------------------------------------------------
+!c     Normalize real space orbitals
+      NGRIDS=spar%NR1S*spar%NR2S*spar%NR3S
+      DUM=DSQRT(1.D0/DFLOAT(NGRIDS))
+      CALL DSCAL(NORB*LLR1,DUM,PSI,1)
+!C     Transpose 
+      DO IR=1,LLR1
+        DO IORB=1,NORB
+          PSIT(IORB,IR)=PSI(IR,IORB)
+        END DO
+      END DO
+!c     Adjusting the unequal distribution of grid points over processors
+!c     (uniform distribution is required for SCALAPACK)
+      DO IR=LLR1+1,MAXLLR1
+        DO IORB=1,NORB
+          PSIT(IORB,IR)=0.D0
+        END DO
+      END DO
+!      call cpu_time(final_time)
+!      if(parent)
+!     & print *, "Initialization: Timing =",final_time-start_time
+!c
+!c!check psi^2
+!c      do iorb=1,norb
+!c        do jorb=1,norb
+!c          dum=0.d0
+!c          do ir=1,llr1
+!c             dum=dum+psi(ir,iorb)*psi(ir,jorb)
+!cc          end do
+!c          CALL MY_SUM_D(DUM,1,CP_GRP)
+!c          if(io_parent)write(6,'(2i8,e14.6)')iorb,jorb,dum
+!c        end do
+!c      end do
+!c
+!C     Rank Revealing QR factorization
+!
+      call zeroing(PIMAT)
+!      call cpu_time(start_time)
+!#ifdef PARALLEL
+#ifdef __PARALLEL
+      CALL PRQR(NORB,MAXLLR1,PSIT,PIMAT)
+#else
+      CALL SRQR(NORB,LLR1,PSIT,PIMAT)
+#endif
+!====================================================================================
+!      call cpu_time(final_time)
+!      if(parent)
+!     & print *, "QR Factorization: Timing =",final_time-start_time
+!
+      DEALLOCATE(PSIT,stat=ierr)
+      IF (ierr.NE.0) CALL stopgm('LOCALIZE_SCDM','Deallocation problem',&
+         __LINE__,__FILE__)
+
+!     Constructing the selcted column density matrix using the piovotting information
+
+      ALLOCATE(PCMAT(LLR1,NORB),stat=ierr)
+      IF (ierr.NE.0) CALL stopgm('LOCALIZE_SCDM','Allocation problem',&
+         __LINE__,__FILE__)
+
+
+!      call cpu_time(start_time)
+!#ifdef PARALLEL
+#ifdef __PARALLEL
+      ALLOCATE(PIMATg(NORB),stat=ierr)
+      IF (ierr.NE.0) CALL stopgm('LOCALIZE_SCDM','Allocation problem',&
+         __LINE__,__FILE__)
+
+      ALLOCATE(PSIC(NORB,NORB),stat=ierr)
+      IF (ierr.NE.0) CALL stopgm('LOCALIZE_SCDM','Allocation problem',&
+         __LINE__,__FILE__)
+
+      call zeroing(PSIC)
+
+      IF(PARAI%ME.EQ.0)THEN
+        DO IORB=1,NORB
+          PIMATg(IORB)=PIMAT(IORB)
+        END DO
+      END IF
+      !
+      CALL mp_bcast(PIMATg,SIZE(PIMATg),parai%source,parai%allgrp)
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+!      call cpu_time(final_time_1)
+!      if(parent)
+!     & print *, "Pc Mat Construction-1:  =",final_time_1-start_time
+!c
+      DO IORB=1,NORB
+        IF((PIMATg(IORB).GT.PARAI%ME*MAXLLR1).AND. &
+          (PIMATg(IORB).LE.(PARAI%ME+1)*MAXLLR1))THEN
+           IR=PIMATg(IORB)-PARAI%ME*MAXLLR1
+           DO JORB=1,NORB
+             PSIC(IORB,JORB)=PSI(IR,JORB)
+           END DO
+        END IF
+      END DO
+
+      CALL mp_sum(PSIC,NORB*NORB,parai%allgrp)
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+!------------------------------------------------------------------------
+!c      call cpu_time(final_time)
+!c      if(parent)
+!c     & print *, "Pc Mat Construction-2:  =",final_time-final_time_1
+!c      DO IR=1,LLR1
+!c        DO IORB=1,NORB
+!c          DUM=0.D0
+!c          DO JORB=1,NORB
+!c            DUM=DUM+PSI(IR,JORB)*PSIC(IORB,JORB)
+!c          END DO
+!c          PCMAT(IR,IORB)=DUM
+!c        END DO
+!c      END DO
+!c      call cpu_time(final_time_1)
+!c      if(parent)
+!c     & print *, "Pc Mat Construction-3:  =",final_time_1-final_time
+!      call cpu_time(start_time)
+      CALL DGEMM('N','T',LLR1,NORB,NORB,1.D0,PSI,LLR1,PSIC,NORB, &
+                 0.D0,PCMAT,LLR1)
+!      call cpu_time(final_time)
+!      if(parent)
+!     & print *, "Pc Mat 3, Alternative:  =",final_time-start_time
+
+!      CALL FREEM(IP_PSIC)    !SAGAR HACK
+#else
+!c     FIXME we need to modify using DGEMM like for the parallel version
+      DO IR=1,LLR1
+        DO IORB=1,NORB
+          DUM=0.D0
+          DO JORB=1,NORB
+            DUM=DUM+PSI(IR,JORB)*PSI(PIMAT(IORB),JORB)
+          END DO
+          PCMAT(IR,IORB)=DUM
+        END DO
+      END DO
+#endif
+!      call cpu_time(final_time)
+!      if(parent)
+!     &print *, "Pc Mat Construction Total=",final_time-start_time
+!c
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      ALLOCATE(SMAT(NORB,NORB),stat=ierr)
+      IF (ierr.NE.0) CALL stopgm('LOCALIZE_SCDM','Allocation problem',&
+         __LINE__,__FILE__)
+      call zeroing(SMAT)
+
+!c     Constructing the Smatrix
+!      call cpu_time(start_time)
+!#ifdef PARALLEL
+#ifdef __PARALLEL
+!c FIXME Only upper diagonal or lower diagonal is required
+      DO IORB=1,NORB
+        IF((PIMATg(IORB).GT.PARAI%ME*MAXLLR1).AND. &
+         (PIMATg(IORB).LE.(PARAI%ME+1)*MAXLLR1))THEN
+          IR=PIMATg(IORB)-PARAI%ME*MAXLLR1
+          DO JORB=1,NORB
+            SMAT(IORB,JORB)=PCMAT(IR,JORB)
+          END DO
+        END IF
+      END DO
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      DEALLOCATE(PIMATg,stat=ierr)
+      IF (ierr.NE.0) CALL stopgm('LOCALIZE_SCDM','Deallocation problem',&
+         __LINE__,__FILE__)
+
+      CALL mp_sum(SMAT,NORB*NORB,parai%allgrp)
+#else
+!c FIXME Only upper diagonal or lower diagonal of SMAT is required
+      DO IORB=1,NORB
+        DO JORB=1,NORB
+          SMAT(JORB,IORB)=PCMAT(PIMAT(JORB),IORB)
+        END DO
+      END DO
+#endif
+!      call cpu_time(final_time)
+!      if(parent)
+!     & print *, "S Mat Construction: Timing =",final_time-start_time
+!C     Cholesky factorization of SMAT
+!
+!      call cpu_time(start_time)
+!
+      CALL DPOTRF('U',NORB,SMAT,NORB,IERR)
+!
+!      call cpu_time(final_time)
+!      if(parent)
+!     &print *, "Cholesky : Timing =",final_time-start_time
+!
+      IF(IERR.NE.0) &
+        CALL STOPGM('LOCALIZE_SCDM','ERROR IN DPOTRF', &
+         __LINE__,__FILE__)
+!------------------------------------------------------------------------
+!     HACK SAGAR   CALCULATION OF OVERLAP MATRIX U
+      DO IORB=1,NORB
+        DO JORB=IORB,NORB
+          C(IORB,JORB)=SMAT(IORB,JORB)
+        END DO
+      END DO
+      !
+      CALL DTRTRI('U','N',NORB, C,NORB, IERR)
+      !
+      CALL DGEMM('T','N',NORB,NORB,NORB,1.D0, &
+                 PSIC,NORB,C,NORB,0.D0,U,NORB)
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      DEALLOCATE(PSIC,stat=ierr)
+      IF (ierr.NE.0) CALL stopgm('LOCALIZE_SCDM','Deallocation problem',&
+         __LINE__,__FILE__)
+                            !COMMENTED OUT THE PREVIOUS ONE (MUST)
+!========================================================================
+! FIXME The following is not required and make DTRSM reads lower diagonal
+       DO IORB=1,NORB-1
+         DO JORB=I+1,NORB
+           SMAT(JORB,IORB)=SMAT(IORB,JORB)
+         END DO
+       END DO
+!
+!     Building Orthogonal Basis
+!      call cpu_time(start_time)
+      CALL DTRSM('R','U','N', 'N',LLR1,NORB,1.D0,SMAT,NORB,PCMAT, &
+                LLR1)
+!      call cpu_time(final_time)
+!      if(parent)
+!     &print *, "DTRSM : Timing =",final_time-start_time
+!     Copying the localized orbitals to PSI
+      CALL DCOPY(LLR1*NORB,PCMAT,1,PSI,1)
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      DEALLOCATE(SMAT,stat=ierr)
+      IF (ierr.NE.0) CALL stopgm('LOCALIZE_SCDM','Deallocation problem',&
+         __LINE__,__FILE__)
+
+      DEALLOCATE(PCMAT,stat=ierr)
+      IF (ierr.NE.0) CALL stopgm('LOCALIZE_SCDM','Deallocation problem',&
+         __LINE__,__FILE__)
+
+      DEALLOCATE(PIMAT,stat=ierr)
+      IF (ierr.NE.0) CALL stopgm('LOCALIZE_SCDM','Deallocation problem',&
+         __LINE__,__FILE__)
+
+      DEALLOCATE(C,stat=ierr)
+      IF (ierr.NE.0) CALL stopgm('LOCALIZE_SCDM','Deallocation problem',&
+         __LINE__,__FILE__)
+!~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      CALL TIHALT('LOCALIZE_SCDM',ISUB)
+      END SUBROUTINE LOCALIZE_SCDM
+!----------------------------------------------------------------------!
+!----------------------------------------------------------------------!
+      SUBROUTINE PRQR(M,N,A,PIV)
+!     Using Scalapack to do QR factorization with pivotting
+!      IMPLICIT NONE
+!      INCLUDE 'parac.inc'
+      INTEGER             :: M,N,PIV(:)
+      REAL(real_8)        :: A(M,N)
+!     local variables
+      INTEGER             :: ICONTXT, PROW, PCOL, MYROW, MYCOL, &
+       MYACOL,MYAROW,ACOLg,AROWg,MB,NB,myunit, IDES_A(9), IA, JA, &
+       LSCR, INFO, II,ISUB
+      REAL(real_8),ALLOCATABLE        :: QMAT(:),MYSCR(:)
+
+      INTEGER                         :: NUMROC,I, IERR
+      INTEGER, ALLOCATABLE            :: IMAP(:,:)
+
+!=======================================================================
+      CALL TISET('PRQR',ISUB)
+!      
+!     Getting Processor information from BLACS routines
+      !CALL BLACS_PINFO(ME,PROCS)
+      AROWg=M
+      ACOLg=PARAI%NPROC*N
+!     Getting Scalapack contxt 
+      CALL BLACS_GET(0,0,ICONTXT)
+!     Setting processor grid
+      PROW=1
+      PCOL=PARAI%NPROC
+!     Number of rows and columns per block
+      MB=M  
+      NB=N
+!c     Blacs grids initialization
+      IF(PARAI%CP_NOGRP.GT.1)THEN
+
+        ALLOCATE(IMAP(1,PCOL),stat=ierr)
+        IF (ierr.NE.0)CALL stopgm('LOCALIZE_SCDM','Allocation problem',&
+         __LINE__,__FILE__)
+
+
+        DO I=1,PCOL
+          IMAP(1,I)=(I-1)*PARAI%CP_NOGRP+PARAI%CP_INTER_ME
+        END DO
+        CALL BLACS_GRIDMAP(ICONTXT,IMAP, &
+             PROW, PROW, PCOL)
+      ELSE
+        CALL BLACS_GRIDINIT(ICONTXT,'R',PROW,PCOL) 
+      END IF
+
+      CALL BLACS_GRIDINFO(ICONTXT,PROW,PCOL,MYROW,MYCOL)
+!c 
+      MYAROW=NUMROC(AROWg,MB,MYROW,0,PROW)
+      MYACOL=NUMROC(ACOLg,NB,MYCOL,0,PCOL)
+!c
+      IF((MYAROW.NE.M).OR.(MYACOL.NE.N))THEN
+       WRITE(*,*)"MYAROW=",MYAROW, "MYACOL=", MYACOL
+       WRITE(*,*)"M=",M, "N=", N
+       CALL STOPGM('LOCALIZE_SCDM','ERROR SETTING UP SCALAPCK', &
+         __LINE__,__FILE__)
+      END IF
+      
+!c      myunit = 8777+me
+!c      write(myunit,*)"Output for processor ",me," to unit ",myunit
+!c      write(myunit,*)"Proc ",me,": myrow, mycol in p-array is ", 
+!c     &               MYROW,MYCOL
+!c      write(myunit,*)"Size of global array is ",AROWg," x ",ACOLg
+!c      write(myunit,*)"Size of block is        ",MB," x ",NB
+!c      write(myunit,*)"Size of local array is    ",M," x ",N
+!c      write(myunit,*)"Size of local array expected",MYAROW," x ",MYACOL
+
+!C     Setting up the matrix description in ides_a array
+      CALL DESCINIT(ides_a,AROWg,ACOLg,MB,NB,0,0,icontxt,M,INFO)
+!c
+      IA=1
+      JA=1
+
+      ALLOCATE(QMAT(JA+MIN(M,N)-1),stat=ierr)
+      IF (ierr.NE.0)CALL stopgm('LOCALIZE_SCDM','Allocation problem',&
+         __LINE__,__FILE__)
+
+!c
+      LSCR=-1
+
+      ALLOCATE(MYSCR(2*MYCOL+MYAROW),stat=ierr)
+      IF (ierr.NE.0)CALL stopgm('LOCALIZE_SCDM','Allocation problem',&
+         __LINE__,__FILE__)
+
+      CALL PDGEQPF(AROWg,ACOLg,A,IA,JA,IDES_A,PIV,QMAT,MYSCR,LSCR,INFO)
+      IF(INFO.NE.0)THEN
+        PRINT *, 'INFO =', INFO
+        CALL STOPGM('LOCALIZE_SCDM','ERROR PSGEQPF', &
+         __LINE__,__FILE__)
+      END IF
+      LSCR=NINT(MYSCR(1))
+
+      DEALLOCATE(MYSCR,stat=ierr)
+      IF (ierr.NE.0) CALL stopgm('LOCALIZE_SCDM','Deallocation problem',&
+         __LINE__,__FILE__)
+
+      ALLOCATE(MYSCR(LSCR),stat=ierr)
+      IF (ierr.NE.0)CALL stopgm('LOCALIZE_SCDM','Allocation problem',&
+         __LINE__,__FILE__)
+
+      CALL PDGEQPF(AROWg,ACOLg,A,IA,JA,IDES_A,PIV,QMAT,MYSCR,LSCR,INFO)
+!c      do ii=1,N
+!c         write(myunit,*)ii, PIV(ii)
+!c      end do
+      IF(INFO.NE.0)THEN
+        PRINT *, 'INFO =', INFO
+        CALL STOPGM('LOCALIZE_SCDM','ERROR PSGEQPF',  &
+         __LINE__,__FILE__)
+      END IF
+
+
+      DEALLOCATE(QMAT,stat=ierr)
+      IF (ierr.NE.0) CALL stopgm('LOCALIZE_SCDM','Deallocation problem',&
+         __LINE__,__FILE__)
+
+      DEALLOCATE(MYSCR,stat=ierr)
+      IF (ierr.NE.0) CALL stopgm('LOCALIZE_SCDM','Deallocation problem',&
+         __LINE__,__FILE__)
+
+!c
+      IF(PARAI%CP_NOGRP.GT.1)THEN
+        DEALLOCATE(IMAP,stat=ierr)
+        IF (ierr.NE.0)CALL stopgm('LOCALIZE_SCDM','Deallocation problem',&
+          __LINE__,__FILE__)
+
+      END IF
+!C
+      CALL BLACS_GRIDEXIT(ICONTXT)  !BUG FIXED SAGAR | NNN
+!c
+      CALL TIHALT('PRQR',ISUB)
+!c----------------------------------------------------------------------!
+      END SUBROUTINE PRQR 
+!c----------------------------------------------------------------------!
+!c----------------------------------------------------------------------!
+      SUBROUTINE SRQR(M,N,A,PIV)
+!C     Using Lapack to do QR factorization with pivotting
+!      IMPLICIT NONE
+      INTEGER             :: M,N,PIV(:)
+      REAL(real_8)        :: A(M,N)
+!C    local variables
+      REAL(real_8),ALLOCATABLE :: QMAT(:),MYSCR(:)
+!c   
+      INTEGER             :: IERR, LSCR
+!C=======================================================================     
+      ALLOCATE(QMAT(MIN(M,N)),stat=ierr)
+      IF (ierr.NE.0)CALL stopgm('LOCALIZE_SCDM','Allocation problem',&
+         __LINE__,__FILE__)
+ 
+!C
+      LSCR=-1
+
+      ALLOCATE(MYSCR(2*M+(M+1)*M),stat=ierr)
+      IF (ierr.NE.0)CALL stopgm('LOCALIZE_SCDM','Allocation problem',&
+         __LINE__,__FILE__)
+
+      CALL DGEQP3(M,N,A,M,PIV,QMAT,MYSCR,LSCR,IERR)
+      LSCR=NINT(MYSCR(1))
+      IF(IERR.NE.0) CALL STOPGM('LOCALIZE_SCDM','ERROR in DGEQP3', &
+         __LINE__,__FILE__)
+!C
+
+      DEALLOCATE(MYSCR,stat=ierr)
+      IF (ierr.NE.0) CALL stopgm('LOCALIZE_SCDM','Deallocation problem',&
+         __LINE__,__FILE__)
+
+
+      ALLOCATE(MYSCR(LSCR),stat=ierr)
+      IF (ierr.NE.0)CALL stopgm('LOCALIZE_SCDM','Allocation problem',&
+         __LINE__,__FILE__)
+
+!C
+      CALL DGEQP3(M,N,A,M,PIV,QMAT,MYSCR,LSCR,IERR)
+      LSCR=NINT(MYSCR(1))
+
+
+      DEALLOCATE(QMAT,stat=ierr)
+      IF (ierr.NE.0) CALL stopgm('LOCALIZE_SCDM','Deallocation problem',&
+         __LINE__,__FILE__)
+
+
+      DEALLOCATE(MYSCR,stat=ierr)
+      IF (ierr.NE.0) CALL stopgm('LOCALIZE_SCDM','Deallocation problem',&
+         __LINE__,__FILE__)
+
+!C      
+      END SUBROUTINE SRQR
+!c     ==================================================================
+!==============================================================================
+!==============================================================================
+!C     ==================================================================
+      SUBROUTINE SELECT_PAIR(RHOIJ,NEGLECT)
+!      IMPLICIT NONE
+!      INCLUDE 'system.h'
+!      INCLUDE 'fft.inc'
+!      INCLUDE 'parac.inc'
+!      INCLUDE 'scdm.inc'
+!     ARGUMENTS
+      REAL(real_8)     :: RHOIJ(LLR1)
+      LOGICAL          :: NEGLECT
+!------------------------------------------------------------------------------
+!     LOCAL VARIABLES
+      INTEGER          :: K
+      REAL(real_8)     :: DUM
+!------------------------------------------------------------------------------
+      NEGLECT=.FALSE.
+      !
+      DUM=0.0D0
+      !
+      DO K=1,LLR1
+        DUM=DUM+DABS(RHOIJ(K))
+      END DO
+      !
+      !CALL MY_SUM_D(DUM,1,ALLGRP)
+      CALL mp_sum(dum,parai%allgrp)
+      !
+      DUM=DUM/(DFLOAT(spar%NR1S*spar%NR2S*spar%NR3S))
+      !
+      IF(DUM.LT.SCDM_CUTOFF)NEGLECT=.TRUE.
+      !
+      RETURN
+      END SUBROUTINE SELECT_PAIR
+!==============================================================================
+!==============================================================================
+      SUBROUTINE G_TO_R_WF(C0,NSTATE,PSI)
+!      IMPLICIT NONE
+!      INCLUDE 'func.inc'
+!      INCLUDE 'system.h'
+!      INCLUDE 'fft.inc'
+!      INCLUDE 'parac.inc'
+!      include 'geq0.inc'
+!      include 'cnst.inc'
+!     ARGUMENTS
+      COMPLEX(real_8)        :: C0(:,:)
+      INTEGER                :: NSTATE
+      REAL(real_8)           :: PSI(:,:)
+!------------------------------------------------------------------------------
+!     LOCAL VARIABLES
+      INTEGER                :: IA,IG,IWF,IR, ierr
+      COMPLEX(real_8),ALLOCATABLE  :: PSIA(:)
+      real(real_8)           :: t_1,t_2,dum
+!------------------------------------------------------------------------------
+      !
+      ALLOCATE(psia(maxfftn),STAT=ierr)
+      IF(ierr/=0) CALL stopgm('G_TO_R_WF','allocation problem',&
+         __LINE__,__FILE__)
+
+      t_1=m_cputime()
+
+      DO IA=1,NSTATE ,2
+
+        CALL zeroing(psia)
+
+        IF(IA.EQ.NSTATE) THEN
+          DO IG=1,JGW
+             PSIA(NZFS(IG))=C0(IG,IA)
+             PSIA(INZS(IG))=DCONJG(C0(IG,IA))
+          ENDDO
+          IF(GEQ0) PSIA(NZFS(1))=C0(1,IA)
+        ELSE
+          DO IG=1,JGW
+              PSIA(NZFS(IG))=C0(IG,IA)+UIMAG*C0(IG,IA+1)
+              PSIA(INZS(IG))=DCONJG(C0(IG,IA))+ &
+                             UIMAG*DCONJG(C0(IG,IA+1))
+          ENDDO
+          IF(GEQ0) PSIA(NZFS(1))=C0(1,IA)+UIMAG*C0(1,IA+1)
+        ENDIF
+        CALL INVFFTN(PSIA,.TRUE.,parai%allgrp)
+
+!        call phase(psia)       !SAGAR HACK
+!--------------------------------------------
+        IF(IA.EQ.NSTATE)THEN
+          DO IR=1,LLR1
+            PSI(IR,IA)=DREAL(PSIA(IR))
+          END DO
+        ELSE
+          DO IR=1,LLR1
+            PSI(IR,IA)=DREAL(PSIA(IR))
+            PSI(IR,IA+1)=DIMAG(PSIA(IR))
+          ENDDO
+        ENDIF
+!--------------------------------------------
+      ENDDO
+      !
+      t_2=m_cputime()
+!     write(6,*)"time 2 of G to R = ",t_2-t_1     
+
+      DEALLOCATE(psia,STAT=ierr)
+      IF(ierr/=0) CALL stopgm('G_TO_R_WF','deallocation problem',&
+         __LINE__,__FILE__)
+
+      RETURN
+      END SUBROUTINE G_TO_R_WF
+!==============================================================================
+!==========================================================!
 END MODULE hfx_utils

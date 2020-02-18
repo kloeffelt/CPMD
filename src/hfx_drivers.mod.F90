@@ -1,7 +1,8 @@
 MODULE hfx_drivers
   USE hfx_utils,                       ONLY: hfx_old,&
                                              hfxpsi_old,&
-                                             hfxrpa_old
+                                             hfxrpa_old, &
+                                             hfx_scdm, hfx_ace !SM
   USE hfxmod,                          ONLY: hfxc3
   USE kinds,                           ONLY: real_8
   USE pw_hfx,                          ONLY: hfx_new
@@ -11,6 +12,7 @@ MODULE hfx_drivers
   USE pw_hfx_resp_types,               ONLY: hfx_resp
   USE timer,                           ONLY: tihalt,&
                                              tiset
+  USE ace_hfx  !SM
 
   IMPLICIT NONE
 
@@ -98,7 +100,20 @@ CONTAINS
 
     CALL tiset(procedureN,isub)
     IF (hfxc3%use_new_hfx) THEN
+     !
+     if(use_ace.and.status_ace)then
+       !write(6,*)"redist_c2=",redist_c2 
+       if(switch_ace)then  !SM
+         call hfx_ace(c0,c2,f,psia,nstate,ehfx,vhfx)
+       elseif(hfx_scdm_status)then
+          CALL hfx_scdm(c0,c2,f,psia,nstate,ehfx,vhfx,redist_c2) !TODO SM
+       else
+           CALL hfx_new(c0,c2,f,psia,nstate,ehfx,vhfx,redist_c2)
+       endif
+     else 
        CALL hfx_new(c0,c2,f,psia,nstate,ehfx,vhfx,redist_c2)
+     endif
+     !
     ELSE
        CALL hfx_old(c0,c2,f,psia,nstate,ehfx,vhfx)
     ENDIF

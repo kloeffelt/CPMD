@@ -200,6 +200,7 @@ MODULE md_driver
   USE wrgeo_utils,                     ONLY: wrgeof
   USE wv30_utils,                      ONLY: zhwwf
   USE zeroing_utils,                   ONLY: zeroing
+  USE ace_hfx  !SM
 
   IMPLICIT NONE
 
@@ -678,6 +679,12 @@ CONTAINS
        WRITE(6,*)&
             ' ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
     ENDIF
+!=======================================================================
+    IF(USE_ACE)THEN  !SM
+         allocate(XI(ncpw%ngw,NSTATE),stat=ierr)
+         if(ierr/=0) call stopgm(proceduren,'allocation problem: XI',&
+              __LINE__,__FILE__)
+    ENDIF
     ! ==--------------------------------------------------------------==
     ! == INITIALISATION                                               ==
     ! ==--------------------------------------------------------------==
@@ -1016,7 +1023,7 @@ CONTAINS
        ENDIF
        ! ANNEALING
        ! thermostats only if 1) standard dynamics 2) larger MTS step
-       if ( .not.cntl%use_mts .or. mts_large_step ) then
+       if ( .not.cntl%use_mts .or. mts_large_step.or.use_ace ) then !SM
           CALL anneal(velp,c2,nstate,scr)
           CALL berendsen(velp,c2,nstate,scr,0.0_real_8,0.0_real_8)
           ! UPDATE NOSE THERMOSTATS
@@ -1257,7 +1264,7 @@ CONTAINS
        IF (paral%io_parent.AND.comvl%subcom) CALL comvel(velp,vcmio,.FALSE.)
 
        ! thermostats only if 1) standard dynamics 2) larger MTS step
-       if ( .not.cntl%use_mts .or. mts_large_step ) then
+       if ( .not.cntl%use_mts .or. mts_large_step.or.use_ace ) then !SM
           ! SECOND HALF OF GLE EVOLUTION
           CALL gle_step(tau0,velp,rmass%pma)
 
@@ -1704,6 +1711,13 @@ CONTAINS
             __LINE__,__FILE__)
     ENDIF
     ! SOC]
+!=======================================================================
+    IF(USE_ACE)THEN  !SM
+      DEALLOCATE(XI,STAT=ierr)
+      IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem: XI',&
+            __LINE__,__FILE__)
+    ENDIF
+!-----------------------------------------------------------------------
     CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==
   END SUBROUTINE mddiag
@@ -1757,6 +1771,8 @@ CONTAINS
 
         call set_mts_functional('LOW')
 
+        if(use_ace)status_ace=.true. !SM
+        !
         call forces_diag(nstate,c0,c2,cr,csc0,cscr,vpp,eigv,&
            rhoe,psi,tau0,velp,taui,fion,ifcalc,irec,tfor,tinfo)
 
@@ -1789,14 +1805,22 @@ CONTAINS
 
               ! wf extrapolation
               if (.not.initialization .and. cntl%textrap) then
-                 call extrapwf(infi,c0_high,cscr,cold_high,nnow_high,numcold_high,nstate,cnti%mextra)
+                 if(.not.use_ace)then
+                   call extrapwf(infi,c0_high,cscr,cold_high,nnow_high,numcold_high,nstate,cnti%mextra)
+                 else
+                   call dcopy(2*size(c0,1)*size(c0,2)*size(c0,3),c0,1,c0_high,1) !sagar hack
+                 endif
               end if
 
+              if(use_ace)status_ace=.false. !SM
+              !
               ! get forces
               call forces_diag(nstate,c0_high,c2,cr,csc0,cscr,vpp,eigv,&
                  rhoe,psi,tau0,velp,taui,fion_high,ifcalc,irec,tfor,tinfo)
            else
 
+              !if(use_ace)status_ace=.false. !SM
+              !
               ! In this case the wf extrap. is done in the main (outside) routine
               call forces_diag(nstate,c0,c2,cr,csc0,cscr,vpp,eigv,&
                  rhoe,psi,tau0,velp,taui,fion_high,ifcalc,irec,tfor,tinfo)
