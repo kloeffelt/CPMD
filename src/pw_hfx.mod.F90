@@ -71,7 +71,10 @@ MODULE pw_hfx
                                              tiset
 ! ================================================================== 
   USE zeroing_utils,                   ONLY: zeroing
-
+!-------------------------------------------------------------------
+    USE ovlap_utils,                     ONLY : ovlap
+    USE ace_hfx  !SAGAR
+!===================================================================
   IMPLICIT NONE
 
   ! ==--------------------------------------------------------------==
@@ -190,7 +193,14 @@ CONTAINS
     TYPE(iterator_t)                         :: iter
     TYPE(list_t)                             :: c_list, r_list
     TYPE(pp_t)                               :: pp
-
+!------------------------------------------------------------------------!
+!   sagar
+    INTEGER                                    :: info
+    COMPLEX(real_8), ALLOCATABLE, &
+        DIMENSION(:, :)                        :: cmexx
+    REAL(real_8), ALLOCATABLE, &
+        DIMENSION(:, :)                        :: mexx
+!========================================================================!
     ! KPT replace NGW -> NGWK (maybe not C2....)
     ! ==--------------------------------------------------------------==
 
@@ -213,7 +223,15 @@ CONTAINS
          __LINE__,__FILE__)
 
     ! ==--------------------------------------------------------------==
-
+    ! sagar
+    IF(USE_ACE.and.status_ace)THEN
+      ALLOCATE(cmexx(nstate,nstate),mexx(nstate,nstate),&
+           stat=ierr)
+      IF (ierr /= 0) CALL stopgm( procedureN, 'Allocation problem' ,&
+           __LINE__,__FILE__)
+    ENDIF
+    !
+    ! ==--------------------------------------------------------------==
     IF (cntl%use_scaled_hfx) THEN
        IF (.NOT. scex%init) CALL stopgm(procedureN,'ScEX requested, but not initialised',&
                                         __LINE__,__FILE__)
@@ -355,7 +373,13 @@ CONTAINS
     ! 
     CALL add_wfn(jgw,nstate,zone,C2_hfx,ncpw%ngw,c2,ncpw%ngw)
 
-
+!------------------
+    IF ((parai%cp_nogrp > 1).and.use_ace.and.status_ace) THEN !bug fixed for CP_GRP sagar
+      IF (.not.redist_c2) CALL cp_grp_redist(C2_hfx,ncpw%ngw,nstate)
+    ENDIF
+    if(use_ace.and.status_ace)call build_ace_proj()  !sagar
+!---------------------------
+    !write(6,*)redist_c2,parai%cp_inter_me
     ! Energy
     ehfx = ehfx*parm%omega
 
@@ -402,6 +426,16 @@ CONTAINS
        ENDIF
     ENDIF
     ! ==--------------------------------------------------------------==
+    ! sagar
+    IF(USE_ACE.and.status_ace)THEN
+      DEALLOCATE(cmexx,mexx,&
+           stat=ierr)
+      IF (ierr /= 0) CALL stopgm( procedureN, 'Deallocation problem' ,&
+           __LINE__,__FILE__)
+    ENDIF
+    !
+    ! ==--------------------------------------------------------------==
+    ! ==--------------------------------------------------------------==
 
     DEALLOCATE(C2_hfx,stat=ierr)
     IF (ierr /= 0) CALL stopgm(procedureN,'Deallocation problem',& 
@@ -412,7 +446,55 @@ CONTAINS
     CALL tihalt(procedureN,isub)
 
     CONTAINS
-
+!=======================================================================
+! ==================================================================
+    SUBROUTINE build_ace_proj()
+!-------------------------------------------------------------------
+!   Building the ACE projectors for use in the later part
+!===================================================================
+        ! copy c2_hfx to xi
+        ! |xi> = Vx[phi]|phi> 
+        CALL DCOPY(2*ncpw%ngw*NSTATE,C2_hfx(1,1),1,xi(1,1),1)
+        ! !   mexx = <phi|Vx[phi]|phi>
+        ! OVLAP(NSTATE,A,C1,C2)
+        ! COMPUTES THE OVERLAP MATRIX A = < C1 | C2 >
+        !CALL AZZERO(mexx,NSTATE*NSTATE)
+        CALL zeroing(mexx)
+        !call OVLAP(NSTATE,mexx,C0,xi)
+        call OVLAP(NSTATE,mexx,C0,xi)
+        !CALL MY_SUM_D(mexx,NSTATE*NSTATE,ALLGRP)
+        CALL mp_sum(mexx,nstate*nstate,parai%allgrp)
+        !
+  !----------------------------------------------------------
+  !       A=mexx & n=nstate
+  !--------------------
+          INFO = -1
+          CALL DPOTRF( 'L', nstate, mexx, nstate, INFO )
+          !
+          !IF(Info.NE.0) &
+          ! CALL STOPGM('ACE','ERROR IN DPOTRF')
+    IF (info /= 0) CALL stopgm(procedureN,'ERROR IN DPOTRF: ACE',&
+         __LINE__,__FILE__)
+          !
+          !CALL errinfo('DPOTRF','Cholesky failed in invchol.',INFO)
+          INFO = -1
+          CALL DTRTRI( 'L', 'N', nstate, mexx, nstate, INFO )
+          !IF(Info.NE.0) &
+          !CALL STOPGM('ACE','ERROR IN DTRTRI')
+    IF (info /= 0) CALL stopgm(procedureN,'ERROR IN DTRTRI: ACE',&
+         __LINE__,__FILE__)
+          !CALL errinfo('DTRTRI','inversion failed in invchol.',INFO)
+!==========================================================
+        !
+        cmexx = (1.d0,0.d0)*mexx
+        !
+        ! |xi> = -One * Vx[phi]|phi> * rmexx^T
+        CALL ZTRMM('R','L','C','N',ncpw%ngw,nstate,(1.d0,0.d0), &
+                   cmexx,nstate,xi,ncpw%ngw)
+        !
+!=========================================================
+    END SUBROUTINE build_ace_proj
+! ==================================================================
     ! ================================================================== 
     SUBROUTINE process_blocks()
       ! ==--------------------------------------------------------------==
