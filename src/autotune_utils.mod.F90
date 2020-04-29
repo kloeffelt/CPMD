@@ -10,6 +10,7 @@ MODULE autotune_utils
                                              fft_tune_max_it
   USE fftprp_utils,                    ONLY: autotune_fftbatchsize
   USE system,                          ONLY: cnti, cntl
+  USE rswfmod,                         ONLY: rsactive
   USE kinds,                           ONLY: real_8
   USE timer,                           ONLY: tihalt,&
                                              tiset
@@ -44,9 +45,11 @@ CONTAINS
              CALL rnlsm(c0,nstate,1,1,.FALSE.,unpack_dfnl_fnl=.FALSE.)
           END IF
           IF(it.LE.fft_tune_max_it.AND.batch_fft)THEN
+             rsactive = cntl%krwfn
              CALL autotune_fftbatchsize()
              CALL rhoofr_batchfft(c0,rhoe,psi(:,1),nstate)
              CALL vpsi_batchfft(c0,c2,crge%f(:,1),rhoe,psi(:,1),nstate,1,clsd%nlsd,.TRUE.)
+             rsactive = .FALSE.
           END IF
        END DO
     END IF
