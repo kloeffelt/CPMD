@@ -425,7 +425,7 @@ CONTAINS
                 CALL deort(nstate,c0(:,:,2))
              ENDIF
           ELSE
-             CALL deort(nstate,c0)
+             CALL deort(nstate,c0(:,:,1))
           ENDIF
        ENDIF
        ! INITIALIZE VELOCITIES

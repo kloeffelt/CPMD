@@ -123,7 +123,7 @@ CONTAINS
 #ifdef _USE_SCRATCHLIBRARY
     COMPLEX(real_8), ALLOCATABLE, TARGET     :: auxc(:)
 #else
-    COMPLEX(real_8), ALLOCATABLE, TARGET     :: auxc(:), c0_ort(:,:,:)
+    COMPLEX(real_8), ALLOCATABLE, TARGET     :: auxc(:)
 #endif
     COMPLEX(real_8), EXTERNAL                :: zdotc
     COMPLEX(real_8), POINTER __CONTIGUOUS    :: cgam(:), c0_ptr(:,:,:)
@@ -144,6 +144,7 @@ CONTAINS
 #else
     REAL(real_8), ALLOCATABLE                :: smat(:,:), fnlgam_packed(:,:)
     REAL(real_8), ALLOCATABLE, TARGET        :: gam(:,:)
+    COMPLEX(real_8), ALLOCATABLE, TARGET     :: c0_ort(:,:,:)
 #endif
     REAL(real_8), EXTERNAL                   :: dasum
     REAL(real_8), POINTER                    :: aux(:)

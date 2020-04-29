@@ -6,6 +6,7 @@ MODULE mm_qmmm_forcedr_utils
   USE error_handling,                  ONLY: stopgm
   USE forcedr_driver,                  ONLY: forcedr
   USE kinds,                           ONLY: real_8
+  USE kpts,                            ONLY: tkpts
   USE ions,                            ONLY: ions1
   USE machine,                         ONLY: m_walltime
   USE mm_dim_utils,                    ONLY: mm_dim
@@ -25,8 +26,15 @@ MODULE mm_qmmm_forcedr_utils
                                              mp_sync
   USE parac,                           ONLY: parai,&
                                              paral
+  USE pslo,                            ONLY: pslo_com
   USE puttau_utils,                    ONLY: taucl
+  USE rgsvan_utils,                    ONLY: rgsvan
+  USE rnlsm_utils,                     ONLY: rnlsm
   USE rhoofr_utils,                    ONLY: rhoofr
+  USE spin,                            ONLY: clsd,&
+                                             lspin2,&
+                                             lspin3,&
+                                             spin_mod
   USE rswfmod,                         ONLY: rsactive
   USE system,                          ONLY: cntl,&
                                              fpar,&
@@ -55,9 +63,9 @@ CONTAINS
     COMPLEX(real_8),INTENT(OUT) __CONTIGUOUS :: psi(:,:)
     REAL(real_8),INTENT(OUT) __CONTIGUOUS    :: fion(:,:,:)
     REAL(real_8),INTENT(OUT)                 :: eigv(*)
-    REAL(real_8),INTENT(IN) __CONTIGUOUS     :: tau(:,:,:)
+    REAL(real_8),INTENT(INOUT) __CONTIGUOUS  :: tau(:,:,:)
     INTEGER,INTENT(IN)                       :: nstate
-    COMPLEX(real_8),INTENT(IN)               :: c0(ncpw%ngw,nstate)
+    COMPLEX(real_8),INTENT(IN),TARGET        :: c0(ncpw%ngw,nstate)
     COMPLEX(real_8),INTENT(OUT)              :: c2(ncpw%ngw,nstate), &
                                                 sc0(ncpw%ngw,nstate)
     INTEGER,INTENT(IN)                       :: unused_int
@@ -109,9 +117,9 @@ CONTAINS
                   __LINE__,__FILE__)
              c0_ptr=> qmmm_c0_ort
              CALL dcopy(2*ncpw%ngw*nstate,c0,1,qmmm_c0_ort,1)
-             IF(pslo_com%tivan) CALL rnlsm(c0(:,:,1),nstate,1,1,.FALSE.)
-             CALL rgsvan(c0_ptr(:,:,1),nstate,smat,store_nonort=.FALSE.)
-             IF (.NOT.pslo_com%tivan) CALL rnlsm(c0_ptr(:,:,1),nstate,1,1,.FALSE.)
+             IF(pslo_com%tivan) CALL rnlsm(c0(:,:),nstate,1,1,.FALSE.)
+             CALL rgsvan(c0_ptr(:,:),nstate,qmmm_smat,store_nonort=.FALSE.)
+             IF (.NOT.pslo_com%tivan) CALL rnlsm(c0_ptr(:,:),nstate,1,1,.FALSE.)
              DEALLOCATE(qmmm_smat,stat=ierr)
              IF (ierr.NE.0) CALL stopgm(procedureN,'Deallocation problem',&
                   __LINE__,__FILE__)

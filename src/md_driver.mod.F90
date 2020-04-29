@@ -1933,17 +1933,20 @@ SUBROUTINE extrapwf(infi,c0,gam,cold,nnow,numcold,nstate,m,scold,only_save)
   INTEGER                                    :: nstate, infi, nnow, numcold, m
   COMPLEX(real_8)                            :: cold(nkpt%ngwk,nstate,nkpt%nkpnt,*)
   REAL(real_8)                               :: gam(nstate,*)
-  COMPLEX(real_8)                            :: c0(nkpt%ngwk,nstate,*), scold(nkpt%ngwk,nstate,nkpt%nkpnt,*)
+  COMPLEX(real_8)                            :: c0(nkpt%ngwk,nstate,*)
+  COMPLEX(real_8), optional                  :: scold(nkpt%ngwk,nstate,nkpt%nkpnt,*)
   
   LOGICAL, INTENT(IN), OPTIONAL              :: only_save
+  logical                                    :: save
   INTEGER                                    :: i, ik, isub, ma, n1, nm, nnow_save, ig
   REAL(real_8)                               :: fa, rsum, scalef, rsumv
   REAL(real_8), EXTERNAL                     :: ddot
   CHARACTER(*), PARAMETER                    :: procedureN = 'extrapwf'
   CALL tiset(procedureN,isub)
 
-  IF(PRESENT(only_save))THEN
-     IF(only_save)THEN
+  IF(pslo_com%tivan)THEN
+     IF (PRESENT(only_save)) save=only_save
+     IF(save)THEN
         nnow_save=MOD(nnow,m)+1
         CALL dcopy(2*nkpt%ngwk*nstate*nkpt%nkpnt,c0,1,cold(1,1,1,nnow_save),1)
         IF(pslo_com%tivan)THEN

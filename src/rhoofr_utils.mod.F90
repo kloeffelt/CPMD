@@ -1075,15 +1075,21 @@ CONTAINS
     DEALLOCATE(ispin,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
     CALL free_scratch(il_xf,yf,procedureN//'_yf')
     CALL free_scratch(il_xf,xf,procedureN//'_xf')
     CALL free_scratch(il_wfng,wfn_g,'wfn_g')
+#else
+    DEALLOCATE(wfn_g,STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'cannot deallocate wfn_g', &
+         __LINE__,__FILE__)
+#endif
     IF(.NOT.rsactive) THEN
 #ifdef _USE_SCRATCHLIBRARY
        CALL free_scratch(il_wfnr,wfn_r,'wfn_r')
 #else
        DEALLOCATE(wfn_r,STAT=ierr)
-       IF(ierr/=0) CALL stopgm(procedureN,'cannot deallocate wfn_r1', &
+       IF(ierr/=0) CALL stopgm(procedureN,'cannot deallocate wfn_r', &
             __LINE__,__FILE__)
 #endif
     END IF

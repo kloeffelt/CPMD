@@ -79,7 +79,7 @@ MODULE fft
 #ifdef _USE_SCRATCHLIBRARY
   COMPLEX(real_8), POINTER, SAVE __CONTIGUOUS           :: wfn_r(:,:),wfn_g(:,:)
 #else
-  COMPLEX(real_8), ALLOCATABLE, SAVE       :: wfn_r(:,:),wfn_g(:,:)
+  COMPLEX(real_8), ALLOCATABLE, SAVE, TARGET  :: wfn_r(:,:),wfn_g(:,:)
 #endif
   LOGICAL, ALLOCATABLE                     :: locks_inv(:,:), locks_fw(:,:)
   REAL(real_8), ALLOCATABLE                :: fft_time_total(:)
