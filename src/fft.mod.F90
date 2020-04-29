@@ -77,7 +77,7 @@ MODULE fft
   INTEGER :: a2a_msgsize, fft_batchsize, fft_numbatches, fft_residual, fft_total, fft_tune_num_it, fft_tune_max_it, fft_min_numbatches
   LOGICAL :: batch_fft
 #ifdef _USE_SCRATCHLIBRARY
-  COMPLEX(real_8), POINTER, SAVE           :: wfn_r(:,:),wfn_g(:,:)
+  COMPLEX(real_8), POINTER, SAVE __CONTIGUOUS           :: wfn_r(:,:),wfn_g(:,:)
 #else
   COMPLEX(real_8), ALLOCATABLE, SAVE       :: wfn_r(:,:),wfn_g(:,:)
 #endif

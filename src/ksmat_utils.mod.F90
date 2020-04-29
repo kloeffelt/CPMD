@@ -74,8 +74,8 @@ CONTAINS
     CALL fnlalloc(atwp%nattot,.FALSE.,.FALSE.)
     CALL rnlsm(catom,atwp%nattot,1,ikind,.FALSE.,unpack_dfnl_fnl=.NOT.pslo_com%tivan)
     IF(pslo_com%tivan)THEN
-       ALLOCATE(fnlp_save(il_fnl_packed(1),il_fnl_packed(2)))
-       CALL dcopy(product(il_fnl_packed),fnl_packed,1,fnlp_save,1)
+       ALLOCATE(fnlp_save(int(il_fnl_packed(1)),int(il_fnl_packed(2))))
+       CALL dcopy(product(int(il_fnl_packed)),fnl_packed,1,fnlp_save,1)
     ELSE
        allocate(fnl_save(ions1%nat,maxsys%nhxs,atwp%nattot))
        call dcopy(ions1%nat*maxsys%nhxs*atwp%nattot,fnl,1,fnl_save,1)
@@ -102,7 +102,7 @@ CONTAINS
              CALL rotate(-1.0_real_8,catom(:,ist:ist+natst-1),1.0_real_8,c2,gam,&
                   natst,2*nkpt%ngwk,.FALSE.,1,0,symm=.TRUE.,&
                   use_cp=.TRUE.,redist=.TRUE.)
-             CALL rotate_fnl(il_fnl_packed(1),fnl_packed,fnlgam_packed,natst,gam)
+             CALL rotate_fnl(int(il_fnl_packed(1)),fnl_packed,fnlgam_packed,natst,gam)
              CALL nlforce(c2,foc,fnl_packed,fnlgam_packed,natst,redist=.TRUE.)
              DEALLOCATE(fnlgam_packed, STAT=ierr)
              IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &

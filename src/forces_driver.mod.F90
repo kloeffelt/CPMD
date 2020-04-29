@@ -359,13 +359,13 @@ CONTAINS
                __LINE__,__FILE__)
 #endif
           IF(cntl%distribute_fnl_rot)THEN
-             CALL rotate_c0_fnl(ncpw%ngw,c0_ptr(:,:,ik),c2,il_fnl_packed(1),fnl_packed,&
+             CALL rotate_c0_fnl(ncpw%ngw,c0_ptr(:,:,ik),c2,int(il_fnl_packed(1)),fnl_packed,&
                   fnlgam_packed,nstate,gam,redist=.NOT.cntl%nonort)
           ELSE
              CALL rotate(-1.0_real_8,c0_ptr(:,:,ik),1.0_real_8,c2,gam,&
                   nstate,2*nkpt%ngwk,cntl%tlsd,spin_mod%nsup,spin_mod%nsdown,symm=.TRUE.,&
                   use_cp=.TRUE.,redist=.NOT.cntl%nonort)
-             CALL rotate_fnl(il_fnl_packed(1),fnl_packed,fnlgam_packed,nstate,gam)
+             CALL rotate_fnl(int(il_fnl_packed(1)),fnl_packed,fnlgam_packed,nstate,gam)
           END IF
           CALL nlforce(c2,crge%f,fnl_packed,fnlgam_packed,nstate,redist=.NOT.cntl%nonort)
           IF (tfor) THEN

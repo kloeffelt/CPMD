@@ -7,7 +7,7 @@ module scratch_segment_managment
 
 contains
   subroutine init_finalize(task)
-    use scratch_data, only: register
+    use scratch_data, only: register,int_long
     use scratch_managment, only: init_scratch,finalize_scratch
     integer,intent(in) :: task
     integer :: i,n
@@ -17,7 +17,8 @@ contains
        allocate(register(1))
        allocate(register(1)%usage(1,5))
        allocate(register(1)%tag(1))
-       success=update_usage(1,1,locked=0,inuse=0,tag='',len=1,start=1,end=1)
+       success=update_usage(1,1,locked=0,inuse=0,tag='',len=INT(1,KIND=int_long),&
+        start=INT(1,KIND=int_long),end=INT(1,KIND=int_long))
        register(1)%nodesize=1
     elseif(task.eq.-2)then
        success=finalize_scratch()
@@ -102,10 +103,10 @@ contains
        if(task.eq.2)then
           success=update_usage(id,id1,locked=0,inuse=0)
           call combine_segments(id,id1)
-          call combine_nodes(0,id,id1)
+          call combine_nodes(INT(0,KIND=int_long),id,id1)
        elseif(task.eq.3)then
           success=update_usage(id,id1,locked=1,inuse=0)
-          call combine_nodes(0,id,id1)
+          call combine_nodes(INT(0,KIND=int_long),id,id1)
        end if
     elseif(task.eq.4)then
        loop4_id: do id=1,num_nodes
@@ -310,10 +311,11 @@ contains
     elseif(minlen.le.lenfree)then
        newlen=lenfree+lenmove
     end if
+    write(*,*) 'warning adding new scratch', newlen
     success=add_scratch(newlen)
     success=add_register()
     register(1)%nodesize=newlen
-    success=update_usage(1,1,locked=0,inuse=0,tag='',len=newlen,start=1,end=newlen)
+    success=update_usage(1,1,locked=0,inuse=0,tag='',len=newlen,start=INT(1,KIND=int_long),end=newlen)
     !do we need to move data?
     count=0
     if(lenmove.gt.0)then

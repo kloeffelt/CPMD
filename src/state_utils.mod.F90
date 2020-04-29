@@ -1,3 +1,5 @@
+#include "cpmd_global.h"
+
 MODULE state_utils
   USE cnst,                            ONLY: uimag
   USE cppt,                            ONLY: indzs,&
@@ -231,7 +233,7 @@ CONTAINS
     ! == Set Psi with two*batchsize states                            ==
     ! ==--------------------------------------------------------------==
     INTEGER,INTENT(IN)                       :: ld_psi, ist_start, bsize, maxstate, me_grp, n_grp
-    COMPLEX(real_8),INTENT(IN)               :: c0(:,:)
+    COMPLEX(real_8),INTENT(IN) __CONTIGUOUS  :: c0(:,:)
     COMPLEX(real_8),INTENT(OUT)              :: psi(ld_psi,bsize)
 
     INTEGER                                  :: count, ist, is1, is2, offset_state,ir

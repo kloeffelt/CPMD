@@ -1,3 +1,5 @@
+#include "cpmd_global.h"
+
 MODULE rscpot_utils
   USE cdft_utils,                      ONLY: cdft_forces
   USE cnst_dyn,                        ONLY: en_harm_locs,&
@@ -73,10 +75,10 @@ CONTAINS
     ! ==   RHOE      ELECTRONIC POTENTIAL                             ==
     ! ==   PSI       USED FOR FFT                                     ==
     ! ==--------------------------------------------------------------==
-    COMPLEX(real_8)                          :: c0(:,:)
-    REAL(real_8)                             :: tau0(:,:,:), fion(:,:,:), &
+    COMPLEX(real_8) __CONTIGUOUS             :: c0(:,:)
+    REAL(real_8) __CONTIGUOUS                :: tau0(:,:,:), fion(:,:,:), &
                                                 rhoe(:,:)
-    COMPLEX(real_8)                          :: psi(:,:)
+    COMPLEX(real_8) __CONTIGUOUS             :: psi(:,:)
     LOGICAL                                  :: tfor, tstress
     INTEGER                                  :: nstate, nkpoint
 

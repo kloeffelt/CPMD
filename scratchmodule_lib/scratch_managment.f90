@@ -36,7 +36,7 @@ contains
   function calc_shift(arrayin) result(shift)
     use,intrinsic :: iso_c_binding
     use scratch_data, only : dp,int_long,alignment,sizeof_dp,alignment_in_real_dp
-    real(dp),intent(in) :: arrayin(:)
+    real(dp),intent(in),pointer,contiguous :: arrayin(:)
     type(c_ptr) :: c_addr
     integer(int_long) :: faddr, shift
     c_addr=c_loc(arrayin(1))

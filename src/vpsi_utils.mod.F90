@@ -1033,8 +1033,8 @@ CONTAINS
     ! cons: code complexity will increase, e.g. calling alltoall from here?
     ! Full performance only with saved arrays or scratch_library
 
-    COMPLEX(real_8)                          :: c0(:,:), c2(:,:)
-    REAL(real_8)                             :: f(:)
+    COMPLEX(real_8) __CONTIGUOUS             :: c0(:,:), c2(:,:)
+    REAL(real_8) __CONTIGUOUS                :: f(:)
     REAL(real_8), TARGET __CONTIGUOUS        :: vpot(:,:)
     COMPLEX(real_8), TARGET __CONTIGUOUS     :: psi(:)
     INTEGER                                  :: nstate, ikind, ispin
@@ -1249,7 +1249,7 @@ CONTAINS
                 END IF
                 IF(bsize.NE.0)THEN
                    ! Loop over the electronic states of this batch
-                   CALL set_psi_batch_g(c0,wfn_g,il_wfng(1),i_start1,bsize,nstate,me_grp,n_grp)
+                   CALL set_psi_batch_g(c0,wfn_g,int(il_wfng(1)),i_start1,bsize,nstate,me_grp,n_grp)
                    ! ==--------------------------------------------------------------==
                    ! ==  Fourier transform the wave functions to real space.         ==
                    ! ==  In the array PSI was used also the fact that the wave       ==
