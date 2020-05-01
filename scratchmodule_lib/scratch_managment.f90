@@ -55,7 +55,7 @@ contains
     n=size(scratch)+1
     allocate(scratch_swap(n))
     allocate(scratch_swap(1)%node(len+alignment_in_real_dp))
-    shift=calc_shift(scratch_swap(1)%node(:))
+    shift=calc_shift(scratch_swap(1)%node)
     scratch_swap(1)%alignednode(1:len)=> scratch_swap(1)%node(1+shift:len+shift)
     do i=2,n
        scratch_swap(i)%node=>scratch(i-1)%node
