@@ -52,8 +52,8 @@ CONTAINS
     ! ==     ENERGY, I.E. ENL                                         ==
     ! ==     K-POINTS IMPLEMENTED (FNL IS COMPLEX -> IMAGP=2)         ==
     ! ==--------------------------------------------------------------==
-    REAL(real_8)                             :: enl
-    INTEGER                                  :: nstate, nkpoint
+    REAL(real_8), INTENT(OUT)                :: enl
+    INTEGER, INTENT(IN)                      :: nstate, nkpoint
 
     INTEGER                                  :: i, ia, ii, ik, is, isa, isa0, &
                                                 isub, iv, jv, ki, kj, l, l2, &
@@ -104,7 +104,8 @@ CONTAINS
     DO ik=1,nkpoint
        isa0=0
        DO is=1,ions1%nsp
-          IF (sgpp1%tsgp(is)) THEN
+          IF(pslo_com%tivan)THEN
+          ELSEIF (sgpp1%tsgp(is)) THEN
              ! Stefan Goedecker pp
              DO iv=1,nlps_com%ngh(is)
                 l=nghtol(iv,is)+1
