@@ -1,6 +1,7 @@
 #include "cpmd_global.h"
 
 MODULE fftprp_utils
+  USE benc,                            ONLY: ibench
   USE cp_cuda_types,                   ONLY: cp_cuda_devices_fft,&
                                              cp_cuda_env
   USE cp_cufft_types,                  ONLY: cp_cufft
@@ -584,9 +585,11 @@ CONTAINS
        END DO
        ind=MINLOC(fft_time_total)
        fft_batchsize=fft_batchsizes(ind(1))
-       if(paral%io_parent)write(6,*) fft_time_total
-       if(paral%io_parent)write(6,*) fft_batchsizes
-       if(paral%io_parent)write(6,*) ind,fft_time_total(ind),fft_batchsizes(ind)
+       if(ibench(4).eq.1)then
+          if(paral%io_parent)write(6,*) fft_time_total
+          if(paral%io_parent)write(6,*) fft_batchsizes
+          if(paral%io_parent)write(6,*) ind,fft_time_total(ind),fft_batchsizes(ind)
+       end if
        fft_residual=MOD(fft_total,fft_batchsize)
        fft_numbatches=(fft_total-fft_residual)/fft_batchsize
        IF(fft_numbatches.LT.fft_min_numbatches)THEN

@@ -2,6 +2,7 @@
 
 MODULE forces_driver
   USE autotune_utils,                  ONLY: autotune
+  USE benc,                            ONLY: ibench
   USE cp_grp_utils,                    ONLY: cp_grp_get_cp_rank,&
                                              cp_grp_get_sizes,&
                                              cp_grp_redist,&
@@ -13,7 +14,9 @@ MODULE forces_driver
   USE ener,                            ONLY: ener_com
   USE error_handling,                  ONLY: stopgm
   USE fft_maxfft,                      ONLY: maxfft
-  USE fft,                             ONLY: batch_fft
+  USE fft,                             ONLY: batch_fft,&
+                                             fft_tune_max_it
+  USE fftprp_utils,                    ONLY: autotune_fftbatchsize
   USE fnonloc_utils,                   ONLY: fnonloc
   USE func,                            ONLY: func1
   USE geq0mod,                         ONLY: geq0
@@ -149,6 +152,7 @@ CONTAINS
     REAL(real_8), EXTERNAL                   :: dasum
     REAL(real_8), POINTER                    :: aux(:)
 
+    INTEGER, SAVE                            :: autotune_it=1
     CALL tiset(procedureN,isub)
     CALL tiset(procedureN//'_a',isub2)
     !TK noforce goes here:
@@ -214,7 +218,7 @@ CONTAINS
 
     !autotuning of rhoofr/vpsi/rnlsm
     IF(cntl%rnlsm_autotune.OR.cntl%fft_tune_batchsize)THEN
-       CALL autotune(c0_ptr(:,:,1),c2,rhoe,psi,nstate)
+       IF(ibench(3).EQ.1) CALL autotune(c0_ptr(:,:,1),c2,rhoe,psi,nstate)
     END IF
 
 
@@ -263,6 +267,12 @@ CONTAINS
        ENDIF
     ENDDO
     rsactive = cntl%krwfn
+    IF(cntl%fft_tune_batchsize.AND.batch_fft.AND.(ibench(3).EQ.0))THEN
+       IF(autotune_it.LE.fft_tune_max_it+1)THEN
+          autotune_it=autotune_it+1
+          CALL autotune_fftbatchsize()
+       END IF
+    END IF
     CALL rscpot(c0_ptr(:,:,1),tau0,fion,rhoe,psi,tfor,ropt_mod%calste,nstate,nkpoint)
     CALL tihalt(procedureN//'_a',isub2)
     ! ==--------------------------------------------------------------==
