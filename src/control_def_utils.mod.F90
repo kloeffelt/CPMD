@@ -336,6 +336,7 @@ CONTAINS
     cprint%minwriteatom=1
     cprint%maxwriteatom=1000000
     cprint%twriteforcetrajectory=.FALSE.
+    cprint%twritefixforcetrajectory=.FALSE.
     ! Debugging
     cntl%tdebfor=.FALSE.
     store1%tdebio=.FALSE.

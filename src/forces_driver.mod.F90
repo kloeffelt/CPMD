@@ -45,6 +45,7 @@ MODULE forces_driver
                                              ovlap2_dist
   USE parac,                           ONLY: parai,&
                                              paral
+  USE printp_utils,                    ONLY: printp3
   USE pslo,                            ONLY: pslo_com
   USE puttau_utils,                    ONLY: taucl
   USE reigs_utils,                     ONLY: reigs
@@ -62,6 +63,7 @@ MODULE forces_driver
   USE sfac,                            ONLY: fnl_packed,&
                                              il_fnl_packed,&
                                              dfnl_packed
+  USE store_types,                     ONLY: cprint
   USE spin,                            ONLY: clsd,&
                                              lspin2,&
                                              lspin3,&
@@ -595,6 +597,7 @@ CONTAINS
        CALL mp_sum(fion,3*maxsys%nax*maxsys%nsx,parai%allgrp)
        IF (paral%parent) THEN
           CALL symvec(fion)
+          IF (cprint%twritefixforcetrajectory) CALL printp3(tau0,fion)
           CALL taucl(fion)
           CALL gsize(fion,gnmax,gnorm)
        ENDIF

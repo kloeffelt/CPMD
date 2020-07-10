@@ -3550,6 +3550,9 @@ CONTAINS
                 IF ( keyword_contains(line,'FORCES') ) THEN
                    cprint%twriteforcetrajectory=.TRUE.
                 ENDIF
+                IF ( keyword_contains(line,'FIXFORCE') ) THEN
+                   cprint%twritefixforcetrajectory=.TRUE.
+                ENDIF
                 IF ( keyword_contains(line,'SMALL')) trajsmall=.TRUE.
                 IF ( keyword_contains(line,'RANGE') ) THEN
                    previous_line = line
