@@ -55,6 +55,9 @@ MODULE dist_prowfn_utils
   USE timer,                           ONLY: tihalt,&
                                              tiset
   USE zeroing_utils,                   ONLY: zeroing
+#ifdef __PARALLEL
+  USE mpi_f08
+#endif
 
   IMPLICIT NONE
 
@@ -80,6 +83,18 @@ CONTAINS
     CHARACTER(len=15)                        :: label(1000)
     CHARACTER(len=30)                        :: tag
     COMPLEX(real_8), ALLOCATABLE             :: cscr(:,:), psi(:,:)
+#ifdef __PARALLEL
+    INTEGER :: chunk_begin, chunk_begin_e, chunk_end, chunk_end_e, chunk_new, &
+      chunk_new_e, i, i1, i2, i3max, i4max, ia, ia1, ia2, iao, iao1, iao2, &
+      iaorb, iat, iat1, iat2, iat3, iat3m, iat4, iat4m, ib, ic, id, ierr, &
+      ifail(atwp%nattot), ii, ijk, il_psi_1d, il_psi_2d, il_rhoe_1d, &
+      il_rhoe_2d, index1, index2, index4, ip, is, is1, is2, isub, isw, &
+      iwork(5*atwp%nattot), ixx, j, k, ki, kl, l, lan_max, &
+      lanlist(parai%nproc), lscr, msglen, msweep, n3, n4, nao, nao1, nao2, &
+      natst, ndd(0:parai%nproc-1,2), nfound, nolan, nomax, norb, norbx, &
+      num_eig, numin, nx, old_send_cnt_e(parai%nproc)
+    type(MPI_COMM)                           :: langrp
+#else
     INTEGER :: chunk_begin, chunk_begin_e, chunk_end, chunk_end_e, chunk_new, &
       chunk_new_e, i, i1, i2, i3max, i4max, ia, ia1, ia2, iao, iao1, iao2, &
       iaorb, iat, iat1, iat2, iat3, iat3m, iat4, iat4m, ib, ic, id, ierr, &
@@ -89,6 +104,7 @@ CONTAINS
       lanlist(parai%nproc), lscr, msglen, msweep, n3, n4, nao, nao1, nao2, &
       natst, ndd(0:parai%nproc-1,2), nfound, nolan, nomax, norb, norbx, &
       num_eig, numin, nx, old_send_cnt_e(parai%nproc)
+#endif
     INTEGER :: send_cnt(parai%nproc), send_cnt_e(parai%nproc), &
       send_displ(parai%nproc), send_displ_e(parai%nproc), start, str, str1, &
       strc, sz

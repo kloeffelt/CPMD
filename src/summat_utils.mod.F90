@@ -15,7 +15,9 @@ MODULE summat_utils
                                              tiset
   USE utils,                           ONLY: symmat_pack,&
                                              symmat_unpack
-
+#ifdef __PARALLEL
+  USE mpi_f08
+#endif
 #ifdef _USE_SCRATCHLIBRARY
   USE scratch_interface,               ONLY: request_scratch,&
                                              free_scratch
@@ -35,7 +37,11 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     INTEGER, INTENT(IN)                      :: nstate
     REAL(real_8),INTENT(OUT)                 :: a(nstate,nstate)
+#ifdef __PARALLEL
+    type(MPI_COMM),INTENT(IN),OPTIONAL       :: gid
+#else
     INTEGER,INTENT(IN),OPTIONAL              :: gid
+#endif
     LOGICAL,INTENT(IN),OPTIONAL              :: symmetrization,lsd,parent
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'summat'
@@ -44,7 +50,12 @@ CONTAINS
     INTEGER(int_8)                           :: il_aux(1)
     LOGICAL                                  :: full,lsd_active,is_parent,&
          only_parent
+#ifdef __PARALLEL
+    type(MPI_COMM)                           :: mpi_com
+    INTEGER                                  :: parent_rank
+#else
     INTEGER                                  :: mpi_com,parent_rank
+#endif
 #ifdef _USE_SCRATCHLIBRARY
     REAL(real_8), POINTER __CONTIGUOUS       :: aux(:)
 #else

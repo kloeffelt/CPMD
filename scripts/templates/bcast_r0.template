@@ -1,12 +1,12 @@
-subroutine mp_bcast_${NAME}(data, ${ARG_LEN_NAME}, root,comm)
+subroutine mp_bcast_${NAME}(data, root,comm)
   ! Arguments
 #ifdef __PARALLEL
-  integer, intent(in) :: ${ARG_LEN_NAME}, root
+  integer, intent(in) ::  root
   type(MPI_COMM), intent(in) :: comm
 #else
-  integer, intent(in) :: ${ARG_LEN_NAME}, root,comm
+  integer, intent(in) ::  root,comm
 #endif
-  ${TYPE}${KIND}, intent(inout), ${DIMENSION} :: data
+  ${TYPE}${KIND}, intent(inout)  :: data
   ! Variables
   integer :: ierr
   character(*),parameter :: procedureN='mp_bcast_${NAME}'

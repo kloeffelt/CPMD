@@ -273,10 +273,17 @@ CONTAINS
   ! ==================================================================
   SUBROUTINE sumfnld(fnlx,isa0,nai,iv,i,ns,nstate,ikk,im,grp)
     ! ==--------------------------------------------------------------==
+#ifdef __PARALLEL
+    USE mpi_f08
+#endif
     INTEGER                                  :: isa0, nai, iv, i, ns, nstate, &
                                                 ikk, im
     REAL(real_8)                             :: fnlx(im,nai,ns)
+#ifdef __PARALLEL
+    type(MPI_COMM)                           :: grp
+#else
     INTEGER                                  :: grp
+#endif
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'sumfnld'
 

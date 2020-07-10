@@ -9,12 +9,17 @@ SUBROUTINE mp_bcast_byte(DATA,n,root,comm)
   USE pstat
   USE machine, ONLY: m_walltime
 #ifdef __PARALLEL
-  USE mpi
+  USE mpi_f08
 #endif
   IMPLICIT NONE
   ! Arguments
   INTEGER :: DATA(*)
-  INTEGER :: n,root,comm
+  INTEGER :: n,root
+#ifdef __PARALLEL
+  type(MPI_COMM) :: comm
+#else
+  INTEGER :: comm
+#endif
   ! Variables
   INTEGER :: ierr
   CHARACTER(*),PARAMETER :: procedureN='mp_bcast_byte'
@@ -46,7 +51,7 @@ SUBROUTINE my_stopall(code)
   ! ==--------------------------------------------------------------==
   USE mp_interface, ONLY: mp_comm_world
 #ifdef __PARALLEL
-  USE mpi
+  USE mpi_f08
 #endif
   IMPLICIT NONE
   ! Arguments
@@ -78,13 +83,18 @@ SUBROUTINE my_concat(outmsg,inmsg,blklen,gid)
   USE mp_interface, ONLY: mp_mpi_error_assert
   USE utils, ONLY : icopy
 #ifdef __PARALLEL
-  USE mpi
+  USE mpi_f08
   USE pstat
   USE machine, ONLY: m_walltime
 #endif
   IMPLICIT NONE
   ! Arguments
-  INTEGER :: outmsg(*),inmsg(*),blklen,gid
+  INTEGER :: outmsg(*),inmsg(*),blklen
+#ifdef __PARALLEL
+  type(MPI_COMM) :: gid
+#else
+  INTEGER :: gid
+#endif
   CHARACTER(*),PARAMETER::procedureN='my_concat'
 #ifdef __PARALLEL
   ! Variables
@@ -128,14 +138,19 @@ SUBROUTINE my_concat_inplace(inmsg,blklen,gid)
   USE mp_interface, ONLY: mp_mpi_error_assert
   USE utils, ONLY : icopy
 #ifdef __PARALLEL
-  USE mpi
+  USE mpi_f08
   USE pstat
   USE machine, ONLY: m_walltime
 #endif
   IMPLICIT NONE
   ! Arguments
   REAL(real_8) :: inmsg(*)
+#ifdef __PARALLEL
+  integer :: blklen
+  type(MPI_COMM) :: gid
+#else
   integer :: blklen,gid
+#endif
   CHARACTER(*),PARAMETER::procedureN='my_concat'
 #ifdef __PARALLEL
   ! Variables
@@ -174,14 +189,19 @@ SUBROUTINE my_concatv(outmsg,inmsg,blklen,recvcnt,recvdispl,gid)
   USE timer, ONLY: tiset, tihalt
   USE mp_interface, ONLY: mp_mpi_error_assert
 #ifdef __PARALLEL
-  USE mpi
+  USE mpi_f08
   USE pstat
   USE machine, ONLY: m_walltime
 #endif
   IMPLICIT NONE
   ! Arguments
   REAL(real_8) :: outmsg(*),inmsg(*)
-  INTEGER :: blklen,gid,recvcnt(*),recvdispl(*)
+  INTEGER :: blklen,recvcnt(*),recvdispl(*)
+#ifdef __PARALLEL
+  type(MPI_COMM) :: gid
+#else
+  INTEGER :: gid
+#endif
   CHARACTER(*),PARAMETER::procedureN='my_concatv'
 #ifdef __PARALLEL
   ! Variables
@@ -227,14 +247,19 @@ SUBROUTINE my_concatv_inplace(inmsg,recvcnt,recvdispl,gid)
   USE timer, ONLY: tiset, tihalt
   USE mp_interface, ONLY: mp_mpi_error_assert
 #ifdef __PARALLEL
-  USE mpi
+  USE mpi_f08
   USE pstat
   USE machine, ONLY: m_walltime
 #endif
   IMPLICIT NONE
   ! Arguments
   REAL(real_8) :: inmsg(*)
-  INTEGER :: blklen,gid,recvcnt(*),recvdispl(*)
+  INTEGER :: blklen,recvcnt(*),recvdispl(*)
+#ifdef __PARALLEL
+  type(MPI_COMM) :: gid
+#else
+  INTEGER :: gid
+#endif
   CHARACTER(*),PARAMETER::procedureN='my_concatv'
 #ifdef __PARALLEL
   ! Variables
@@ -280,12 +305,17 @@ SUBROUTINE my_source_concatv(outmsg,inmsg,blklen,recvcnt,&
   USE timer, ONLY: tiset, tihalt
   USE mp_interface, ONLY: mp_mpi_error_assert
 #ifdef __PARALLEL
-  USE mpi
+  USE mpi_f08
 #endif
   IMPLICIT NONE
   ! Arguments
   REAL(real_8) :: outmsg(*),inmsg(*)
-  INTEGER :: blklen,gid,recvcnt(*),recvdispl(*),root
+  INTEGER :: blklen,recvcnt(*),recvdispl(*),root
+#ifdef __PARALLEL
+  type(MPI_COMM) :: gid
+#else
+  INTEGER :: gid
+#endif
   CHARACTER(*),PARAMETER::procedureN='my_source_concatv'
 #ifdef __PARALLEL
   ! Variables
@@ -320,11 +350,16 @@ SUBROUTINE my_trans(outmsg,inmsg,blklen,group_)
   USE pstat , ONLY:cmcal,cmlen,cmtim,ipar_aall
   USE utils, ONLY : icopy
 #ifdef __PARALLEL
-  USE mpi
+  USE mpi_f08
 #endif
   IMPLICIT NONE
   ! Arguments
-  INTEGER :: outmsg(*),inmsg(*),blklen,gid,group_
+  INTEGER :: outmsg(*),inmsg(*),blklen,group_
+#ifdef __PARALLEL
+  type(MPI_COMM) :: gid
+#else
+  INTEGER :: gid
+#endif
   ! Variables
   INTEGER :: nn
   REAL(real_8) :: tim1,tim2
@@ -371,12 +406,17 @@ SUBROUTINE my_allgather_i(DATA,n,comm)
   USE timer, ONLY: tiset, tihalt
   USE mp_interface, ONLY: mp_mpi_error_assert
 #ifdef __PARALLEL
-  USE mpi
+  USE mpi_f08
 #endif
   IMPLICIT NONE
   ! Arguments
   INTEGER :: DATA(*)
-  INTEGER :: n,comm
+  INTEGER :: n
+#ifdef __PARALLEL
+  type(MPI_COMM) :: comm
+#else
+  INTEGER :: comm
+#endif
   ! Variables
   CHARACTER(*),PARAMETER :: procedureN='MY_ALLGATHER_I'
 #ifdef __PARALLEL
@@ -399,18 +439,25 @@ SUBROUTINE my_shift(msend,mrecv,msglen,mep,ip,gid)
   USE parac, ONLY : paral,parai
   USE pstat , ONLY:cmcal,cmlen,cmtim,ipar_aall, ipar_send
 #ifdef __PARALLEL
-  USE mpi
+  USE mpi_f08
 #endif
   IMPLICIT NONE
   ! Arguments
-  INTEGER :: msglen,mep,ip,gid
+  INTEGER :: msglen,mep,ip
+#ifdef __PARALLEL
+  type(MPI_COMM) :: gid
+#else
+  INTEGER :: gid
+#endif
   REAL(real_8) :: msend(*),mrecv(*)
   CHARACTER(*),PARAMETER::procedureN='my_shift'
 #ifdef __PARALLEL
   ! Variables
-  INTEGER :: status(mpi_status_size),ipsend,iprecv,&
+  INTEGER :: ipsend,iprecv,&
        whoami,howmany,&
-       itype,irequest,ierr
+       itype,ierr
+  type(MPI_Request) :: irequest
+  type(MPI_Status) :: status
   ! ==--------------------------------------------------------------==
   CALL mpi_comm_rank(gid,whoami,ierr)
   CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
@@ -422,7 +469,6 @@ SUBROUTINE my_shift(msend,mrecv,msglen,mep,ip,gid)
   cmcal(ipar_send)=cmcal(ipar_send)+1.0_real_8
   cmlen(ipar_send)=cmlen(ipar_send)+msglen
   itype=1
-  irequest=1
   CALL mpi_isend(msend,msglen,mpi_byte,ipsend,itype,&
        gid,irequest,ierr)
   CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)

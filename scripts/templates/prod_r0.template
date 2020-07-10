@@ -1,13 +1,12 @@
-subroutine mp_prod_${NAME}(data_in,data_out,${ARG_LEN_NAME}, comm)
+subroutine mp_prod_${NAME}(data_in,data_out, comm)
   ! Arguments
 #ifdef __PARALLEL
-  integer, intent(in) :: ${ARG_LEN_NAME} 
   type(MPI_COMM), intent(in) :: comm
 #else
-  integer, intent(in) :: ${ARG_LEN_NAME}, comm
+  integer, intent(in) :: comm
 #endif
-  ${TYPE}${KIND}, intent(in), ${DIMENSION} :: data_in
-  ${TYPE}${KIND}, intent(inout), ${DIMENSION} :: data_out
+  ${TYPE}${KIND}, intent(in)  :: data_in
+  ${TYPE}${KIND}, intent(inout)  :: data_out
   ! Variables
   character(*),parameter :: procedureN='mp_prod_${NAME}'
 #ifdef __PARALLEL
@@ -16,6 +15,6 @@ subroutine mp_prod_${NAME}(data_in,data_out,${ARG_LEN_NAME}, comm)
        MPI_PROD,comm,ierr)
   call mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
 #else
-  data_out ${COPY}=data_in ${COPY}
+  data_out = data_in 
 #endif
 end subroutine mp_prod_${NAME}

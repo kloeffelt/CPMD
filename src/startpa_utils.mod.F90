@@ -54,8 +54,11 @@ CONTAINS
     CALL mp_task_query(parai%cp_grp)
     CALL mp_environ(parai%cp_grp,parai%cp_nproc,parai%cp_me)
     ! 
+#if defined __PARALLEL
+    parai%allgrp%MPI_VAL=-123456789;parai%nproc=-1234567;parai%me=-123456;parai%mepos=-12345;
+#else
     parai%allgrp=-123456789;parai%nproc=-1234567;parai%me=-123456;parai%mepos=-12345;
-
+#endif
     ! ==--------------------------------------------------------------==
     ! 
     ! get the number of cp groups from input

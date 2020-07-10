@@ -1,13 +1,15 @@
-subroutine mp_sum_in_place_${NAME}(data,${ARG_LEN_NAME} comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
+subroutine mp_sum_in_place_${NAME}(data,${ARG_LEN_NAME}, comm)
   use para_global, only : para_use_mpi_in_place
   use para_global, only : para_buff_size
   use para_global, only : para_stack_buff_size
   implicit none
   ! Arguments
-  integer, intent(in) :: ${ARG_LEN_NAME} comm
+#ifdef __PARALLEL
+  integer, intent(in) :: ${ARG_LEN_NAME} 
+  type(MPI_COMM), intent(in) :: comm
+#else
+  integer, intent(in) :: ${ARG_LEN_NAME}, comm
+#endif
   ${TYPE}${KIND}, intent(inout) ${DIMENSION} :: data
   ! Variables
   character(*),parameter :: procedureN='mp_sum_in_place_${NAME}'

@@ -11,7 +11,9 @@ MODULE rekine_utils
                                              ncpw
   USE timer,                           ONLY: tihalt,&
                                              tiset
-
+#ifdef __PARALLEL
+  USE mpi_f08
+#endif
   IMPLICIT NONE
 
   PRIVATE
@@ -28,8 +30,14 @@ CONTAINS
     REAL(real_8),INTENT(OUT)                 :: ekinc
     LOGICAL,INTENT(IN),OPTIONAL              :: use_cp_grps
 
+#ifdef __PARALLEL
+    INTEGER                                  :: i, ig, isub, ngw_local,&
+                                                ibeg_c0, iend_c0
+    type(MPI_COMM)                           :: gid
+#else
     INTEGER                                  :: i, ig, isub, ngw_local,&
                                                 ibeg_c0, iend_c0, gid
+#endif
     LOGICAL                                  :: geq0_local, cp_active
     REAL(real_8)                             :: ax, bx, pf
     CHARACTER(*), PARAMETER                  :: procedureN = 'rekine'

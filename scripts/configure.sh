@@ -850,6 +850,7 @@ do
                SkipInclude["xc_f03_lib_m"] = 0;
                SkipInclude["mpif.h"] = 0;
                SkipInclude["mpi"] = 0;
+               SkipInclude["mpi_f08"] = 0;
                SkipInclude["rhjsx.inc"] = 0;
                SkipInclude["uhjsx.inc"] = 0;
                SkipInclude["scratch_interface"] = 0;

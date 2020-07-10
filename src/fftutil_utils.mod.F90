@@ -298,10 +298,17 @@ CONTAINS
   ! ==================================================================
   SUBROUTINE fft_comm(xf,yf,lda,tr4a2a, comm )
     ! ==--------------------------------------------------------------==
+#ifdef __PARALLEL
+    USE mpi_f08
+#endif
     COMPLEX(real_8), TARGET                  :: xf(*), yf(*)
     INTEGER, INTENT(IN)                      :: lda
     LOGICAL, INTENT(IN)                      :: tr4a2a
+#ifdef __PARALLEL
+    type(MPI_COMM), INTENT(IN)                      :: comm
+#else
     INTEGER, INTENT(IN)                      :: comm
+#endif
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'fft_comm'
 

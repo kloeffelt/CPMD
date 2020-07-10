@@ -132,6 +132,9 @@ MODULE rhoofr_utils
   USE scratch_interface,               ONLY: request_scratch,&
                                              free_scratch
 #endif
+#ifdef __PARALLEL
+  USE mpi_f08
+#endif
 
   IMPLICIT NONE
 
@@ -170,9 +173,16 @@ CONTAINS
       POINTER __CONTIGUOUS                   :: psi_p
     COMPLEX(real_8), DIMENSION(:, :), &
       POINTER __CONTIGUOUS                   :: psis
+#ifdef __PARALLEL
+    INTEGER :: device_idx, i, i_stream, ia, iat, ierr, ir, is, is1, &
+      is2, ispin1, ispin2, isub, isub2, isub3, isub4, iwf, n_max_threads, &
+      n_nested_threads, n_streams_per_task, stream_idx, i_start, i_end
+    type(MPI_COMM)                           :: fft_comm
+#else
     INTEGER :: device_idx, fft_comm, i, i_stream, ia, iat, ierr, ir, is, is1, &
       is2, ispin1, ispin2, isub, isub2, isub3, isub4, iwf, n_max_threads, &
       n_nested_threads, n_streams_per_task, stream_idx, i_start, i_end
+#endif
     LOGICAL                                  :: copy_data_to_device, &
                                                 copy_data_to_host, tfcal
     REAL(real_8)                             :: chksum, coef3, coef4, ral, &

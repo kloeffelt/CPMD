@@ -1,10 +1,11 @@
 subroutine mp_min_in_place_int4_r0(data,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   implicit none
   ! Arguments
+#ifdef __PARALLEL
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: comm
+#endif
   integer(int_4), intent(inout) :: data
   ! Variables
   character(*),parameter :: procedureN='mp_min_in_place_int4_r0'
@@ -18,12 +19,13 @@ subroutine mp_min_in_place_int4_r0(data,comm)
 #endif
 end subroutine mp_min_in_place_int4_r0
 subroutine mp_min_in_place_int8_r0(data,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   implicit none
   ! Arguments
+#ifdef __PARALLEL
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: comm
+#endif
   integer(int_8), intent(inout) :: data
   ! Variables
   character(*),parameter :: procedureN='mp_min_in_place_int8_r0'
@@ -37,12 +39,13 @@ subroutine mp_min_in_place_int8_r0(data,comm)
 #endif
 end subroutine mp_min_in_place_int8_r0
 subroutine mp_min_in_place_real8_r0(data,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   implicit none
   ! Arguments
+#ifdef __PARALLEL
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: comm
+#endif
   real(real_8), intent(inout) :: data
   ! Variables
   character(*),parameter :: procedureN='mp_min_in_place_real8_r0'
@@ -56,12 +59,13 @@ subroutine mp_min_in_place_real8_r0(data,comm)
 #endif
 end subroutine mp_min_in_place_real8_r0
 subroutine mp_min_in_place_complex8_r0(data,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   implicit none
   ! Arguments
+#ifdef __PARALLEL
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: comm
+#endif
   complex(real_8), intent(inout) :: data
   ! Variables
   character(*),parameter :: procedureN='mp_min_in_place_complex8_r0'

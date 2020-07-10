@@ -1,13 +1,15 @@
 subroutine mp_sum_root_in_place_int4_r1(data,n,  root, comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use para_global, only : para_use_mpi_in_place
   use para_global, only : para_buff_size
   use para_global, only : para_stack_buff_size
   implicit none
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n,  root
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n,  root, comm
+#endif
   integer(int_4), intent(inout) , dimension(*) :: data
   ! Variables
   character(*),parameter :: procedureN='mp_sum_in_place_int4_r1'
@@ -58,15 +60,17 @@ subroutine mp_sum_root_in_place_int4_r1(data,n,  root, comm)
 #endif
 end subroutine mp_sum_root_in_place_int4_r1
 subroutine mp_sum_root_in_place_int4_r2(data,n,  root, comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use para_global, only : para_use_mpi_in_place
   use para_global, only : para_buff_size
   use para_global, only : para_stack_buff_size
   implicit none
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n,  root
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n,  root, comm
+#endif
   integer(int_4), intent(inout) , dimension(1,*) :: data
   ! Variables
   character(*),parameter :: procedureN='mp_sum_in_place_int4_r2'
@@ -117,15 +121,17 @@ subroutine mp_sum_root_in_place_int4_r2(data,n,  root, comm)
 #endif
 end subroutine mp_sum_root_in_place_int4_r2
 subroutine mp_sum_root_in_place_int8_r1(data,n, root, comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use para_global, only : para_use_mpi_in_place
   use para_global, only : para_buff_size
   use para_global, only : para_stack_buff_size
   implicit none
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, root
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, root, comm
+#endif
   integer(int_8), intent(inout) , dimension(*) :: data
   ! Variables
   character(*),parameter :: procedureN='mp_sum_in_place_int8_r1'
@@ -176,15 +182,17 @@ subroutine mp_sum_root_in_place_int8_r1(data,n, root, comm)
 #endif
 end subroutine mp_sum_root_in_place_int8_r1
 subroutine mp_sum_root_in_place_real8_r1(data,n,  root, comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use para_global, only : para_use_mpi_in_place
   use para_global, only : para_buff_size
   use para_global, only : para_stack_buff_size
   implicit none
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n,  root
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n,  root, comm
+#endif
   real(real_8), intent(inout) , dimension(*) :: data
   ! Variables
   character(*),parameter :: procedureN='mp_sum_in_place_real8_r1'
@@ -235,15 +243,17 @@ subroutine mp_sum_root_in_place_real8_r1(data,n,  root, comm)
 #endif
 end subroutine mp_sum_root_in_place_real8_r1
 subroutine mp_sum_root_in_place_real8_r2(data,n,  root, comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use para_global, only : para_use_mpi_in_place
   use para_global, only : para_buff_size
   use para_global, only : para_stack_buff_size
   implicit none
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n,  root
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n,  root, comm
+#endif
   real(real_8), intent(inout) , dimension(1,*) :: data
   ! Variables
   character(*),parameter :: procedureN='mp_sum_in_place_real8_r2'
@@ -294,15 +304,17 @@ subroutine mp_sum_root_in_place_real8_r2(data,n,  root, comm)
 #endif
 end subroutine mp_sum_root_in_place_real8_r2
 subroutine mp_sum_root_in_place_real8_r3(data,n,  root, comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use para_global, only : para_use_mpi_in_place
   use para_global, only : para_buff_size
   use para_global, only : para_stack_buff_size
   implicit none
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n,  root
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n,  root, comm
+#endif
   real(real_8), intent(inout) , dimension(1,1,*) :: data
   ! Variables
   character(*),parameter :: procedureN='mp_sum_in_place_real8_r3'
@@ -353,15 +365,17 @@ subroutine mp_sum_root_in_place_real8_r3(data,n,  root, comm)
 #endif
 end subroutine mp_sum_root_in_place_real8_r3
 subroutine mp_sum_root_in_place_real8_r4(data,n,  root, comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use para_global, only : para_use_mpi_in_place
   use para_global, only : para_buff_size
   use para_global, only : para_stack_buff_size
   implicit none
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n,  root
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n,  root, comm
+#endif
   real(real_8), intent(inout) , dimension(1,1,1,*) :: data
   ! Variables
   character(*),parameter :: procedureN='mp_sum_in_place_real8_r4'
@@ -412,15 +426,17 @@ subroutine mp_sum_root_in_place_real8_r4(data,n,  root, comm)
 #endif
 end subroutine mp_sum_root_in_place_real8_r4
 subroutine mp_sum_root_in_place_real8_r5(data,n,  root, comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use para_global, only : para_use_mpi_in_place
   use para_global, only : para_buff_size
   use para_global, only : para_stack_buff_size
   implicit none
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n,  root
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n,  root, comm
+#endif
   real(real_8), intent(inout) , dimension(1,1,1,1,*) :: data
   ! Variables
   character(*),parameter :: procedureN='mp_sum_in_place_real8_r5'
@@ -471,15 +487,17 @@ subroutine mp_sum_root_in_place_real8_r5(data,n,  root, comm)
 #endif
 end subroutine mp_sum_root_in_place_real8_r5
 subroutine mp_sum_root_in_place_complex8_r1(data,n,  root, comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use para_global, only : para_use_mpi_in_place
   use para_global, only : para_buff_size
   use para_global, only : para_stack_buff_size
   implicit none
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n,  root
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n,  root, comm
+#endif
   complex(real_8), intent(inout) , dimension(*) :: data
   ! Variables
   character(*),parameter :: procedureN='mp_sum_in_place_complex8_r1'
@@ -530,15 +548,17 @@ subroutine mp_sum_root_in_place_complex8_r1(data,n,  root, comm)
 #endif
 end subroutine mp_sum_root_in_place_complex8_r1
 subroutine mp_sum_root_in_place_complex8_r2(data,n,  root, comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use para_global, only : para_use_mpi_in_place
   use para_global, only : para_buff_size
   use para_global, only : para_stack_buff_size
   implicit none
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n,  root
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n,  root, comm
+#endif
   complex(real_8), intent(inout) , dimension(1,*) :: data
   ! Variables
   character(*),parameter :: procedureN='mp_sum_in_place_complex8_r2'
@@ -589,15 +609,17 @@ subroutine mp_sum_root_in_place_complex8_r2(data,n,  root, comm)
 #endif
 end subroutine mp_sum_root_in_place_complex8_r2
 subroutine mp_sum_root_in_place_complex8_r3(data,n,  root, comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use para_global, only : para_use_mpi_in_place
   use para_global, only : para_buff_size
   use para_global, only : para_stack_buff_size
   implicit none
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n,  root
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n,  root, comm
+#endif
   complex(real_8), intent(inout) , dimension(1,1,*) :: data
   ! Variables
   character(*),parameter :: procedureN='mp_sum_in_place_complex8_r3'
@@ -648,15 +670,17 @@ subroutine mp_sum_root_in_place_complex8_r3(data,n,  root, comm)
 #endif
 end subroutine mp_sum_root_in_place_complex8_r3
 subroutine mp_sum_root_in_place_complex8_r4(data,n,  root, comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use para_global, only : para_use_mpi_in_place
   use para_global, only : para_buff_size
   use para_global, only : para_stack_buff_size
   implicit none
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n,  root
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n,  root, comm
+#endif
   complex(real_8), intent(inout) , dimension(1,1,1,*) :: data
   ! Variables
   character(*),parameter :: procedureN='mp_sum_in_place_complex8_r4'

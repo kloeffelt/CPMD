@@ -1,9 +1,11 @@
 subroutine mp_all2all_int4_r1(data_in, data_out, n, comm )
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n
+  type(MPI_COMM), intent(in) ::  comm
+#else
   integer, intent(in) :: n, comm
+#endif
   integer(int_4), intent(in) , dimension(*) ::  data_in
   integer(int_4), intent(out) , dimension(*) :: data_out
   ! Variables
@@ -24,11 +26,13 @@ subroutine mp_all2all_int4_r1(data_in, data_out, n, comm )
 #endif
 end subroutine mp_all2all_int4_r1
 subroutine mp_all2all_int8_r1(data_in, data_out, n, comm )
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n
+  type(MPI_COMM), intent(in) ::  comm
+#else
   integer, intent(in) :: n, comm
+#endif
   integer(int_8), intent(in) , dimension(*) ::  data_in
   integer(int_8), intent(out) , dimension(*) :: data_out
   ! Variables
@@ -49,11 +53,13 @@ subroutine mp_all2all_int8_r1(data_in, data_out, n, comm )
 #endif
 end subroutine mp_all2all_int8_r1
 subroutine mp_all2all_real8_r1(data_in, data_out, n, comm )
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n
+  type(MPI_COMM), intent(in) ::  comm
+#else
   integer, intent(in) :: n, comm
+#endif
   real(real_8), intent(in) , dimension(*) ::  data_in
   real(real_8), intent(out) , dimension(*) :: data_out
   ! Variables
@@ -74,11 +80,13 @@ subroutine mp_all2all_real8_r1(data_in, data_out, n, comm )
 #endif
 end subroutine mp_all2all_real8_r1
 subroutine mp_all2all_complex4_r1(data_in, data_out, n, comm )
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n
+  type(MPI_COMM), intent(in) ::  comm
+#else
   integer, intent(in) :: n, comm
+#endif
   complex(real_4), intent(in) , dimension(*) ::  data_in
   complex(real_4), intent(out) , dimension(*) :: data_out
   ! Variables
@@ -99,11 +107,13 @@ subroutine mp_all2all_complex4_r1(data_in, data_out, n, comm )
 #endif
 end subroutine mp_all2all_complex4_r1
 subroutine mp_all2all_complex8_r1(data_in, data_out, n, comm )
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n
+  type(MPI_COMM), intent(in) ::  comm
+#else
   integer, intent(in) :: n, comm
+#endif
   complex(real_8), intent(in) , dimension(*) ::  data_in
   complex(real_8), intent(out) , dimension(*) :: data_out
   ! Variables

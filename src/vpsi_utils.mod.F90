@@ -125,6 +125,9 @@ MODULE vpsi_utils
   USE scratch_interface,               ONLY: request_scratch,&
                                              free_scratch
 #endif
+#ifdef __PARALLEL
+  USE mpi_f08
+#endif
 
   IMPLICIT NONE
 
@@ -169,10 +172,18 @@ CONTAINS
       POINTER __CONTIGUOUS                   :: psi_p
     COMPLEX(real_8), DIMENSION(:, :), &
       POINTER __CONTIGUOUS                   :: psis
+#ifdef __PARALLEL
+    INTEGER :: device_idx, i, i_stream, iclpot = 0, id, ierr, ig, &
+      ir, is1, is2, isub, isub2, isub3, isub4, iwf, ixx, ixxs, iyy, izz, jj, &
+      leadx, lspin, n_max_threads, n_nested_threads, n_streams_per_task, &
+      njump, nnrx, nostat, nrxyz1s, nrxyz2, stream_idx
+    type(MPI_COMM)                           :: fft_comm
+#else
     INTEGER :: device_idx, fft_comm, i, i_stream, iclpot = 0, id, ierr, ig, &
       ir, is1, is2, isub, isub2, isub3, isub4, iwf, ixx, ixxs, iyy, izz, jj, &
       leadx, lspin, n_max_threads, n_nested_threads, n_streams_per_task, &
       njump, nnrx, nostat, nrxyz1s, nrxyz2, stream_idx
+#endif
     INTEGER, SAVE                            :: dgfirst = 0
     LOGICAL :: copy_data_to_device, copy_data_to_device_inv, &
       copy_data_to_host, lg_vpotx3a, lg_vpotx3b, ready, wfcopy

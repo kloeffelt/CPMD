@@ -1,13 +1,15 @@
 subroutine mp_min_int4_r1(data,n,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use para_global, only : para_use_mpi_in_place
   use para_global, only : para_buff_size
   use para_global, only : para_stack_buff_size
   implicit none
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n,comm
+#endif
   integer(int_4), intent(inout) , dimension(*) :: data
   ! Variables
   character(*),parameter :: procedureN='mp_min_int4_r1'
@@ -45,15 +47,17 @@ subroutine mp_min_int4_r1(data,n,comm)
 #endif
 end subroutine mp_min_int4_r1
 subroutine mp_min_real8_r1(data,n,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use para_global, only : para_use_mpi_in_place
   use para_global, only : para_buff_size
   use para_global, only : para_stack_buff_size
   implicit none
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n,comm
+#endif
   real(real_8), intent(inout) , dimension(*) :: data
   ! Variables
   character(*),parameter :: procedureN='mp_min_real8_r1'
@@ -91,15 +95,17 @@ subroutine mp_min_real8_r1(data,n,comm)
 #endif
 end subroutine mp_min_real8_r1
 subroutine mp_min_complex8_r1(data,n,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use para_global, only : para_use_mpi_in_place
   use para_global, only : para_buff_size
   use para_global, only : para_stack_buff_size
   implicit none
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n,comm
+#endif
   complex(real_8), intent(inout) , dimension(*) :: data
   ! Variables
   character(*),parameter :: procedureN='mp_min_complex8_r1'

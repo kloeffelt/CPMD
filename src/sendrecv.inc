@@ -1,10 +1,12 @@
 subroutine mp_sendrecv_int4_r1(data_in,n_in,dest,data_out,n_out,src,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n_in,n_out,src,dest
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n_in,n_out,src,dest,comm
+#endif
   integer(int_4), intent(in) , dimension(*) :: data_in
   integer(int_4), intent(out) , dimension(*) :: data_out
   ! Variables
@@ -27,12 +29,14 @@ subroutine mp_sendrecv_int4_r1(data_in,n_in,dest,data_out,n_out,src,comm)
 #endif
 end subroutine mp_sendrecv_int4_r1
 subroutine mp_sendrecv_int4_r2(data_in,n_in,dest,data_out,n_out,src,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n_in,n_out,src,dest
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n_in,n_out,src,dest,comm
+#endif
   integer(int_4), intent(in) , dimension(1,*) :: data_in
   integer(int_4), intent(out) , dimension(1,*) :: data_out
   ! Variables
@@ -55,12 +59,14 @@ subroutine mp_sendrecv_int4_r2(data_in,n_in,dest,data_out,n_out,src,comm)
 #endif
 end subroutine mp_sendrecv_int4_r2
 subroutine mp_sendrecv_int8_r1(data_in,n_in,dest,data_out,n_out,src,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n_in,n_out,src,dest
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n_in,n_out,src,dest,comm
+#endif
   integer(int_8), intent(in) , dimension(*) :: data_in
   integer(int_8), intent(out) , dimension(*) :: data_out
   ! Variables
@@ -83,12 +89,14 @@ subroutine mp_sendrecv_int8_r1(data_in,n_in,dest,data_out,n_out,src,comm)
 #endif
 end subroutine mp_sendrecv_int8_r1
 subroutine mp_sendrecv_real8_r1(data_in,n_in,dest,data_out,n_out,src,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n_in,n_out,src,dest
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n_in,n_out,src,dest,comm
+#endif
   real(real_8), intent(in) , dimension(*) :: data_in
   real(real_8), intent(out) , dimension(*) :: data_out
   ! Variables
@@ -111,12 +119,14 @@ subroutine mp_sendrecv_real8_r1(data_in,n_in,dest,data_out,n_out,src,comm)
 #endif
 end subroutine mp_sendrecv_real8_r1
 subroutine mp_sendrecv_real8_r2(data_in,n_in,dest,data_out,n_out,src,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n_in,n_out,src,dest
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n_in,n_out,src,dest,comm
+#endif
   real(real_8), intent(in) , dimension(1,*) :: data_in
   real(real_8), intent(out) , dimension(1,*) :: data_out
   ! Variables
@@ -139,12 +149,14 @@ subroutine mp_sendrecv_real8_r2(data_in,n_in,dest,data_out,n_out,src,comm)
 #endif
 end subroutine mp_sendrecv_real8_r2
 subroutine mp_sendrecv_real8_r3(data_in,n_in,dest,data_out,n_out,src,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n_in,n_out,src,dest
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n_in,n_out,src,dest,comm
+#endif
   real(real_8), intent(in) , dimension(1,1,*) :: data_in
   real(real_8), intent(out) , dimension(1,1,*) :: data_out
   ! Variables
@@ -167,12 +179,14 @@ subroutine mp_sendrecv_real8_r3(data_in,n_in,dest,data_out,n_out,src,comm)
 #endif
 end subroutine mp_sendrecv_real8_r3
 subroutine mp_sendrecv_real8_r4(data_in,n_in,dest,data_out,n_out,src,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n_in,n_out,src,dest
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n_in,n_out,src,dest,comm
+#endif
   real(real_8), intent(in) , dimension(1,1,1,*) :: data_in
   real(real_8), intent(out) , dimension(1,1,1,*) :: data_out
   ! Variables
@@ -195,12 +209,14 @@ subroutine mp_sendrecv_real8_r4(data_in,n_in,dest,data_out,n_out,src,comm)
 #endif
 end subroutine mp_sendrecv_real8_r4
 subroutine mp_sendrecv_complex8_r1(data_in,n_in,dest,data_out,n_out,src,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n_in,n_out,src,dest
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n_in,n_out,src,dest,comm
+#endif
   complex(real_8), intent(in) , dimension(*) :: data_in
   complex(real_8), intent(out) , dimension(*) :: data_out
   ! Variables
@@ -223,12 +239,14 @@ subroutine mp_sendrecv_complex8_r1(data_in,n_in,dest,data_out,n_out,src,comm)
 #endif
 end subroutine mp_sendrecv_complex8_r1
 subroutine mp_sendrecv_complex8_r2(data_in,n_in,dest,data_out,n_out,src,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n_in,n_out,src,dest
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n_in,n_out,src,dest,comm
+#endif
   complex(real_8), intent(in) , dimension(1,*) :: data_in
   complex(real_8), intent(out) , dimension(1,*) :: data_out
   ! Variables
@@ -251,12 +269,14 @@ subroutine mp_sendrecv_complex8_r2(data_in,n_in,dest,data_out,n_out,src,comm)
 #endif
 end subroutine mp_sendrecv_complex8_r2
 subroutine mp_sendrecv_complex8_r3(data_in,n_in,dest,data_out,n_out,src,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n_in,n_out,src,dest
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n_in,n_out,src,dest,comm
+#endif
   complex(real_8), intent(in) , dimension(1,1,*) :: data_in
   complex(real_8), intent(out) , dimension(1,1,*) :: data_out
   ! Variables
@@ -279,12 +299,14 @@ subroutine mp_sendrecv_complex8_r3(data_in,n_in,dest,data_out,n_out,src,comm)
 #endif
 end subroutine mp_sendrecv_complex8_r3
 subroutine mp_sendrecv_complex8_r4(data_in,n_in,dest,data_out,n_out,src,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n_in,n_out,src,dest
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n_in,n_out,src,dest,comm
+#endif
   complex(real_8), intent(in) , dimension(1,1,1,*) :: data_in
   complex(real_8), intent(out) , dimension(1,1,1,*) :: data_out
   ! Variables

@@ -88,11 +88,17 @@ CONTAINS
   ! ==================================================================
   SUBROUTINE fftnew(isign,f,sparse,comm)
     ! ==--------------------------------------------------------------==
+#ifdef __PARALLEL
+    USE mpi_f08
+#endif
     INTEGER, INTENT(IN)                      :: isign
     COMPLEX(real_8)                          :: f(:)
     LOGICAL, INTENT(IN)                      :: sparse
+#ifdef __PARALLEL
+    type(MPI_COMM), INTENT(IN)               :: comm
+#else
     INTEGER, INTENT(IN)                      :: comm
-
+#endif
     CHARACTER(*), PARAMETER                  :: procedureN = 'fftnew'
 
     COMPLEX(real_8), DIMENSION(:), &
@@ -204,10 +210,17 @@ CONTAINS
     ! Write version for FULL ffts, usefull for transforming batches of
     ! pair densities during HFX calculations!
 
+#ifdef __PARALLEL
+    USE mpi_f08
+#endif
     IMPLICIT NONE
     INTEGER, INTENT(IN)                      :: isign, n, swap, step, ibatch
     COMPLEX(real_8),INTENT(INOUT)            :: f(:)
+#ifdef __PARALLEL
+    type(MPI_COMM), INTENT(IN)               :: comm
+#else
     INTEGER, INTENT(IN)                      :: comm
+#endif
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'fftnew_batch'
 
@@ -345,10 +358,17 @@ CONTAINS
   ! ==================================================================
   SUBROUTINE fftnew_cuda(isign,f,sparse,comm,thread_view, copy_data_to_device, copy_data_to_host )
     ! ==--------------------------------------------------------------==
+#ifdef __PARALLEL
+    USE mpi_f08
+#endif
     INTEGER, INTENT(IN)                      :: isign
     COMPLEX(real_8)                          :: f(:)
     LOGICAL, INTENT(IN)                      :: sparse
+#ifdef __PARALLEL
+    type(MPI_COMM), INTENT(IN)                      :: comm
+#else
     INTEGER, INTENT(IN)                      :: comm
+#endif
     TYPE(thread_view_t), INTENT(IN), &
       OPTIONAL                               :: thread_view
     LOGICAL, INTENT(IN), OPTIONAL            :: copy_data_to_device, &
@@ -561,9 +581,16 @@ CONTAINS
     ! == FUNCTION F. THE FOURIER TRANSFORM IS                         ==
     ! == RETURNED IN F (THE INPUT F IS OVERWRITTEN).                  ==
     ! ==--------------------------------------------------------------==
+#ifdef __PARALLEL
+    USE mpi_f08
+#endif
     COMPLEX(real_8)                          :: f(:)
     LOGICAL                                  :: sparse
+#ifdef __PARALLEL
+    type(MPI_COMM), INTENT(IN)                      :: comm
+#else
     INTEGER, INTENT(IN)                      :: comm
+#endif
     TYPE(thread_view_t), INTENT(IN), &
       OPTIONAL                               :: thread_view
     LOGICAL, INTENT(IN), OPTIONAL            :: copy_data_to_device, &
@@ -591,9 +618,16 @@ CONTAINS
     ! == FUNCTION F. THE FOURIER TRANSFORM IS                         ==
     ! == RETURNED IN F IN OUTPUT (THE INPUT F IS OVERWRITTEN).        ==
     ! ==--------------------------------------------------------------==
+#ifdef __PARALLEL
+    USE mpi_f08
+#endif
     COMPLEX(real_8)                          :: f(:)
     LOGICAL                                  :: sparse
+#ifdef __PARALLEL
+    type(MPI_COMM), INTENT(IN)                      :: comm
+#else
     INTEGER, INTENT(IN)                      :: comm
+#endif
     TYPE(thread_view_t), INTENT(IN), &
       OPTIONAL                               :: thread_view
     LOGICAL, INTENT(IN), OPTIONAL            :: copy_data_to_device, &

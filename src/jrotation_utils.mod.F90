@@ -31,6 +31,10 @@ MODULE jrotation_utils
 !!use utils, only : matmov
   USE zeroing_utils,                   ONLY: zeroing
 
+#ifdef __PARALLEL
+  USE mpi_f08
+#endif
+
   IMPLICIT NONE
 
   PRIVATE
@@ -70,9 +74,16 @@ CONTAINS
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'jrotation'
 
+#ifdef __PARALLEL
+    INTEGER                                  :: i, ierr, imax, isub, j, k, &
+                                                loc_nogrp, msglen, &
+                                                my_nproc
+    type(MPI_COMM)                           :: my_grp
+#else
     INTEGER                                  :: i, ierr, imax, isub, j, k, &
                                                 loc_nogrp, msglen, my_grp, &
                                                 my_nproc
+#endif
     LOGICAL                                  :: debug
     LOGICAL, SAVE                            :: is_first = .TRUE.
     REAL(real_8), ALLOCATABLE                :: abc(:,:,:), gmat(:,:)
@@ -152,6 +163,7 @@ CONTAINS
           loc_nogrp = parai%cp_nproc / wan05%loc_npgrp
        ENDIF
 
+       !      CALL mp_cart(mp_comm_world,loc_nogrp,wan05%loc_npgrp,loc_nolist,loc_nplist,&
        CALL mp_cart(parai%cp_grp,loc_nogrp,wan05%loc_npgrp,&
             parai%loc_inter_grp,parai%loc_grp)
        CALL mp_environ(parai%loc_grp,parai%loc_nproc,parai%loc_me)
@@ -282,7 +294,11 @@ CONTAINS
     COMPLEX(real_8)                          :: xyzmat(ldx,ldx,*)
     INTEGER                                  :: nstate
     REAL(real_8)                             :: rotmat(nstate,*)
+#ifdef __PARALLEL
+    type(MPI_COMM)                           :: my_grp
+#else
     INTEGER                                  :: my_grp
+#endif
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'jrotationp'
 

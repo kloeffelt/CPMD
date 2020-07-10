@@ -681,13 +681,22 @@ SUBROUTINE rotate_da(a,c1,b,c2,gam,ld,n,nstate,ndd1,ndd2,nddx,mepos,pgroup,nproc
   USE sizeof_kinds,                    ONLY: sizeof_real_8
   USE cp_cuwfn_types, ONLY: cp_cuwfn_device_get_ptrs, cp_cuwfn, cp_cuwfn_get
   USE nvtx_utils
+#ifdef __PARALLEL
+  USE mpi_f08
+#endif
   IMPLICIT NONE
   REAL(real_8)                               :: a, b
   INTEGER                                    :: ld, n, nstate
   REAL(real_8)                               :: c1(ld,nstate), c2(ld,nstate), &
                                                 gam(nstate,nstate)
+#ifdef __PARALLEL
+  INTEGER                                    :: ndd1(0:*), ndd2(0:*), nddx, &
+                                                mepos, pgroup(0:*), nproc
+  type(MPI_COMM)                             :: grp
+#else
   INTEGER                                    :: ndd1(0:*), ndd2(0:*), nddx, &
                                                 mepos, pgroup(0:*), nproc, grp
+#endif
   LOGICAL                                    :: tlsd
   INTEGER                                    :: na, nb
 

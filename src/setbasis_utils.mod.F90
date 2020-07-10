@@ -81,14 +81,24 @@ CONTAINS
     ! == SET ATOMIC BASIS         (call once)                         ==
     ! ==--------------------------------------------------------------==
     ! Variables
+#ifdef __PARALLEL
+    USE mpi_f08
+#endif
     CHARACTER(*), PARAMETER                  :: procedureN = 'setbasis'
     CHARACTER(len=1), DIMENSION(0:3), &
       PARAMETER                              :: lq = (/'S','P','D','F'/)
     INTEGER, PARAMETER                       :: ifnum = 21 
 
+#ifdef __PARALLEL
+    INTEGER                                  :: i, iatom, ibtype(maxsp), &
+                                                ierr, iosource, ir, &
+                                                is, isub, l, m, ms, n, ne(4,7)
+    type(MPI_COMM)                           :: iogroup
+#else
     INTEGER                                  :: i, iatom, ibtype(maxsp), &
                                                 ierr, iogroup, iosource, ir, &
                                                 is, isub, l, m, ms, n, ne(4,7)
+#endif
     INTEGER, SAVE                            :: ifirst = 0
     LOGICAL                                  :: ionode
     REAL(real_8)                             :: dclog, valch, zc

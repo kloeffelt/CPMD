@@ -1175,8 +1175,13 @@ SUBROUTINE wrwfns(nw,nstate_to_write,ierror,c,ca,cr,icmp,mapw,&
      IF (cntl%use_mpi_io) THEN
         ! start at 0 (so -1)
         fpos_wfn_beg=fpos_wfn_beg-1
+#ifdef __PARALLEL
+        IF (my_io_parent) CALL file_open(file_name,'X','X',&
+             'READWRITE',.TRUE.,.TRUE.,parai%cp_inter_grp%MPI_VAL,nw_para)
+#else
         IF (my_io_parent) CALL file_open(file_name,'X','X',&
              'READWRITE',.TRUE.,.TRUE.,parai%cp_inter_grp,nw_para)
+#endif
      ELSE
         IF (.NOT.paral%io_parent.AND.my_io_parent) THEN
            nw_para=666
@@ -1301,8 +1306,13 @@ SUBROUTINE rdwfns(nr,nstate_to_read,c,ca,cr,icmp,mapw,ngwks0,&
      IF (cntl%use_mpi_io) THEN
         ! start at 0 (so -1)
         fpos_wfn_beg=fpos_wfn_beg-1
+#ifdef __PARALLEL
+        IF (my_io_parent) CALL file_open(file_name,'X','X',&
+             'READ',.TRUE.,.TRUE.,parai%cp_inter_grp%MPI_VAL,nr_para)
+#else
         IF (my_io_parent) CALL file_open(file_name,'X','X',&
              'READ',.TRUE.,.TRUE.,parai%cp_inter_grp,nr_para)
+#endif
      ELSE
         IF (.NOT.paral%io_parent.AND.my_io_parent) THEN
            nr_para=666

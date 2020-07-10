@@ -1,9 +1,11 @@
 subroutine mp_send_char_r0(data, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) ::  dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) ::  dest,tag,comm
+#endif
   character(*), intent(in)  :: data
   ! Variables
   integer :: ierr
@@ -21,12 +23,14 @@ subroutine mp_send_char_r0(data, dest,tag,comm)
 end subroutine mp_send_char_r0
 
 subroutine mp_recv_char_r0(data, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) ::  src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) ::  src,tag,comm
+#endif
   character(*), intent(out)  :: data
   ! Variables
   integer :: ierr
@@ -44,11 +48,13 @@ subroutine mp_recv_char_r0(data, src,tag,comm)
 #endif
 end subroutine mp_recv_char_r0
 subroutine mp_send_char_r1(data,n, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) :: n, dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, dest,tag,comm
+#endif
   character(*), intent(in) , dimension(*) :: data
   ! Variables
   integer :: ierr
@@ -66,12 +72,14 @@ subroutine mp_send_char_r1(data,n, dest,tag,comm)
 end subroutine mp_send_char_r1
 
 subroutine mp_recv_char_r1(data,n, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, src,tag,comm
+#endif
   character(*), intent(out) , dimension(*) :: data
   ! Variables
   integer :: ierr
@@ -89,11 +97,13 @@ subroutine mp_recv_char_r1(data,n, src,tag,comm)
 #endif
 end subroutine mp_recv_char_r1
 subroutine mp_send_int4_r0(data, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) ::  dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) ::  dest,tag,comm
+#endif
   integer(int_4), intent(in)  :: data
   ! Variables
   integer :: ierr
@@ -111,12 +121,14 @@ subroutine mp_send_int4_r0(data, dest,tag,comm)
 end subroutine mp_send_int4_r0
 
 subroutine mp_recv_int4_r0(data, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) ::  src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) ::  src,tag,comm
+#endif
   integer(int_4), intent(out)  :: data
   ! Variables
   integer :: ierr
@@ -134,11 +146,13 @@ subroutine mp_recv_int4_r0(data, src,tag,comm)
 #endif
 end subroutine mp_recv_int4_r0
 subroutine mp_send_int4_r1(data,n, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) :: n, dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, dest,tag,comm
+#endif
   integer(int_4), intent(in) , dimension(*) :: data
   ! Variables
   integer :: ierr
@@ -156,12 +170,14 @@ subroutine mp_send_int4_r1(data,n, dest,tag,comm)
 end subroutine mp_send_int4_r1
 
 subroutine mp_recv_int4_r1(data,n, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, src,tag,comm
+#endif
   integer(int_4), intent(out) , dimension(*) :: data
   ! Variables
   integer :: ierr
@@ -179,11 +195,13 @@ subroutine mp_recv_int4_r1(data,n, src,tag,comm)
 #endif
 end subroutine mp_recv_int4_r1
 subroutine mp_send_int4_r2(data,n, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) :: n, dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, dest,tag,comm
+#endif
   integer(int_4), intent(in) , dimension(1,*) :: data
   ! Variables
   integer :: ierr
@@ -201,12 +219,14 @@ subroutine mp_send_int4_r2(data,n, dest,tag,comm)
 end subroutine mp_send_int4_r2
 
 subroutine mp_recv_int4_r2(data,n, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, src,tag,comm
+#endif
   integer(int_4), intent(out) , dimension(1,*) :: data
   ! Variables
   integer :: ierr
@@ -224,11 +244,13 @@ subroutine mp_recv_int4_r2(data,n, src,tag,comm)
 #endif
 end subroutine mp_recv_int4_r2
 subroutine mp_send_int8_r0(data, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) ::  dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) ::  dest,tag,comm
+#endif
   integer(int_8), intent(in)  :: data
   ! Variables
   integer :: ierr
@@ -246,12 +268,14 @@ subroutine mp_send_int8_r0(data, dest,tag,comm)
 end subroutine mp_send_int8_r0
 
 subroutine mp_recv_int8_r0(data, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) ::  src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) ::  src,tag,comm
+#endif
   integer(int_8), intent(out)  :: data
   ! Variables
   integer :: ierr
@@ -269,11 +293,13 @@ subroutine mp_recv_int8_r0(data, src,tag,comm)
 #endif
 end subroutine mp_recv_int8_r0
 subroutine mp_send_int8_r1(data,n, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) :: n, dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, dest,tag,comm
+#endif
   integer(int_8), intent(in) , dimension(*) :: data
   ! Variables
   integer :: ierr
@@ -291,12 +317,14 @@ subroutine mp_send_int8_r1(data,n, dest,tag,comm)
 end subroutine mp_send_int8_r1
 
 subroutine mp_recv_int8_r1(data,n, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, src,tag,comm
+#endif
   integer(int_8), intent(out) , dimension(*) :: data
   ! Variables
   integer :: ierr
@@ -314,11 +342,13 @@ subroutine mp_recv_int8_r1(data,n, src,tag,comm)
 #endif
 end subroutine mp_recv_int8_r1
 subroutine mp_send_real8_r0(data, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) ::  dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) ::  dest,tag,comm
+#endif
   real(real_8), intent(in)  :: data
   ! Variables
   integer :: ierr
@@ -336,12 +366,14 @@ subroutine mp_send_real8_r0(data, dest,tag,comm)
 end subroutine mp_send_real8_r0
 
 subroutine mp_recv_real8_r0(data, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) ::  src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) ::  src,tag,comm
+#endif
   real(real_8), intent(out)  :: data
   ! Variables
   integer :: ierr
@@ -359,11 +391,13 @@ subroutine mp_recv_real8_r0(data, src,tag,comm)
 #endif
 end subroutine mp_recv_real8_r0
 subroutine mp_send_real8_r1(data,n, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) :: n, dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, dest,tag,comm
+#endif
   real(real_8), intent(in) , dimension(*) :: data
   ! Variables
   integer :: ierr
@@ -381,12 +415,14 @@ subroutine mp_send_real8_r1(data,n, dest,tag,comm)
 end subroutine mp_send_real8_r1
 
 subroutine mp_recv_real8_r1(data,n, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, src,tag,comm
+#endif
   real(real_8), intent(out) , dimension(*) :: data
   ! Variables
   integer :: ierr
@@ -404,11 +440,13 @@ subroutine mp_recv_real8_r1(data,n, src,tag,comm)
 #endif
 end subroutine mp_recv_real8_r1
 subroutine mp_send_real8_r2(data,n, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) :: n, dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, dest,tag,comm
+#endif
   real(real_8), intent(in) , dimension(1,*) :: data
   ! Variables
   integer :: ierr
@@ -426,12 +464,14 @@ subroutine mp_send_real8_r2(data,n, dest,tag,comm)
 end subroutine mp_send_real8_r2
 
 subroutine mp_recv_real8_r2(data,n, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, src,tag,comm
+#endif
   real(real_8), intent(out) , dimension(1,*) :: data
   ! Variables
   integer :: ierr
@@ -449,11 +489,13 @@ subroutine mp_recv_real8_r2(data,n, src,tag,comm)
 #endif
 end subroutine mp_recv_real8_r2
 subroutine mp_send_real8_r3(data,n, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) :: n, dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, dest,tag,comm
+#endif
   real(real_8), intent(in) , dimension(1,1,*) :: data
   ! Variables
   integer :: ierr
@@ -471,12 +513,14 @@ subroutine mp_send_real8_r3(data,n, dest,tag,comm)
 end subroutine mp_send_real8_r3
 
 subroutine mp_recv_real8_r3(data,n, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, src,tag,comm
+#endif
   real(real_8), intent(out) , dimension(1,1,*) :: data
   ! Variables
   integer :: ierr
@@ -494,11 +538,13 @@ subroutine mp_recv_real8_r3(data,n, src,tag,comm)
 #endif
 end subroutine mp_recv_real8_r3
 subroutine mp_send_real8_r4(data,n, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) :: n, dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, dest,tag,comm
+#endif
   real(real_8), intent(in) , dimension(1,1,1,*) :: data
   ! Variables
   integer :: ierr
@@ -516,12 +562,14 @@ subroutine mp_send_real8_r4(data,n, dest,tag,comm)
 end subroutine mp_send_real8_r4
 
 subroutine mp_recv_real8_r4(data,n, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, src,tag,comm
+#endif
   real(real_8), intent(out) , dimension(1,1,1,*) :: data
   ! Variables
   integer :: ierr
@@ -539,11 +587,13 @@ subroutine mp_recv_real8_r4(data,n, src,tag,comm)
 #endif
 end subroutine mp_recv_real8_r4
 subroutine mp_send_real8_r5(data,n, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) :: n, dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, dest,tag,comm
+#endif
   real(real_8), intent(in) , dimension(1,1,1,1,*) :: data
   ! Variables
   integer :: ierr
@@ -561,12 +611,14 @@ subroutine mp_send_real8_r5(data,n, dest,tag,comm)
 end subroutine mp_send_real8_r5
 
 subroutine mp_recv_real8_r5(data,n, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, src,tag,comm
+#endif
   real(real_8), intent(out) , dimension(1,1,1,1,*) :: data
   ! Variables
   integer :: ierr
@@ -584,11 +636,13 @@ subroutine mp_recv_real8_r5(data,n, src,tag,comm)
 #endif
 end subroutine mp_recv_real8_r5
 subroutine mp_send_complex4_r0(data, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) ::  dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) ::  dest,tag,comm
+#endif
   complex(real_4), intent(in)  :: data
   ! Variables
   integer :: ierr
@@ -606,12 +660,14 @@ subroutine mp_send_complex4_r0(data, dest,tag,comm)
 end subroutine mp_send_complex4_r0
 
 subroutine mp_recv_complex4_r0(data, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) ::  src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) ::  src,tag,comm
+#endif
   complex(real_4), intent(out)  :: data
   ! Variables
   integer :: ierr
@@ -629,11 +685,13 @@ subroutine mp_recv_complex4_r0(data, src,tag,comm)
 #endif
 end subroutine mp_recv_complex4_r0
 subroutine mp_send_complex4_r1(data,n, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) :: n, dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, dest,tag,comm
+#endif
   complex(real_4), intent(in) , dimension(*) :: data
   ! Variables
   integer :: ierr
@@ -651,12 +709,14 @@ subroutine mp_send_complex4_r1(data,n, dest,tag,comm)
 end subroutine mp_send_complex4_r1
 
 subroutine mp_recv_complex4_r1(data,n, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, src,tag,comm
+#endif
   complex(real_4), intent(out) , dimension(*) :: data
   ! Variables
   integer :: ierr
@@ -674,11 +734,13 @@ subroutine mp_recv_complex4_r1(data,n, src,tag,comm)
 #endif
 end subroutine mp_recv_complex4_r1
 subroutine mp_send_complex4_r2(data,n, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) :: n, dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, dest,tag,comm
+#endif
   complex(real_4), intent(in) , dimension(1,*) :: data
   ! Variables
   integer :: ierr
@@ -696,12 +758,14 @@ subroutine mp_send_complex4_r2(data,n, dest,tag,comm)
 end subroutine mp_send_complex4_r2
 
 subroutine mp_recv_complex4_r2(data,n, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, src,tag,comm
+#endif
   complex(real_4), intent(out) , dimension(1,*) :: data
   ! Variables
   integer :: ierr
@@ -719,11 +783,13 @@ subroutine mp_recv_complex4_r2(data,n, src,tag,comm)
 #endif
 end subroutine mp_recv_complex4_r2
 subroutine mp_send_complex4_r3(data,n, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) :: n, dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, dest,tag,comm
+#endif
   complex(real_4), intent(in) , dimension(1,1,*) :: data
   ! Variables
   integer :: ierr
@@ -741,12 +807,14 @@ subroutine mp_send_complex4_r3(data,n, dest,tag,comm)
 end subroutine mp_send_complex4_r3
 
 subroutine mp_recv_complex4_r3(data,n, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, src,tag,comm
+#endif
   complex(real_4), intent(out) , dimension(1,1,*) :: data
   ! Variables
   integer :: ierr
@@ -764,11 +832,13 @@ subroutine mp_recv_complex4_r3(data,n, src,tag,comm)
 #endif
 end subroutine mp_recv_complex4_r3
 subroutine mp_send_complex4_r4(data,n, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) :: n, dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, dest,tag,comm
+#endif
   complex(real_4), intent(in) , dimension(1,1,1,*) :: data
   ! Variables
   integer :: ierr
@@ -786,12 +856,14 @@ subroutine mp_send_complex4_r4(data,n, dest,tag,comm)
 end subroutine mp_send_complex4_r4
 
 subroutine mp_recv_complex4_r4(data,n, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, src,tag,comm
+#endif
   complex(real_4), intent(out) , dimension(1,1,1,*) :: data
   ! Variables
   integer :: ierr
@@ -809,11 +881,13 @@ subroutine mp_recv_complex4_r4(data,n, src,tag,comm)
 #endif
 end subroutine mp_recv_complex4_r4
 subroutine mp_send_complex8_r0(data, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) ::  dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) ::  dest,tag,comm
+#endif
   complex(real_8), intent(in)  :: data
   ! Variables
   integer :: ierr
@@ -831,12 +905,14 @@ subroutine mp_send_complex8_r0(data, dest,tag,comm)
 end subroutine mp_send_complex8_r0
 
 subroutine mp_recv_complex8_r0(data, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) ::  src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) ::  src,tag,comm
+#endif
   complex(real_8), intent(out)  :: data
   ! Variables
   integer :: ierr
@@ -854,11 +930,13 @@ subroutine mp_recv_complex8_r0(data, src,tag,comm)
 #endif
 end subroutine mp_recv_complex8_r0
 subroutine mp_send_complex8_r1(data,n, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) :: n, dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, dest,tag,comm
+#endif
   complex(real_8), intent(in) , dimension(*) :: data
   ! Variables
   integer :: ierr
@@ -876,12 +954,14 @@ subroutine mp_send_complex8_r1(data,n, dest,tag,comm)
 end subroutine mp_send_complex8_r1
 
 subroutine mp_recv_complex8_r1(data,n, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, src,tag,comm
+#endif
   complex(real_8), intent(out) , dimension(*) :: data
   ! Variables
   integer :: ierr
@@ -899,11 +979,13 @@ subroutine mp_recv_complex8_r1(data,n, src,tag,comm)
 #endif
 end subroutine mp_recv_complex8_r1
 subroutine mp_send_complex8_r2(data,n, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) :: n, dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, dest,tag,comm
+#endif
   complex(real_8), intent(in) , dimension(1,*) :: data
   ! Variables
   integer :: ierr
@@ -921,12 +1003,14 @@ subroutine mp_send_complex8_r2(data,n, dest,tag,comm)
 end subroutine mp_send_complex8_r2
 
 subroutine mp_recv_complex8_r2(data,n, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, src,tag,comm
+#endif
   complex(real_8), intent(out) , dimension(1,*) :: data
   ! Variables
   integer :: ierr
@@ -944,11 +1028,13 @@ subroutine mp_recv_complex8_r2(data,n, src,tag,comm)
 #endif
 end subroutine mp_recv_complex8_r2
 subroutine mp_send_complex8_r3(data,n, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) :: n, dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, dest,tag,comm
+#endif
   complex(real_8), intent(in) , dimension(1,1,*) :: data
   ! Variables
   integer :: ierr
@@ -966,12 +1052,14 @@ subroutine mp_send_complex8_r3(data,n, dest,tag,comm)
 end subroutine mp_send_complex8_r3
 
 subroutine mp_recv_complex8_r3(data,n, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, src,tag,comm
+#endif
   complex(real_8), intent(out) , dimension(1,1,*) :: data
   ! Variables
   integer :: ierr
@@ -989,11 +1077,13 @@ subroutine mp_recv_complex8_r3(data,n, src,tag,comm)
 #endif
 end subroutine mp_recv_complex8_r3
 subroutine mp_send_complex8_r4(data,n, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) :: n, dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, dest,tag,comm
+#endif
   complex(real_8), intent(in) , dimension(1,1,1,*) :: data
   ! Variables
   integer :: ierr
@@ -1011,12 +1101,14 @@ subroutine mp_send_complex8_r4(data,n, dest,tag,comm)
 end subroutine mp_send_complex8_r4
 
 subroutine mp_recv_complex8_r4(data,n, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, src,tag,comm
+#endif
   complex(real_8), intent(out) , dimension(1,1,1,*) :: data
   ! Variables
   integer :: ierr
@@ -1034,11 +1126,13 @@ subroutine mp_recv_complex8_r4(data,n, src,tag,comm)
 #endif
 end subroutine mp_recv_complex8_r4
 subroutine mp_send_logical_r0(data, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) ::  dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) ::  dest,tag,comm
+#endif
   logical, intent(in)  :: data
   ! Variables
   integer :: ierr
@@ -1056,12 +1150,14 @@ subroutine mp_send_logical_r0(data, dest,tag,comm)
 end subroutine mp_send_logical_r0
 
 subroutine mp_recv_logical_r0(data, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) ::  src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) ::  src,tag,comm
+#endif
   logical, intent(out)  :: data
   ! Variables
   integer :: ierr
@@ -1079,11 +1175,13 @@ subroutine mp_recv_logical_r0(data, src,tag,comm)
 #endif
 end subroutine mp_recv_logical_r0
 subroutine mp_send_logical_r1(data,n, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) :: n, dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, dest,tag,comm
+#endif
   logical, intent(in) , dimension(*) :: data
   ! Variables
   integer :: ierr
@@ -1101,12 +1199,14 @@ subroutine mp_send_logical_r1(data,n, dest,tag,comm)
 end subroutine mp_send_logical_r1
 
 subroutine mp_recv_logical_r1(data,n, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, src,tag,comm
+#endif
   logical, intent(out) , dimension(*) :: data
   ! Variables
   integer :: ierr
@@ -1124,11 +1224,13 @@ subroutine mp_recv_logical_r1(data,n, src,tag,comm)
 #endif
 end subroutine mp_recv_logical_r1
 subroutine mp_send_logical_r2(data,n, dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) :: n, dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, dest,tag,comm
+#endif
   logical, intent(in) , dimension(1,*) :: data
   ! Variables
   integer :: ierr
@@ -1146,12 +1248,14 @@ subroutine mp_send_logical_r2(data,n, dest,tag,comm)
 end subroutine mp_send_logical_r2
 
 subroutine mp_recv_logical_r2(data,n, src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, src,tag,comm
+#endif
   logical, intent(out) , dimension(1,*) :: data
   ! Variables
   integer :: ierr

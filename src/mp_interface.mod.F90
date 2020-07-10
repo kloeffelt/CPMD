@@ -22,6 +22,10 @@ MODULE mp_interface
   USE system,                          ONLY: cnti
   USE zeroing_utils,                   ONLY: zeroing
 
+#ifdef __PARALLEL
+    USE mpi_f08
+#endif
+
   IMPLICIT NONE
 
   PRIVATE
@@ -271,9 +275,17 @@ MODULE mp_interface
 
 
   ! alias for MPI_COMM_WORLD to be used outside this module
+#ifdef __PARALLEL
+  type(MPI_COMM), SAVE, PUBLIC :: mp_comm_world
+#else
   INTEGER, SAVE, PUBLIC :: mp_comm_world
+#endif
   INTEGER, SAVE, PUBLIC :: mp_max_processor_name = HUGE(0)
+#ifdef __PARALLEL
+  type(MPI_COMM), SAVE, PUBLIC :: mp_comm_null
+#else
   INTEGER, SAVE, PUBLIC :: mp_comm_null
+#endif
 
   INTEGER, SAVE, PRIVATE :: mp_int1_in_bytes, mp_int2_in_bytes, mp_int4_in_bytes, mp_int8_in_bytes
   INTEGER, SAVE, PRIVATE :: mp_real_in_bytes, mp_double_in_bytes
@@ -281,7 +293,11 @@ MODULE mp_interface
   INTEGER, SAVE, PRIVATE :: mp_char_in_bytes
   INTEGER, SAVE, PRIVATE :: mp_logical_in_bytes
   !TK, FAU Erlangen Nuernberg, 03.19 shared memory windows
+#ifdef __PARALLEL
+  type(MPI_WIN), SAVE, PRIVATE :: mpi_window(2)
+#else
   INTEGER, SAVE, PRIVATE :: mpi_window(2)
+#endif
 
 
 CONTAINS
@@ -291,9 +307,6 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     ! == Initialisation of message passing calls                      ==
     ! ==--------------------------------------------------------------==
-#ifdef __PARALLEL
-    USE mpi
-#endif
     ! Variables
     INTEGER :: i
     INTEGER, PARAMETER :: output_unit       =  6
@@ -328,9 +341,8 @@ CONTAINS
        IF (ierr.NE.0) CALL stopgm('MPI_INIT','IERR.NE.0',& 
             __LINE__,__FILE__)
        ! an external interface has to set mp_comm_world
-       mp_comm_world = MPI_COMM_WORLD
     ENDIF
-    CALL mpi_errhandler_set ( mp_comm_world, MPI_ERRORS_RETURN, ierr )
+    CALL mpi_errhandler_set ( MPI_COMM_WORLD, MPI_ERRORS_RETURN, ierr )
     IF (ierr/=0) CALL stopgm('MPI_INIT','mpi_errhandler_set',&
          __LINE__,__FILE__)
 #else
@@ -343,6 +355,7 @@ CONTAINS
     ENDDO
     CALL mp_set_atomic_type_sizes()
     CALL mp_set_global_consts()
+       mp_comm_world = MPI_COMM_WORLD
   END SUBROUTINE mp_start
 
 
@@ -352,7 +365,6 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     ! Variables
 #ifdef __PARALLEL
-    USE mpi
     INTEGER :: ierr
 #endif
     CHARACTER(*),PARAMETER::procedureN='mp_end'
@@ -433,9 +445,6 @@ CONTAINS
 
 
   SUBROUTINE mp_mpi_error_assert(ierr,procN,line,file)
-#ifdef __PARALLEL
-    USE mpi
-#endif
     INTEGER, INTENT(in) :: ierr,line
     CHARACTER(*), INTENT(in) :: file,procN
 
@@ -453,9 +462,6 @@ CONTAINS
 
 
   FUNCTION mp_is_comm_null(comm)
-#ifdef __PARALLEL
-    USE mpi
-#endif
     !     arguments
     INTEGER comm
     LOGICAL :: mp_is_comm_null
@@ -470,12 +476,14 @@ CONTAINS
 
 
   SUBROUTINE mp_environ(gid,numtask,taskid)
-#ifdef __PARALLEL
-    USE mpi
-#endif
     ! ==--------------------------------------------------------------==
     ! Arguments
+#ifdef __PARALLEL
+    INTEGER :: numtask,taskid
+    type(MPI_COMM) :: gid
+#else
     INTEGER :: gid,numtask,taskid
+#endif
     CHARACTER(*),PARAMETER::procedureN='mp_environ'
 #ifdef __PARALLEL
     ! Variables
@@ -495,12 +503,13 @@ CONTAINS
 
 
   SUBROUTINE mp_comm_free(comm)
-#ifdef __PARALLEL
-    USE mpi
-#endif
     ! ==--------------------------------------------------------------==
     ! Arguments
+#ifdef __PARALLEL
+    type(MPI_COMM) :: comm
+#else
     INTEGER :: comm
+#endif
     ! Variables
     CHARACTER(*),PARAMETER::procedureN='mp_comm_free'
 #ifdef __PARALLEL
@@ -515,12 +524,13 @@ CONTAINS
 
 
   SUBROUTINE mp_comm_dup(comm,new_comm)
-#ifdef __PARALLEL
-    USE mpi
-#endif
     ! ==--------------------------------------------------------------==
     ! Arguments
+#ifdef __PARALLEL
+    type(MPI_COMM) :: comm,new_comm
+#else
     INTEGER :: comm,new_comm
+#endif
     ! Variables
     CHARACTER(*),PARAMETER::procedureN='mp_comm_dup'
 #ifdef __PARALLEL
@@ -537,12 +547,13 @@ CONTAINS
 
 
   SUBROUTINE mp_comm_compare(comm1,comm2)
-#ifdef __PARALLEL
-    USE mpi
-#endif
     ! ==--------------------------------------------------------------==
     ! Arguments
+#ifdef __PARALLEL
+    type(MPI_COMM) :: comm1,comm2
+#else
     INTEGER :: comm1,comm2
+#endif
     ! Variables
     CHARACTER(*),PARAMETER::procedureN='mp_comm_compare'
 #ifdef __PARALLEL
@@ -564,12 +575,13 @@ CONTAINS
 
 
   SUBROUTINE mp_comm_info(comm)
-#ifdef __PARALLEL
-    USE mpi
-#endif
     ! ==--------------------------------------------------------------==
     ! Arguments
+#ifdef __PARALLEL
+    type(MPI_COMM) :: comm
+#else
     INTEGER :: comm
+#endif
     ! Variables
     INTEGER :: numtask,taskid
     CHARACTER(*),PARAMETER::procedureN='mp_comm_info'
@@ -592,9 +604,6 @@ CONTAINS
 
 
   SUBROUTINE mp_get_processor_name ( name )
-#ifdef __PARALLEL
-    USE mpi
-#endif
     ! ==--------------------------------------------------------------==
     ! Arguments
     CHARACTER(*), INTENT(OUT) :: name
@@ -616,12 +625,13 @@ CONTAINS
 
 
   SUBROUTINE mp_task_query(cp_grp)
-#ifdef __PARALLEL
-    USE mpi
-#endif
     ! ==--------------------------------------------------------------==
     ! Arguments
+#ifdef __PARALLEL
+    type(MPI_COMM) :: cp_grp
+#else
     INTEGER :: cp_grp
+#endif
     CHARACTER(*),PARAMETER::procedureN='mp_task_query'
 #ifdef __PARALLEL
     ! Variables
@@ -641,16 +651,29 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     ! == Forms cartesian groups of processors                         ==
     ! ==--------------------------------------------------------------==
+#ifdef __PARALLEL
+    INTEGER                                  :: nogrp, npgrp
+    type(MPI_COMM)                           :: comm, meogrp, mepgrp
+#else
     INTEGER                                  :: comm, nogrp, npgrp, &
                                                 meogrp, mepgrp
-
+#endif
     CHARACTER(*), PARAMETER                  :: procedureN = 'mp_cart'
 
-    INTEGER                                  :: ogr, pgr, world
+#ifdef __PARALLEL
+    type(MPI_GROUP)                          :: world, ogr, pgr
+#else
+    INTEGER                                  :: world, ogr, pgr
+#endif
 
 #ifdef __PARALLEL
     ! Variables
+#ifdef __PARALLEL
+    INTEGER :: i,io,np(2),ierr,ioo,nnodes
+    type(MPI_COMM) :: cart_grp
+#else
     INTEGER :: cart_grp,i,io,np(2),ierr,ioo,nnodes
+#endif
     LOGICAL :: period(2),order,s_col(2),s_row(2)
     INTEGER :: err_msg_len, ierr_err
     ! ==--------------------------------------------------------------==
@@ -697,9 +720,6 @@ CONTAINS
   END SUBROUTINE mp_cart
 
   SUBROUTINE mp_set_global_consts()
-#ifdef __PARALLEL
-    USE mpi
-#endif
     IMPLICIT NONE
 #ifdef __PARALLEL
     mp_max_processor_name = MPI_MAX_PROCESSOR_NAME
@@ -712,9 +732,6 @@ CONTAINS
 
   SUBROUTINE mp_set_atomic_type_sizes()
     ! ==--------------------------------------------------------------==
-#ifdef __PARALLEL
-    USE mpi
-#endif
     IMPLICIT NONE
 #ifdef __PARALLEL
     ! Variables
@@ -752,7 +769,11 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     ! == SYNCHRONISATION OF ALL PROCESSORS                            ==
     ! ==--------------------------------------------------------------==
+#ifdef __PARALLEL
+    type(MPI_COMM)                           :: gid
+#else
     INTEGER                                  :: gid
+#endif
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'mp_sync'
 
@@ -783,11 +804,13 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     ! == Wrapper to mpi_allreduce (summation)                         ==
     ! ==--------------------------------------------------------------==
-#ifdef __PARALLEL
-    USE mpi
-#endif
     INTEGER(int_1)                           :: DATA(*)
+#ifdef __PARALLEL
+    INTEGER                                  :: n
+    type(MPI_COMM)                           :: comm
+#else
     INTEGER                                  :: n, comm
+#endif
 
     CHARACTER(*), PARAMETER :: procedureN = 'mp_sum_in_place_int1_r1'
 
@@ -798,7 +821,7 @@ CONTAINS
     INTEGER(int_1),DIMENSION(:),ALLOCATABLE :: buff
     INTEGER(int_1),DIMENSION(para_stack_buff_size) :: stack_buff
 
-    INTEGER :: op_sum_i1
+    TYPE(MPI_Op) :: op_sum_i1
     ! ==--------------------------------------------------------------==
     ! INT*1 not always supported, so we define an op
     op_sum_i1 = mpi_op_null
@@ -835,16 +858,30 @@ CONTAINS
   END SUBROUTINE mp_sum_in_place_int1_r1
 
   SUBROUTINE sum_i1(invec,inoutvec,len,TYPE)
+    USE, intrinsic :: iso_c_binding, only : c_ptr, c_f_pointer
     INTEGER                                  :: len
-    INTEGER(int_1)                           :: inoutvec(len), invec(len)
-    INTEGER                                  :: TYPE
+    type(C_PTR), VALUE                       :: inoutvec, invec
+    type(MPI_Datatype)                       :: TYPE
+    INTEGER(int_1), POINTER                  :: invec_f(:), inoutvec_f(:)
 
     INTEGER                                  :: i
+    
+    CALL c_f_pointer(invec,invec_f,(/ len /))
+    CALL c_f_pointer(inoutvec,inoutvec_f,(/ len /))
+    CALL sumi1(invec_f,inoutvec_f,len)
+  END SUBROUTINE sum_i1
+  
+  SUBROUTINE sumi1(in,inout,len)
+    INTEGER, INTENT(IN) :: len
+    INTEGER(int_1), INTENT(IN) :: in(*)
+    INTEGER(int_1), INTENT(INOUT) :: inout(*)
+    INTEGER :: i
 
     DO i=1,len
-       inoutvec(i)=inoutvec(i)+invec(i)
-    ENDDO
-  END SUBROUTINE sum_i1
+       inout(i)=in(i)+inout(i)
+    END DO
+
+  END SUBROUTINE sumi1
 
   SUBROUTINE mp_dims_create(nodes,ndims,dims)
     ! ==--------------------------------------------------------------==
@@ -874,9 +911,13 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     ! == Splits processors into groups                                ==
     ! ==--------------------------------------------------------------==
+#ifdef __PARALLEL
+    INTEGER                                  :: color, key, newrank
+    type(MPI_COMM)                           :: oldcomm, gid
+#else
     INTEGER                                  :: oldcomm, color, key, gid, &
                                                 newrank
-
+#endif
     CHARACTER(*), PARAMETER                  :: procedureN = 'mp_split'
 
 #ifdef __PARALLEL
@@ -900,10 +941,13 @@ CONTAINS
 
   SUBROUTINE mp_split_type(key,comm,newcomm)
 #ifdef __PARALLEL
-    USE mpi
-#endif
+    INTEGER,INTENT(IN)                       :: key
+    type(MPI_COMM),INTENT(IN)                :: comm
+    type(MPI_COMM),INTENT(OUT)               :: newcomm
+#else
     INTEGER,INTENT(IN)                       :: key,comm
     INTEGER,INTENT(OUT)                      :: newcomm
+#endif
     INTEGER                                  :: ierr
     CHARACTER(*), PARAMETER                  :: procedureN = 'mp_comm_split_type'
     ! Author: Tobias Kloeffel, FAU Erlangen Nuernberg, March 2019
@@ -921,13 +965,21 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     ! == Forms groups of processors                                   ==
     ! ==--------------------------------------------------------------==
+#ifdef __PARALLEL
+    INTEGER                                  :: gsize, glist(*)
+    type(MPI_COMM)                           :: gid, pcomm
+#else
     INTEGER                                  :: gsize, glist(*), gid, pcomm
-
+#endif
     CHARACTER(*), PARAMETER                  :: procedureN = 'mp_group'
 
 #ifdef __PARALLEL
     ! Variables
+#ifdef __PARALLEL
+    type(MPI_GROUP) :: world,newgroup
+#else
     INTEGER :: world,newgroup
+#endif
     INTEGER :: ierr
     ! ==--------------------------------------------------------------==
     CALL mpi_comm_group(pcomm,world,ierr)
@@ -946,9 +998,10 @@ CONTAINS
 
   SUBROUTINE mp_get_node_env ( comm, node_numtasks, node_taskid )
 #ifdef __PARALLEL
-    USE mpi
-#endif
+    type(MPI_COMM), INTENT(IN) :: comm
+#else
     INTEGER, INTENT(IN) :: comm
+#endif
     INTEGER, INTENT(OUT) :: node_numtasks, node_taskid
     CHARACTER(*), PARAMETER                  :: procedureN = 'mp_get_node_env'
 #ifdef __PARALLEL
@@ -1000,9 +1053,6 @@ CONTAINS
 
 
   SUBROUTINE mp_get_version(version, subversion)
-#ifdef __PARALLEL
-    USE mpi
-#endif
     INTEGER, INTENT(OUT) :: version, subversion
     CHARACTER(*), PARAMETER                  :: procedureN = 'mp_get_version'
 
@@ -1023,9 +1073,6 @@ CONTAINS
 
 
   SUBROUTINE mp_get_library_version( version )
-#ifdef __PARALLEL
-    USE mpi
-#endif
     CHARACTER(*), INTENT(OUT) :: version
     CHARACTER(*), PARAMETER                  :: procedureN = 'mp_get_library_version'
 
@@ -1054,8 +1101,11 @@ CONTAINS
     ! == Wrapper for mpi_win_fence                                    ==
     ! ==--------------------------------------------------------------==
     ! Author: Tobias Kloeffel, FAU Erlangen Nuernberg, March 2019
-
+#ifdef __PARALLEL
+    type(MPI_COMM),INTENT(IN) :: comm
+#else
     INTEGER,INTENT(IN) :: comm
+#endif
 #ifdef __PARALLEL
     INTEGER:: index,ierr
     CHARACTER(*),PARAMETER::procedureN='mp_win_sync'
@@ -1074,9 +1124,6 @@ CONTAINS
   END SUBROUTINE mp_win_sync
 
   SUBROUTINE mp_win_alloc_shared_mem(type,lda,n,baseptr,nproc,mypos,comm)
-#ifdef __PARALLEL
-    USE mpi
-#endif
     USE, INTRINSIC :: ISO_C_BINDING, ONLY : C_PTR
     ! ==--------------------------------------------------------------==
     ! == Return baseptr to shared memory window                       ==
@@ -1086,14 +1133,20 @@ CONTAINS
     ! == Deallocation for type .eq. A or a, reallocation possible     ==
     ! ==--------------------------------------------------------------==
     ! Author: Tobias Kloeffel, FAU Erlangen Nuernberg, March 2019
+#ifdef __PARALLEL
+    INTEGER,INTENT(IN) :: lda,n,nproc,mypos
+    type(MPI_COMM),INTENT(IN) :: comm
+#else
     INTEGER,INTENT(IN) :: lda,n,nproc,mypos,comm
+#endif
     CHARACTER(1),INTENT(IN) :: type
     TYPE(C_PTR),INTENT(OUT) :: baseptr(0:nproc-1)
 #ifdef __PARALLEL
     INTEGER(int_8), SAVE :: allocated_size(2) = 0
     INTEGER(int_8) :: requested_size
     INTEGER(KIND=MPI_ADDRESS_KIND) :: windowsize
-    INTEGER :: proc,ierr,index,info,displ
+    type(MPI_Info) :: info
+    INTEGER :: proc,ierr,index,displ
     LOGICAL, SAVE :: first(2)=.TRUE.
     CHARACTER(*),PARAMETER::procedureN='mp_win_alloc_shared_mem'
 
@@ -1162,6 +1215,7 @@ CONTAINS
   ! include file for the interfaces
   !
 #include "bcast.inc"
+#include "bcast_r0.inc"
 #include "all2all.inc"
 
 #include "send_and_recv.inc"
@@ -1169,12 +1223,14 @@ CONTAINS
 #include "sendrecv.inc"
 
 #include "sum.inc"
+#include "sum_r0.inc"
 #include "sum_root.inc"
 #include "sum_root_in_place.inc"
 #include "sum_in_place.inc"
 #include "sum_scalar_in_place.inc"
 
 #include "prod.inc"
+#include "prod_r0.inc"
 
 #include "max_scalar.inc"
 #include "max.inc"

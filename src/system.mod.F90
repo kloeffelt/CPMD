@@ -1,6 +1,8 @@
 MODULE system
   USE kinds,                           ONLY: real_8
-
+#ifdef __PARALLEL
+  USE mpi_f08
+#endif
   IMPLICIT NONE
 
   PRIVATE
@@ -231,8 +233,13 @@ MODULE system
   TYPE, PUBLIC :: group_t
      INTEGER :: nogrp = HUGE(0)
      INTEGER :: npgrp = HUGE(0)
+#ifdef __PARALLEL
+     type(MPI_COMM) :: meogrp
+     type(MPI_COMM) :: mepgrp
+#else
      INTEGER :: meogrp = HUGE(0)
      INTEGER :: mepgrp = HUGE(0)
+#endif
      INTEGER :: mpen = HUGE(0)
      INTEGER :: mpenm = HUGE(0)
      INTEGER :: nolist(maxgrp) = HUGE(0)

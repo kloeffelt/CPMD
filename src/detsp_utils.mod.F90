@@ -439,16 +439,19 @@ CONTAINS
        ! the rs and ls groups are not actually used at the moment
        ! creation is done for completeness just in case it becomes 
        ! nescessary.
+#if !defined(__PARALLEL)
        irslspar%rsgrp=HUGE(0)
        irslspar%lsgrp=HUGE(0)
+#endif
        CALL mp_group(irslspar%nrsnodes,grouplist(1:irslspar%nrsnodes),irslspar%rsgrp,parai%qmmmgrp)
        !     grouplist(1)=nproc-1
        CALL mp_group(irslspar%nlsnodes,grouplist(irslspar%nrsnodes+1),irslspar%lsgrp,parai%qmmmgrp)
     ENDIF
     ! split nodes to planes for the electrostatic interactions on the 
     ! has to be done after loadpa has been executed      
+#if !defined(__PARALLEL)
     ifparai%ifgrp=-1
-
+#endif
     CALL mp_sync(parai%qmmmgrp)
     RETURN
   END SUBROUTINE qmmmgrps_init
@@ -475,8 +478,16 @@ CONTAINS
     ! it locally. e.g. required in the NEC-SX.
     ! ==================================================================
     ! ARGS
+#ifdef __PARALLEL
+    USE mpi_f08
+#endif
     CHARACTER(len=*)                         :: fname
+#ifdef __PARALLEL
+    INTEGER                                  :: fromnode, tonode
+    type(MPI_COMM)                           :: comm
+#else
     INTEGER                                  :: fromnode, tonode, comm
+#endif
 
     INTEGER, PARAMETER                       :: iunit = 72 , maxline = 120 
 

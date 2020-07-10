@@ -14,6 +14,9 @@ MODULE csize_utils
                                              spar
   USE timer,                           ONLY: tihalt,&
                                              tiset
+#ifdef __PARALLEL
+  USE mpi_f08
+#endif
 
   IMPLICIT NONE
 
@@ -33,8 +36,15 @@ CONTAINS
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'csize'
 
+#ifdef __PARALLEL
+    INTEGER                                  :: i, iiabs, nocc, isub, &
+                                                ngwk_local, ibeg_c0
+    type(MPI_COMM)                           :: gid
+#else
     INTEGER                                  :: i, iiabs, nocc, isub, &
                                                 ngwk_local, ibeg_c0, gid
+#endif
+
     LOGICAL                                  :: geq0_local, cp_active, sp
     REAL(real_8), EXTERNAL                   :: ddot
 

@@ -1,9 +1,11 @@
 subroutine mp_sum_root_int4_r0(data_in,data_out, root, comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) ::  root
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) ::  root, comm
+#endif
   integer(int_4), intent(in)  :: data_in
   integer(int_4), intent(inout)  :: data_out
   ! Variables
@@ -24,11 +26,13 @@ subroutine mp_sum_root_int4_r0(data_in,data_out, root, comm)
 #endif
 end subroutine mp_sum_root_int4_r0
 subroutine mp_sum_root_int4_r1(data_in,data_out,n, root, comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, root
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, root, comm
+#endif
   integer(int_4), intent(in) , dimension(*) :: data_in
   integer(int_4), intent(inout) , dimension(*) :: data_out
   ! Variables
@@ -49,11 +53,13 @@ subroutine mp_sum_root_int4_r1(data_in,data_out,n, root, comm)
 #endif
 end subroutine mp_sum_root_int4_r1
 subroutine mp_sum_root_int4_r2(data_in,data_out,n, root, comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, root
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, root, comm
+#endif
   integer(int_4), intent(in) , dimension(1,*) :: data_in
   integer(int_4), intent(inout) , dimension(1,*) :: data_out
   ! Variables
@@ -74,11 +80,13 @@ subroutine mp_sum_root_int4_r2(data_in,data_out,n, root, comm)
 #endif
 end subroutine mp_sum_root_int4_r2
 subroutine mp_sum_root_real8_r0(data_in,data_out, root, comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) ::  root
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) ::  root, comm
+#endif
   real(real_8), intent(in)  :: data_in
   real(real_8), intent(inout)  :: data_out
   ! Variables
@@ -99,11 +107,13 @@ subroutine mp_sum_root_real8_r0(data_in,data_out, root, comm)
 #endif
 end subroutine mp_sum_root_real8_r0
 subroutine mp_sum_root_real8_r1(data_in,data_out,n, root, comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, root
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, root, comm
+#endif
   real(real_8), intent(in) , dimension(*) :: data_in
   real(real_8), intent(inout) , dimension(*) :: data_out
   ! Variables
@@ -124,11 +134,13 @@ subroutine mp_sum_root_real8_r1(data_in,data_out,n, root, comm)
 #endif
 end subroutine mp_sum_root_real8_r1
 subroutine mp_sum_root_real8_r2(data_in,data_out,n, root, comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, root
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, root, comm
+#endif
   real(real_8), intent(in) , dimension(1,*) :: data_in
   real(real_8), intent(inout) , dimension(1,*) :: data_out
   ! Variables
@@ -149,11 +161,13 @@ subroutine mp_sum_root_real8_r2(data_in,data_out,n, root, comm)
 #endif
 end subroutine mp_sum_root_real8_r2
 subroutine mp_sum_root_complex8_r0(data_in,data_out, root, comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) ::  root
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) ::  root, comm
+#endif
   complex(real_8), intent(in)  :: data_in
   complex(real_8), intent(inout)  :: data_out
   ! Variables
@@ -174,11 +188,13 @@ subroutine mp_sum_root_complex8_r0(data_in,data_out, root, comm)
 #endif
 end subroutine mp_sum_root_complex8_r0
 subroutine mp_sum_root_complex8_r1(data_in,data_out,n, root, comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, root
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, root, comm
+#endif
   complex(real_8), intent(in) , dimension(*) :: data_in
   complex(real_8), intent(inout) , dimension(*) :: data_out
   ! Variables
@@ -199,11 +215,13 @@ subroutine mp_sum_root_complex8_r1(data_in,data_out,n, root, comm)
 #endif
 end subroutine mp_sum_root_complex8_r1
 subroutine mp_sum_root_complex8_r2(data_in,data_out,n, root, comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n, root
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n, root, comm
+#endif
   complex(real_8), intent(in) , dimension(1,*) :: data_in
   complex(real_8), intent(inout) , dimension(1,*) :: data_out
   ! Variables

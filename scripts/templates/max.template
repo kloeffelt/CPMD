@@ -1,13 +1,15 @@
 subroutine mp_max_${NAME}(data,n,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use para_global, only : para_use_mpi_in_place
   use para_global, only : para_buff_size
   use para_global, only : para_stack_buff_size
   implicit none
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: n
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: n,comm
+#endif
   ${TYPE}${KIND}, intent(inout) ${DIMENSION} :: data
   ! Variables
   character(*),parameter :: procedureN='mp_max_${NAME}'

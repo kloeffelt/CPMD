@@ -33,6 +33,9 @@ MODULE ksmat_dist_utils
   USE vpsi_utils,                      ONLY: vpsi
   USE wfnio_utils,                     ONLY: queryrands
   USE zeroing_utils,                   ONLY: zeroing
+#ifdef __PARALLEL
+  USE mpi_f08
+#endif
 
   IMPLICIT NONE
 
@@ -64,6 +67,18 @@ CONTAINS
     CHARACTER(*), PARAMETER                  :: procedureN = 'dist_ksmat'
 
     COMPLEX(real_8)                          :: pab(1)
+#ifdef __PARALLEL
+    INTEGER :: chunk_begin, chunk_begin_e, chunk_end, chunk_end_e, chunk_new, &
+      chunk_new_e, from_beg, from_end, i, ia, ibeg, ierr, ifail(atwp%nattot), &
+      index1, index2, index4, is, ist, isub, iwork(5*atwp%nattot), lan_max, &
+      lanlist(parai%nproc), lc_index(atwp%nattot), max_n, msglen, &
+      n_max, n_seed, natst, nfound, nolan, norb, norbx, num_eig, &
+      old_send_cnt_e(parai%nproc), rank, send_cnt(parai%nproc), &
+      send_cnt_e(parai%nproc), send_displ(parai%nproc), &
+      send_displ_e(parai%nproc), start, start_col, start_spd, start_spu, sz, &
+      sz_old, tm1, tm2
+    type(MPI_COMM)                           :: langrp
+#else
     INTEGER :: chunk_begin, chunk_begin_e, chunk_end, chunk_end_e, chunk_new, &
       chunk_new_e, from_beg, from_end, i, ia, ibeg, ierr, ifail(atwp%nattot), &
       index1, index2, index4, is, ist, isub, iwork(5*atwp%nattot), lan_max, &
@@ -73,6 +88,7 @@ CONTAINS
       send_cnt_e(parai%nproc), send_displ(parai%nproc), &
       send_displ_e(parai%nproc), start, start_col, start_spd, start_spu, sz, &
       sz_old, tm1, tm2
+#endif
     INTEGER, ALLOCATABLE                     :: seed(:)
     LOGICAL                                  :: conv_flag, first_check, &
                                                 flag_spdown, flag_spu

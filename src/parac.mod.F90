@@ -1,4 +1,8 @@
 MODULE parac
+#ifdef __PARALLEL
+    USE mpi_f08
+#endif
+
   IMPLICIT NONE
 
   ! ==--------------------------------------------------------------==
@@ -50,28 +54,61 @@ MODULE parac
      INTEGER :: mepos = HUGE(0)
      INTEGER :: source = HUGE(0)
      INTEGER :: igeq0 = HUGE(0)
+#ifdef __PARALLEL
+     type(MPI_COMM) :: allgrp
+#else
      INTEGER :: allgrp = HUGE(0)
+#endif
      INTEGER :: nhrays = HUGE(0)
      INTEGER :: ngrays = HUGE(0)
      INTEGER :: qmmmnproc = HUGE(0)
+#ifdef __PARALLEL
+     type(MPI_COMM) :: qmmmgrp
+#else
      INTEGER :: qmmmgrp = HUGE(0)
+#endif
+
      INTEGER :: qmmmsource = HUGE(0)
+#ifdef __PARALLEL
+     type(MPI_COMM) :: cp_grp
+#else
      INTEGER :: cp_grp = HUGE(0)
+#endif
      INTEGER :: cp_nproc = HUGE(0)
      INTEGER :: cp_me = HUGE(0)
+#ifdef __PARALLEL
+     type(MPI_COMM) :: cp_inter_grp
+#else
      INTEGER :: cp_inter_grp = HUGE(0)
+#endif
      INTEGER :: cp_inter_me = HUGE(0)
      INTEGER :: cp_nogrp = HUGE(0)
      INTEGER :: io_source = HUGE(0)
      INTEGER :: cp_inter_io_source = HUGE(0)
+#ifdef __PARALLEL
+     type(MPI_COMM) :: loc_grp
+#else
      INTEGER :: loc_grp = HUGE(0)
+#endif
      INTEGER :: loc_me = HUGE(0)
      INTEGER :: loc_nproc = HUGE(0)
+#ifdef __PARALLEL
+     type(MPI_COMM) :: loc_inter_grp
+#else
      INTEGER :: loc_inter_grp = HUGE(0)
+#endif
+#ifdef __PARALLEL
+     type(MPI_COMM) :: node_grp
+#else
      INTEGER :: node_grp = HUGE(0)
+#endif
      INTEGER :: node_nproc = HUGE(0)
      INTEGER :: node_me = HUGE(0)
+#ifdef __PARALLEL
+     type(MPI_COMM) :: cp_inter_node_grp
+#else
      INTEGER :: cp_inter_node_grp = HUGE(0)
+#endif
      INTEGER :: cp_inter_node_nproc = HUGE(0)
      INTEGER :: cp_inter_node_me = HUGE(0)
   END TYPE parai_t

@@ -1,9 +1,11 @@
 subroutine mp_send_${NAME}(data,${ARG_LEN_NAME} dest,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   ! Arguments 
+#ifdef __PARALLEL
+  integer, intent(in) :: ${ARG_LEN_NAME} dest,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: ${ARG_LEN_NAME} dest,tag,comm
+#endif
   ${TYPE}${KIND}, intent(in) ${DIMENSION} :: data
   ! Variables
   integer :: ierr
@@ -21,12 +23,14 @@ subroutine mp_send_${NAME}(data,${ARG_LEN_NAME} dest,tag,comm)
 end subroutine mp_send_${NAME}
 
 subroutine mp_recv_${NAME}(data,${ARG_LEN_NAME} src,tag,comm)
-#ifdef __PARALLEL
-  use mpi
-#endif
   use pstat
   ! Arguments
+#ifdef __PARALLEL
+  integer, intent(in) :: ${ARG_LEN_NAME} src,tag
+  type(MPI_COMM), intent(in) :: comm
+#else
   integer, intent(in) :: ${ARG_LEN_NAME} src,tag,comm
+#endif
   ${TYPE}${KIND}, intent(out) ${DIMENSION} :: data
   ! Variables
   integer :: ierr

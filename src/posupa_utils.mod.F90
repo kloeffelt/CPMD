@@ -39,7 +39,9 @@ MODULE posupa_utils
   USE scratch_interface,               ONLY: request_scratch,&
                                              free_scratch
 #endif
-
+#ifdef __PARALLEL
+  USE mpi_f08
+#endif
 !!use rotate_utils, only : rotate
 !!se rotate_utils, only : rotate_da
 
@@ -64,9 +66,15 @@ CONTAINS
                                                 c0(ncpw%ngw,nstate)
     LOGICAL,INTENT(IN),OPTIONAL              :: use_cp_grps
 
+#ifdef __PARALLEL
+    INTEGER                                  :: i, ig, isub, nstx, ibeg_c0,&
+                                                iend_c0, ngw_local, ierr
+    type(MPI_COMM)                           :: gid
+#else
     INTEGER                                  :: i, ig, isub, nstx, ibeg_c0,&
                                                 iend_c0, ngw_local, ierr, &
                                                 gid
+#endif
     INTEGER(int_8)                           :: il_ai(2)
     LOGICAL                                  :: prtev, tnon, cp_active, geq0_local
     REAL(real_8)                             :: odt, pf1, pf2, pf3, &

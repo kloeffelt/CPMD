@@ -34,6 +34,9 @@ MODULE rortv_utils
   USE scratch_interface,               ONLY: request_scratch,&
                                              free_scratch
 #endif
+#ifdef __PARALLEL
+  USE mpi_f08
+#endif
 
   IMPLICIT NONE
 
@@ -58,9 +61,16 @@ CONTAINS
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'rortv'
 
+#ifdef __PARALLEL
+    INTEGER                                  :: i, ig, ip, j, nstx, nx,&
+                                                ngw_local, ibeg_c0, iend_c0, &
+                                                isub, ierr
+    type(MPI_COMM)                           :: gid
+#else
     INTEGER                                  :: i, ig, ip, j, nstx, nx,&
                                                 ngw_local, ibeg_c0, iend_c0, &
                                                 isub, ierr, gid
+#endif
     INTEGER(int_8)                           :: il_yi_n(1)
     LOGICAL                                  :: geq0_local,cp_active
     REAL(real_8)                             :: ai, bi, pf4, s2, yi
