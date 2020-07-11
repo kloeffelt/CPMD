@@ -800,7 +800,8 @@ CONTAINS
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'rhoofr_batchfft'
     COMPLEX(real_8), PARAMETER               :: zone = (1.0_real_8,0.0_real_8)
-    COMPLEX(real_8), POINTER __CONTIGUOUS    :: wfn_r1(:)
+    COMPLEX(real_8), POINTER __CONTIGUOUS &
+                           , ASYNCHRONOUS    :: wfn_r1(:)
     REAL(real_8), POINTER __CONTIGUOUS       :: rhoe_p(:,:,:)
     REAL(real_8), PARAMETER                  :: delta = 1.e-6_real_8, &
                                                 o3 = 0.33333333333333333_real_8

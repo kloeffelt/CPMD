@@ -96,13 +96,18 @@ CONTAINS
                                                 start_buffer(maxbuff)
     INTEGER(int_8)                           :: il_gktemp(2), il_eiscr(2), il_t(1), il_dai(1)
     INTEGER,ALLOCATABLE                      :: na_buff(:,:,:), na_grp(:,:,:)
-    REAL(real_8),POINTER __CONTIGUOUS        :: dai(:)
+    REAL(real_8),POINTER __CONTIGUOUS &
+                       , ASYNCHRONOUS        :: dai(:)
 #ifdef _USE_SCRATCHLIBRARY
-    REAL(real_8),POINTER __CONTIGUOUS        :: t(:),gktemp(:,:)
-    COMPLEX(real_8),POINTER __CONTIGUOUS     :: eiscr(:,:)
+    COMPLEX(real_8),POINTER __CONTIGUOUS &
+                       , ASYNCHRONOUS        :: eiscr(:,:)
+    REAL(real_8),POINTER __CONTIGUOUS &
+                       , ASYNCHRONOUS        :: t(:),gktemp(:,:)
 #else
-    REAL(real_8),ALLOCATABLE                 :: t(:),gktemp(:,:)
-    COMPLEX(real_8),ALLOCATABLE              :: eiscr(:,:)
+    REAL(real_8), ALLOCATABLE &
+                       , ASYNCHRONOUS        :: t(:),gktemp(:,:)
+    COMPLEX(real_8),ALLOCATABLE &
+                       , ASYNCHRONOUS        :: eiscr(:,:)
 #endif
     REAL(real_8), SAVE                       :: timings(2)=0.0_real_8
     INTEGER, SAVE                            :: autotune_it=0

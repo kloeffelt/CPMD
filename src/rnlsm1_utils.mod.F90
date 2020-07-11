@@ -90,17 +90,22 @@ CONTAINS
     INTEGER(int_8)                           :: il_eiscr(2),il_t(1),il_dai(1)
     INTEGER,ALLOCATABLE                      :: na_buff(:,:,:), na_grp(:,:,:)
 
-    REAL(real_8),POINTER __CONTIGUOUS        :: dai(:)
+    REAL(real_8),POINTER __CONTIGUOUS &
+                       , ASYNCHRONOUS        :: dai(:)
 #ifdef _USE_SCRATCHLIBRARY
-    COMPLEX(real_8),POINTER __CONTIGUOUS     :: eiscr(:,:)
-    REAL(real_8),POINTER __CONTIGUOUS        :: t(:)
+    COMPLEX(real_8),POINTER __CONTIGUOUS &
+                       , ASYNCHRONOUS        :: eiscr(:,:)
+    REAL(real_8),POINTER __CONTIGUOUS &
+                       , ASYNCHRONOUS        :: t(:)
 #else
-    REAL(real_8),ALLOCATABLE                 :: t(:)
-    COMPLEX(real_8),ALLOCATABLE              :: eiscr(:,:)
+    REAL(real_8), ALLOCATABLE &
+                       , ASYNCHRONOUS        :: t(:)
+    COMPLEX(real_8),ALLOCATABLE &
+                       , ASYNCHRONOUS        :: eiscr(:,:)
 #endif
     REAL(real_8), SAVE                       :: timings(2)=0.0_real_8
     INTEGER, SAVE                            :: autotune_it=0
-    !$ LOGICAL                               :: locks(maxbuff)
+    !$ LOGICAL, ASYNCHRONOUS                 :: locks(maxbuff)
 
     ! ==--------------------------------------------------------------==
     ! IF no non-local components -> return.

@@ -1055,7 +1055,8 @@ CONTAINS
     COMPLEX(real_8), PARAMETER               :: zone = (1.0_real_8,0.0_real_8)
 
     COMPLEX(real_8)                          :: fm, fp, psii, psin
-    COMPLEX(real_8), POINTER __CONTIGUOUS    :: wfn_r1(:)
+    COMPLEX(real_8), POINTER __CONTIGUOUS &
+                           , ASYNCHRONOUS    :: wfn_r1(:)
     INTEGER :: i, iclpot = 0, id, ierr, ig, &
       ir, is1, is2, isub, isub2, isub3, isub4, iwf, ixx, ixxs, iyy, izz, jj, &
       leadx, njump, nnrx, nostat, nrxyz1s, nrxyz2, start_loop2, &

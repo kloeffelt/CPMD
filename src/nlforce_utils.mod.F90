@@ -80,12 +80,17 @@ CONTAINS
     INTEGER, ALLOCATABLE                     :: na_grp(:,:,:), na(:,:), na_fnl(:,:)
     INTEGER(int_8)                           :: il_eiscr(2), il_dai(3), il_t(1)
     REAL(real_8)                             :: ffi
+
 #ifdef _USE_SCRATCHLIBRARY
-    COMPLEX(real_8),POINTER __CONTIGUOUS     :: eiscr(:,:)
-    REAL(real_8),POINTER __CONTIGUOUS        :: dai(:,:,:), t(:)
+    COMPLEX(real_8),POINTER __CONTIGUOUS &
+                       , ASYNCHRONOUS        :: eiscr(:,:)
+    REAL(real_8),POINTER __CONTIGUOUS &
+                       , ASYNCHRONOUS        :: t(:),dai(:,:,:)
 #else
-    REAL(real_8),ALLOCATABLE                 :: dai(:,:,:), t(:)
-    COMPLEX(real_8),ALLOCATABLE              :: eiscr(:,:)
+    REAL(real_8), ALLOCATABLE &
+                       , ASYNCHRONOUS        :: t(:),dai(:,:,:)
+    COMPLEX(real_8),ALLOCATABLE &
+                       , ASYNCHRONOUS        :: eiscr(:,:)
 #endif
     LOGICAL                                  :: mixed_psp
 
