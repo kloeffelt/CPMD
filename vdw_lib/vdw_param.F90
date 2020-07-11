@@ -520,16 +520,16 @@ MODULE vdw_param
       INTEGER,INTENT(OUT) :: error
       
       
-      CALL mpi_bcast(numTypes,1,mpi_int,MASTER_RANK,MPI_COM,error)
+      CALL mpi_bcast(numTypes,1,mpi_integer,MASTER_RANK,MPI_COM,error)
       CALL mpi_bcast(functional,8,mpi_character,MASTER_RANK,MPI_COM,error)
       IF (MASTER_RANK .NE. MPI_RANK) THEN
          ALLOCATE ( vdw_pair(numTypes,numTypes) )
       END IF
 
       CALL mpi_bcast(version,9,mpi_character,MASTER_RANK,MPI_COM,error)
-      CALL mpi_BCAST(vdw_input,1,mpi_int,MASTER_RANK,MPI_COM,error)
-      CALL mpi_BCAST(vdw_dir,3,mpi_int,MASTER_RANK,MPI_COM,error)
-      CALL mpi_BCAST(vdw_pair,numTypes*numTypes,mpi_int,MASTER_RANK,MPI_COM,error)
+      CALL mpi_BCAST(vdw_input,1,mpi_integer,MASTER_RANK,MPI_COM,error)
+      CALL mpi_BCAST(vdw_dir,3,mpi_integer,MASTER_RANK,MPI_COM,error)
+      CALL mpi_BCAST(vdw_pair,numTypes*numTypes,mpi_integer,MASTER_RANK,MPI_COM,error)
       IF (ERROR .NE. 0) THEN
          call vdw_error('vdw_init_data',' mpi error during bcast',error)
          return

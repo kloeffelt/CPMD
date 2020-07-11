@@ -463,7 +463,11 @@ CONTAINS
 
   FUNCTION mp_is_comm_null(comm)
     !     arguments
-    INTEGER comm
+#ifdef __PARALLEL
+    type(MPI_COMM) ::  comm
+#else
+    INTEGER :: comm
+#endif
     LOGICAL :: mp_is_comm_null
 #ifdef __PARALLEL
     !     ==--------------------------------------------------------------==
