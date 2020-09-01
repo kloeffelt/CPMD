@@ -116,24 +116,33 @@ CONTAINS
     il_erre2(3)=parai%ncpus
 
 #ifdef _USE_SCRATCHLIBRARY
-    CALL request_scratch(il_ftmp,ftmp,procedureN//'_ftmp')
-    CALL request_scratch(il_ht,ht,procedureN//'_ht')
-    CALL request_scratch(il_rxlm,rxlm,procedureN//'_rxlm')
-    CALL request_scratch(il_erre2,erre2,procedureN//'_erre2')
+    CALL request_scratch(il_ftmp,ftmp,procedureN//'_ftmp',ierr)
 #else
     ALLOCATE(ftmp(il_ftmp(1),il_ftmp(2),il_ftmp(3),il_ftmp(4)), stat=ierr)
+#endif
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate ftmp',&
          __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_ht,ht,procedureN//'_ht',ierr)
+#else
     ALLOCATE(ht(il_ht(1),il_ht(2)), stat=ierr)
+#endif
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate ht',&
          __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_rxlm,rxlm,procedureN//'_rxlm',ierr)
+#else
     ALLOCATE(rxlm(il_rxlm(1),il_rxlm(2),il_rxlm(3)), stat=ierr)
+#endif
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate rxlm',&
          __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_erre2,erre2,procedureN//'_erre2',ierr)
+#else
     ALLOCATE(erre2(il_erre2(1),il_erre2(2),il_erre2(3)), stat=ierr)
+#endif
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate erre2',&
          __LINE__,__FILE__)
-#endif
     !$omp simd
     DO ind=1,tot_ind
        ht(ind,1)=iesr_arr(ind,1)*metr_com%ht(1,1)&
@@ -272,24 +281,33 @@ CONTAINS
     END IF
     IF (.NOT.paral%parent) esr=0._real_8
 #ifdef _USE_SCRATCHLIBRARY
-    CALL free_scratch(il_erre2,erre2,procedureN//'_erre2')
-    CALL free_scratch(il_rxlm,rxlm,procedureN//'_rxlm')
-    CALL free_scratch(il_ht,ht,procedureN//'_ht')
-    CALL free_scratch(il_ftmp,ftmp,procedureN//'_ftmp')
+    CALL free_scratch(il_erre2,erre2,procedureN//'_erre2',ierr)
 #else
-    DEALLOCATE(ftmp, stat=ierr)
-    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate ftmp',&
-         __LINE__,__FILE__)
-    DEALLOCATE(ht, stat=ierr)
-    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate ht',&
-         __LINE__,__FILE__)
-    DEALLOCATE(rxlm, stat=ierr)
-    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate rxlm',&
-         __LINE__,__FILE__)
     DEALLOCATE(erre2, stat=ierr)
+#endif
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate erre2',&
          __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_rxlm,rxlm,procedureN//'_rxlm',ierr)
+#else
+    DEALLOCATE(rxlm, stat=ierr)
 #endif
+    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate rxlm',&
+         __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_ht,ht,procedureN//'_ht',ierr)
+#else
+    DEALLOCATE(ht, stat=ierr)
+#endif
+    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate ht',&
+         __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_ftmp,ftmp,procedureN//'_ftmp',ierr)
+#else
+    DEALLOCATE(ftmp, stat=ierr)
+#endif
+    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate ftmp',&
+         __LINE__,__FILE__)
     CALL tihalt(procedureN,isub)
 
     ! ==================================================================    

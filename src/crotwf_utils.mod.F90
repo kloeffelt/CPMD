@@ -63,12 +63,12 @@ CONTAINS
        il_eigval(1)=nstate
     END IF
 #ifdef _USE_SCRATCHLIBRARY
-    CALL request_scratch(il_eigval,eigval,procedureN//'_eigval')
+    CALL request_scratch(il_eigval,eigval,procedureN//'_eigval',ierr)
 #else
     ALLOCATE(eigval(il_eigval(1)),STAT=ierr)
+#endif
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
          __LINE__,__FILE__)
-#endif
     nopara=(nort_com%scond.LT.1.e-9_real_8.OR.parai%cp_nproc.LT.17.OR.nstate.LT.1000)
     IF (.NOT.cntl%tlsd) THEN
        CALL solve_eigenvector(nstate,eigval,nort_ovlap,gam,nopara)
@@ -78,16 +78,19 @@ CONTAINS
        il_temp(1)=spin_mod%nsup
        il_temp(2)=spin_mod%nsup
 #ifdef _USE_SCRATCHLIBRARY
-       CALL request_scratch(il_temp,temp,procedureN//'_temp')
-       CALL request_scratch(il_temp,temp1,procedureN//'_temp1')
+       CALL request_scratch(il_temp,temp,procedureN//'_temp',ierr)
 #else
        ALLOCATE(temp(il_temp(1),il_temp(2)),STAT=ierr)
-       IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
-            __LINE__,__FILE__)
-       ALLOCATE(temp1(il_temp(1),il_temp(2)),STAT=ierr)
-       IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
-            __LINE__,__FILE__)
 #endif
+       IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+            __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+       CALL request_scratch(il_temp,temp1,procedureN//'_temp1',ierr)
+#else
+       ALLOCATE(temp1(il_temp(1),il_temp(2)),STAT=ierr)
+#endif
+       IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+            __LINE__,__FILE__)
        !$omp parallel do private(i,j)
        DO i=1,spin_mod%nsup
           DO j=1,i
@@ -102,30 +105,36 @@ CONTAINS
           END DO
        END DO
 #ifdef _USE_SCRATCHLIBRARY
-       CALL free_scratch(il_temp,temp1,procedureN//'_temp1')
-       CALL free_scratch(il_temp,temp,procedureN//'_temp')
+       CALL free_scratch(il_temp,temp1,procedureN//'_temp1',ierr)
+#else
+       DEALLOCATE(temp1,STAT=ierr)
+#endif
+       IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+            __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+       CALL free_scratch(il_temp,temp,procedureN//'_temp',ierr)
 #else
        DEALLOCATE(temp,STAT=ierr)
-       IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-            __LINE__,__FILE__)
-       DEALLOCATE(temp1,STAT=ierr)
-       IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-            __LINE__,__FILE__)
 #endif
+       IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+            __LINE__,__FILE__)
        !spin down
        il_temp(1)=spin_mod%nsdown
        il_temp(2)=spin_mod%nsdown
 #ifdef _USE_SCRATCHLIBRARY
-       CALL request_scratch(il_temp,temp,procedureN//'_temp')
-       CALL request_scratch(il_temp,temp1,procedureN//'_temp1')
+       CALL request_scratch(il_temp,temp,procedureN//'_temp',ierr)
 #else
        ALLOCATE(temp(il_temp(1),il_temp(2)),STAT=ierr)
-       IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
-            __LINE__,__FILE__)
-       ALLOCATE(temp1(il_temp(1),il_temp(2)),STAT=ierr)
-       IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
-            __LINE__,__FILE__)
 #endif
+       IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+            __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+       CALL request_scratch(il_temp,temp1,procedureN//'_temp1',ierr)
+#else
+       ALLOCATE(temp1(il_temp(1),il_temp(2)),STAT=ierr)
+#endif
+       IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+            __LINE__,__FILE__)
        !$omp parallel do private(i,j)
        DO i=spin_mod%nsup+1,nstate
           DO j=spin_mod%nsup+1,i
@@ -140,16 +149,19 @@ CONTAINS
           END DO
        END DO
 #ifdef _USE_SCRATCHLIBRARY
-       CALL free_scratch(il_temp,temp1,procedureN//'_temp1')
-       CALL free_scratch(il_temp,temp,procedureN//'_temp')
+       CALL free_scratch(il_temp,temp1,procedureN//'_temp1',ierr)
+#else
+       DEALLOCATE(temp1,STAT=ierr)
+#endif
+       IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+            __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+       CALL free_scratch(il_temp,temp,procedureN//'_temp',ierr)
 #else
        DEALLOCATE(temp,STAT=ierr)
-       IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-            __LINE__,__FILE__)
-       DEALLOCATE(temp1,STAT=ierr)
-       IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-            __LINE__,__FILE__)
 #endif
+       IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+            __LINE__,__FILE__)
     ENDIF
 
     IF(use_cp_grps)THEN
@@ -184,12 +196,12 @@ CONTAINS
     END DO
     ! ==--------------------------------------------------------------==
 #ifdef _USE_SCRATCHLIBRARY
-    CALL free_scratch(il_eigval,eigval,procedureN//'_eigval')
+    CALL free_scratch(il_eigval,eigval,procedureN//'_eigval',ierr)
 #else
     DEALLOCATE(eigval,STAT=ierr)
+#endif
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
-#endif
     ! ==--------------------------------------------------------------==
     CALL tihalt(procedureN,isub)
     RETURN

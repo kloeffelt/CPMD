@@ -905,14 +905,22 @@ CONTAINS
     END IF
 
 #ifdef _USE_SCRATCHLIBRARY
-    CALL request_scratch(il_wfnr,wfn_r,'wfn_r')
-    CALL request_scratch(il_wfng,wfn_g,'wfn_g')
-    CALL request_scratch(il_xf,xf,procedureN//'_xf')
-    CALL request_scratch(il_xf,yf,procedureN//'_yf')
+    CALL request_scratch(il_wfnr,wfn_r,'wfn_r',ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'cannot allocate wfn_r', &
+         __LINE__,__FILE__)
+    CALL request_scratch(il_wfng,wfn_g,'wfn_g',ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'cannot allocate wfn_g', &
+         __LINE__,__FILE__)
+    CALL request_scratch(il_xf,xf,procedureN//'_xf',ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'cannot allocate xf', &
+         __LINE__,__FILE__)
+    CALL request_scratch(il_xf,yf,procedureN//'_yf',ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'cannot allocate yf', &
+         __LINE__,__FILE__)
 #else
     IF(.NOT.rsactive.OR..NOT.ALLOCATED(wfn_r))THEN
        ALLOCATE(wfn_r(il_wfnr(1),il_wfnr(2)),STAT=ierr)
-       IF(ierr/=0) CALL stopgm(procedureN,'cannot allocate wfn_r1', &
+       IF(ierr/=0) CALL stopgm(procedureN,'cannot allocate wfn_r', &
             __LINE__,__FILE__)
        ALLOCATE(wfn_g(il_wfng(1),il_wfng(2)),STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'cannot allocate wfn_g', &
@@ -925,17 +933,18 @@ CONTAINS
     methread=0
     !$ locks_inv=.TRUE.
     !$OMP parallel IF(nthreads.EQ.2) num_threads(2) &
-    !$omp private(methread,ibatch,bsize,offset_state,swap,count,is1,is2) &
-    !$omp proc_bind(close)
+    !$omp private(methread,ibatch,bsize,offset_state,swap,count,is1,is2)
+    !$    CALL omp_set_max_active_levels(2)
     !$ methread = omp_get_thread_num()
+!    !$    CALL omp_set_nested(.TRUE.)
     !$ IF (methread.EQ.1) THEN
     !$    CALL dfftw_plan_with_nthreads(nested_threads)
-    !$    CALL omp_set_nested(.TRUE.)
     !$    CALL omp_set_num_threads(nested_threads)
 #ifdef _INTEL_MKL
     !$    CALL mkl_set_dynamic(0)
 #endif
     !$ END IF
+    !$omp barrier
 
     !Loop over batches
     DO ibatch=1,fft_numbatches+2
@@ -1069,9 +1078,10 @@ CONTAINS
     !$    CALL mkl_set_dynamic(1)
 #endif
     !$    CALL dfftw_plan_with_nthreads(parai%ncpus)
-    !$    CALL omp_set_nested(.FALSE.)
+!    !$    CALL omp_set_nested(.FALSE.)
     !$ END IF
-
+    !$omp barrier
+    !$    CALL omp_set_max_active_levels(1)
     !$omp end parallel
     IF(cntl%fft_tune_batchsize) fft_time_total(fft_tune_num_it)=m_walltime()-temp_time
     !$ DEALLOCATE(locks_inv,STAT=ierr)
@@ -1087,22 +1097,27 @@ CONTAINS
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
 #ifdef _USE_SCRATCHLIBRARY
-    CALL free_scratch(il_xf,yf,procedureN//'_yf')
-    CALL free_scratch(il_xf,xf,procedureN//'_xf')
-    CALL free_scratch(il_wfng,wfn_g,'wfn_g')
+    CALL free_scratch(il_xf,yf,procedureN//'_yf',ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'cannot deallocate yf', &
+         __LINE__,__FILE__)
+    CALL free_scratch(il_xf,xf,procedureN//'_xf',ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'cannot deallocate xf', &
+         __LINE__,__FILE__)
+    CALL free_scratch(il_wfng,wfn_g,'wfn_g',ierr)
 #else
     DEALLOCATE(wfn_g,STAT=ierr)
+#endif
     IF(ierr/=0) CALL stopgm(procedureN,'cannot deallocate wfn_g', &
          __LINE__,__FILE__)
-#endif
+
     IF(.NOT.rsactive) THEN
 #ifdef _USE_SCRATCHLIBRARY
-       CALL free_scratch(il_wfnr,wfn_r,'wfn_r')
+       CALL free_scratch(il_wfnr,wfn_r,'wfn_r',ierr)
 #else
        DEALLOCATE(wfn_r,STAT=ierr)
+#endif
        IF(ierr/=0) CALL stopgm(procedureN,'cannot deallocate wfn_r', &
             __LINE__,__FILE__)
-#endif
     END IF
 
     ! ==--------------------------------------------------------------==

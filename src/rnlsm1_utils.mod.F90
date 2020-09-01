@@ -143,26 +143,29 @@ CONTAINS
     il_t(1)=nkpt%ngwk
     IF(buffcount.GT.1)THEN
 #ifdef _USE_SCRATCHLIBRARY
-       CALL request_scratch(il_dai,dai,procedureN//'_dai')
+       CALL request_scratch(il_dai,dai,procedureN//'_dai',ierr)
 #else
        ALLOCATE(dai(il_dai(1)), stat=ierr)
+#endif
        IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate dai',&
             __LINE__,__FILE__)
-#endif
     ELSE
        CALL reshape_inplace(fnl_packed, (/INT(il_dai(1),kind=int_4)/), dai)
     END IF
 #ifdef _USE_SCRATCHLIBRARY
-    CALL request_scratch(il_eiscr,eiscr,procedureN//'_eiscr')
-    CALL request_scratch(il_t,t,procedureN//'_t')
+    CALL request_scratch(il_eiscr,eiscr,procedureN//'_eiscr',ierr)
 #else
     ALLOCATE(eiscr(il_eiscr(1),il_eiscr(2)), stat=ierr)
+#endif
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate eiscr',&
          __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_t,t,procedureN//'_t',ierr)
+#else
     ALLOCATE(t(il_t(1)), stat=ierr)
+#endif
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate t',&
          __LINE__,__FILE__)
-#endif
     IF(tkpts%tkpnt)THEN
        igeq0=ncpw%ngw+1
     ELSE
@@ -280,24 +283,27 @@ CONTAINS
     END IF
        
 #ifdef _USE_SCRATCHLIBRARY 
-    CALL free_scratch(il_t,t,procedureN//'_t')
-    CALL free_scratch(il_eiscr,eiscr,procedureN//'_eiscr')
+    CALL free_scratch(il_t,t,procedureN//'_t',ierr)
 #else
-    DEALLOCATE(eiscr, stat=ierr)
-    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate eiscr',&
-         __LINE__,__FILE__)
     DEALLOCATE(t, stat=ierr)
+#endif
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate t',&
          __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY 
+    CALL free_scratch(il_eiscr,eiscr,procedureN//'_eiscr',ierr)
+#else
+    DEALLOCATE(eiscr, stat=ierr)
 #endif
+    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate eiscr',&
+         __LINE__,__FILE__)
     IF(buffcount.GT.1)THEN
 #ifdef _USE_SCRATCHLIBRARY
-       CALL free_scratch(il_dai,dai,procedureN//'_dai')
+       CALL free_scratch(il_dai,dai,procedureN//'_dai',ierr)
 #else
        DEALLOCATE(dai, stat=ierr)
+#endif
        IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate dai',&
             __LINE__,__FILE__)
-#endif
     END IF
     DEALLOCATE(na_buff, stat=ierr)
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate na_buff',&

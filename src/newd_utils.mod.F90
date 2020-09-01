@@ -182,24 +182,33 @@ CONTAINS
        il_fnlt(3)=parai%ncpus
     END IF
 #ifdef _USE_SCRATCHLIBRARY
-    CALL request_scratch(il_fnlt,fnlt,procedureN//'_fnlt')
-    CALL request_scratch(il_gk_trans,gk_trans,procedureN//'_gk_trans')
-    CALL request_scratch(il_qg1,qg1,procedureN//'_qg1')
-    CALL request_scratch(il_ylm,ylm,procedureN//'_ylm')
+    CALL request_scratch(il_fnlt,fnlt,procedureN//'_fnlt',ierr)
 #else
     ALLOCATE(fnlt(il_fnlt(1),il_fnlt(2),il_fnlt(3)), stat=ierr)
-    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate fnlt)',&
-         __LINE__,__FILE__)
-    ALLOCATE(gk_trans(il_gk_trans(1),il_gk_trans(2)), stat=ierr)
-    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate gk_trans)',&
-         __LINE__,__FILE__)
-    ALLOCATE(qg1(il_qg1(1),il_qg1(2),il_qg1(3)), stat=ierr)
-    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate qg1)',&
-         __LINE__,__FILE__)
-    ALLOCATE(ylm(il_ylm(1),il_ylm(2)), stat=ierr)
-    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate ylm)',&
-         __LINE__,__FILE__)
 #endif
+    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate fnlt',&
+         __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_gk_trans,gk_trans,procedureN//'_gk_trans',ierr)
+#else
+    ALLOCATE(gk_trans(il_gk_trans(1),il_gk_trans(2)), stat=ierr)
+#endif
+    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate gk_trans',&
+         __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_qg1,qg1,procedureN//'_qg1',ierr)
+#else
+    ALLOCATE(qg1(il_qg1(1),il_qg1(2),il_qg1(3)), stat=ierr)
+#endif
+    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate qg1',&
+         __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_ylm,ylm,procedureN//'_ylm',ierr)
+#else
+    ALLOCATE(ylm(il_ylm(1),il_ylm(2)), stat=ierr)
+#endif
+    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate ylm',&
+         __LINE__,__FILE__)
 
     isa0=0
     nhh0=1
@@ -217,24 +226,33 @@ CONTAINS
        offset_fnl0=offset_fnl0+(na(2,is)-na(1,is)+1)*nlps_com%ngh(is)
     END DO
 #ifdef _USE_SCRATCHLIBRARY
-    CALL free_scratch(il_ylm,ylm,procedureN//'_ylm')
-    CALL free_scratch(il_qg1,qg1,procedureN//'_qg1')
-    CALL free_scratch(il_gk_trans,gk_trans,procedureN//'_gk_trans')
-    CALL free_scratch(il_fnlt,fnlt,procedureN//'_fnlt')
+    CALL free_scratch(il_ylm,ylm,procedureN//'_ylm',ierr)
 #else
-    DEALLOCATE(fnlt, stat=ierr)
-    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate fnlt)',&
-         __LINE__,__FILE__)
-    DEALLOCATE(gk_trans, stat=ierr)
-    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate gk_trans)',&
-         __LINE__,__FILE__)
-    DEALLOCATE(qg1, stat=ierr)
-    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate qg1)',&
-         __LINE__,__FILE__)
     DEALLOCATE(ylm, stat=ierr)
+#endif
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate ylm)',&
          __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_qg1,qg1,procedureN//'_qg1',ierr)
+#else
+    DEALLOCATE(qg1, stat=ierr)
 #endif
+    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate qg1)',&
+         __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_gk_trans,gk_trans,procedureN//'_gk_trans',ierr)
+#else
+    DEALLOCATE(gk_trans, stat=ierr)
+#endif
+    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate gk_trans',&
+         __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_fnlt,fnlt,procedureN//'_fnlt',ierr)
+#else
+    DEALLOCATE(fnlt, stat=ierr)
+#endif
+    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate fnlt',&
+         __LINE__,__FILE__)
 
   END SUBROUTINE prep_bigmem_newd
   ! ==================================================================

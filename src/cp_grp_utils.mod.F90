@@ -299,12 +299,12 @@ CONTAINS
     il_buffer(3)=parai%cp_nogrp
     revcnt=il_buffer(1)*n*2
 #ifdef _USE_SCRATCHLIBRARY
-    CALL request_scratch(il_buffer,buffer,procedureN//'_buffer')
+    CALL request_scratch(il_buffer,buffer,procedureN//'_buffer',ierr)
 #else
     ALLOCATE(buffer(il_buffer(1),il_buffer(2),il_buffer(3)),stat=ierr)
+#endif
     IF (ierr.NE.0) CALL stopgm(procedureN,'Allocation problem',&
          __LINE__,__FILE__)
-#endif
     group=parai%cp_inter_me+1
     !$omp parallel do private(i,ig)
     DO i=1,n
@@ -327,12 +327,12 @@ CONTAINS
     END DO
     !$omp end parallel
 #ifdef _USE_SCRATCHLIBRARY
-    CALL free_scratch(il_buffer,buffer,procedureN//'_buffer')
+    CALL free_scratch(il_buffer,buffer,procedureN//'_buffer',ierr)
 #else
     DEALLOCATE(buffer,stat=ierr)
+#endif
     IF (ierr.NE.0) CALL stopgm(procedureN,'Deallocation problem',&
          __LINE__,__FILE__)
-#endif
     ! ==--------------------------------------------------------------==
     RETURN
     ! ==--------------------------------------------------------------==
@@ -488,12 +488,12 @@ CONTAINS
        il_temp(2)=nstate
        il_temp(3)=parai%cp_nogrp
 #ifdef _USE_SCRATCHLIBRARY
-       CALL request_scratch(il_temp,temp,procedureN//'_temp')
+       CALL request_scratch(il_temp,temp,procedureN//'_temp',ierr)
 #else
        ALLOCATE(temp(il_temp(1),il_temp(2),il_temp(3)), stat=ierr)
+#endif
        IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate temp',&
             __LINE__,__FILE__)
-#endif
        !pack local fnl chunk
        grp=parai%cp_inter_me+1
        IF(tkpts%tkpnt)THEN
@@ -514,12 +514,12 @@ CONTAINS
           END IF
        END DO
 #ifdef _USE_SCRATCHLIBRARY
-       CALL free_scratch(il_temp,temp,procedureN//'_temp')
+       CALL free_scratch(il_temp,temp,procedureN//'_temp',ierr)
 #else
        DEALLOCATE(temp, stat=ierr)
+#endif
        IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate temp',&
             __LINE__,__FILE__)
-#endif
     END IF
 
     IF(redist_dfnl)THEN
@@ -527,12 +527,12 @@ CONTAINS
        il_temp(2)=norbpe
        il_temp(3)=parai%cp_nogrp
 #ifdef _USE_SCRATCHLIBRARY
-       CALL request_scratch(il_temp,temp,procedureN//'_temp')
+       CALL request_scratch(il_temp,temp,procedureN//'_temp',ierr)
 #else
        ALLOCATE(temp(il_temp(1),il_temp(2),il_temp(3)), stat=ierr)
+#endif
        IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate temp',&
             __LINE__,__FILE__)
-#endif
        !pack local dfnl chunk
        grp=parai%cp_inter_me+1
        IF(tkpts%tkpnt)THEN
@@ -553,12 +553,12 @@ CONTAINS
           END IF
        END DO
 #ifdef _USE_SCRATCHLIBRARY
-       CALL free_scratch(il_temp,temp,procedureN//'_temp')
+       CALL free_scratch(il_temp,temp,procedureN//'_temp',ierr)
 #else
        DEALLOCATE(temp, stat=ierr)
+#endif
        IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate temp',&
             __LINE__,__FILE__)
-#endif
     END IF
 
     DEALLOCATE(na_grp, stat=ierr)

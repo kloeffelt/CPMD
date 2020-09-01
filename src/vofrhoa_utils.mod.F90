@@ -81,16 +81,19 @@ CONTAINS
     il_eivps(1)=ncpw%nhg
 
 #ifdef _USE_SCRATCHLIBRARY
-    CALL request_scratch(il_eivps,eivps,procedureN//'_eivps')
-    CALL request_scratch(il_eirop,eirop,procedureN//'_eirop')
+    CALL request_scratch(il_eivps,eivps,procedureN//'_eivps',ierr)
 #else
     ALLOCATE(eivps(il_eivps(1)),STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
-         __LINE__,__FILE__)
-    ALLOCATE(eirop(il_eirop(1)),STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
-         __LINE__,__FILE__)
 #endif
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+         __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_eirop,eirop,procedureN//'_eirop',ierr)
+#else
+    ALLOCATE(eirop(il_eirop(1)),STAT=ierr)
+#endif
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+         __LINE__,__FILE__)
     nnrs  = spar%nr1s*spar%nr2s*spar%nr3s
     CALL eicalc(eivps,eirop)
     ! ..External Field or forces of external potential
@@ -147,16 +150,19 @@ CONTAINS
     ENDIF
 
 #ifdef _USE_SCRATCHLIBRARY
-    CALL free_scratch(il_eirop,eirop,procedureN//'_eirop')
-    CALL free_scratch(il_eivps,eivps,procedureN//'_eivps')
+    CALL free_scratch(il_eirop,eirop,procedureN//'_eirop',ierr)
+#else
+    DEALLOCATE(eirop,STAT=ierr)
+#endif
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+         __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_eivps,eivps,procedureN//'_eivps',ierr)
 #else
     DEALLOCATE(eivps,STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-         __LINE__,__FILE__)
-    DEALLOCATE(eirop,STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-         __LINE__,__FILE__)
 #endif
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+         __LINE__,__FILE__)
     __NVTX_TIMER_STOP
     CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==

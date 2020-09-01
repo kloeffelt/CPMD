@@ -65,30 +65,36 @@ CONTAINS
     il_smat(1)=nstate
     il_smat(2)=nstate
 #ifdef _USE_SCRATCHLIBRARY
-    CALL request_scratch(il_smat,smat,procedureN//'_smat')
-    CALL request_scratch(il_smatpacked,smatpacked,procedureN//'_smatpacked')
+    CALL request_scratch(il_smat,smat,procedureN//'_smat',ierr)
 #else
     ALLOCATE(smat(il_smat(1),il_smat(2)),STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
-         __LINE__,__FILE__)
-    ALLOCATE(smatpacked(il_smatpacked(1)),STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
-         __LINE__,__FILE__)
 #endif
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+         __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_smatpacked,smatpacked,procedureN//'_smatpacked',ierr)
+#else
+    ALLOCATE(smatpacked(il_smatpacked(1)),STAT=ierr)
+#endif
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+         __LINE__,__FILE__)
     
     CALL deort_work(nstate,c0,smat,smatpacked)
 
 #ifdef _USE_SCRATCHLIBRARY
-    CALL free_scratch(il_smat,smat,procedureN//'_smat')
-    CALL free_scratch(il_smatpacked,smatpacked,procedureN//'_smatpacked')
+    CALL free_scratch(il_smat,smat,procedureN//'_smat',ierr)
+#else
+    DEALLOCATE(smat,STAT=ierr)
+#endif
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+         __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_smatpacked,smatpacked,procedureN//'_smatpacked',ierr)
 #else
     DEALLOCATE(smatpacked,STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-         __LINE__,__FILE__)
-    DEALLOCATE(smat,STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-         __LINE__,__FILE__)
 #endif
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+         __LINE__,__FILE__)
 
     CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==

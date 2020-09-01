@@ -75,12 +75,12 @@ CONTAINS
        il_smatpacked=nstate*(nstate+1)/2
     END IF
 #ifdef _USE_SCRATCHLIBRARY
-    CALL request_scratch(il_smatpacked,smatpacked,procedureN//'_smatpacked')
+    CALL request_scratch(il_smatpacked,smatpacked,procedureN//'_smatpacked',ierr)
 #else
     ALLOCATE(smatpacked(il_smatpacked(1)),STAT=ierr)
+#endif
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
          __LINE__,__FILE__)
-#endif
     IF(paral%io_parent)THEN
        IF (cntl%tlsd) THEN
           CALL uinv('U',smat(1,1),nstate,spin_mod%nsup)
@@ -98,12 +98,12 @@ CONTAINS
        CALL symmat_unpack(smat,smatpacked,nstate,nstate,0,.FALSE.)
     END IF
 #ifdef _USE_SCRATCHLIBRARY
-    CALL free_scratch(il_smatpacked,smatpacked,procedureN//'_smatpacked')
+    CALL free_scratch(il_smatpacked,smatpacked,procedureN//'_smatpacked',ierr)
 #else
     DEALLOCATE(smatpacked,STAT=ierr)
+#endif
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
-#endif
     IF(pslo_com%tivan)THEN
        IF(cntl%distribute_fnl_rot)THEN
           CALL rottr_c0_fnl(ncpw%ngw,c0,INT(il_fnl_packed(1),KIND=int_4),fnl_packed,smat,nstate,redist=.TRUE.)

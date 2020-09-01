@@ -303,12 +303,12 @@ CONTAINS
     il_temp(2)=nstate
     il_temp(3)=parai%nproc
 #ifdef _USE_SCRATCHLIBRARY
-    CALL request_scratch(il_temp,temp,procedureN//'_temp')
+    CALL request_scratch(il_temp,temp,procedureN//'_temp',ierr)
 #else
     ALLOCATE(temp(il_temp(1),il_temp(2),il_temp(3)), stat=ierr)
+#endif
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate temp',&
          __LINE__,__FILE__)
-#endif
     CALL dsymm('R','U',loc_work,nchunk,1.0_real_8,&
          gam(nmin,nmin),nstate,fnl_p(start_work,nmin),ldf,&
          0.0_real_8,temp(1,nmin,proc),INT(il_temp(1),kind=int_4))
@@ -365,12 +365,12 @@ CONTAINS
     !$omp end parallel
     CALL copy_back(fnlgam_p,temp,work_proc,ldf,nstate,parai%nproc)
 #ifdef _USE_SCRATCHLIBRARY
-    CALL free_scratch(il_temp,temp,procedureN//'_temp')
+    CALL free_scratch(il_temp,temp,procedureN//'_temp',ierr)
 #else
     DEALLOCATE(temp, stat=ierr)
+#endif
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate temp',&
          __LINE__,__FILE__)
-#endif
     IF(redist)CALL cp_grp_redist_array_f(c2,ldc,nstate)
     CALL tihalt(procedureN,isub)
   END SUBROUTINE rotate_c0_fnl
@@ -428,12 +428,12 @@ CONTAINS
     il_temp(2)=nstate
     il_temp(3)=parai%nproc
 #ifdef _USE_SCRATCHLIBRARY
-    CALL request_scratch(il_temp,temp,procedureN//'_temp')
+    CALL request_scratch(il_temp,temp,procedureN//'_temp',ierr)
 #else
     ALLOCATE(temp(il_temp(1),il_temp(2),il_temp(3)), stat=ierr)
+#endif
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate temp',&
          __LINE__,__FILE__)
-#endif
     IF(loc_work.GT.0)THEN
        CALL dtrmm('R','U','N','N',loc_work,nchunk,1.0_real_8,gam(nmin,nmin),nstate, &
             fnl(start_work,nmin),ldf)
@@ -491,12 +491,12 @@ CONTAINS
     !$omp end parallel
     CALL copy_back(fnl,temp,work_proc,ldf,nstate,parai%nproc)
 #ifdef _USE_SCRATCHLIBRARY
-    CALL free_scratch(il_temp,temp,procedureN//'_temp')
+    CALL free_scratch(il_temp,temp,procedureN//'_temp',ierr)
 #else
     DEALLOCATE(temp, stat=ierr)
+#endif
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate temp',&
          __LINE__,__FILE__)
-#endif
     IF(redist)CALL cp_grp_redist_array_f(c0,ldc,nstate)
     CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==

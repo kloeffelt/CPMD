@@ -68,12 +68,12 @@ CONTAINS
     il_vtemp(1)=ncpw%nhg
     il_vtemp(2)=clsd%nlsd
 #ifdef _USE_SCRATCHLIBRARY
-    CALL request_scratch(il_vtemp,vtemp,procedureN//'_vtemp')
+    CALL request_scratch(il_vtemp,vtemp,procedureN//'_vtemp',ierr)
 #else
     ALLOCATE(vtemp(il_vtemp(1), il_vtemp(2)),STAT=ierr)
+#endif
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
          __LINE__,__FILE__)
-#endif
     ! ==--------------------------------------------------------------==
     ! Allocation of POTR if SPOT and POTR not allocated.
     IF (store1%spot) THEN
@@ -111,12 +111,12 @@ CONTAINS
        CALL vofrhob(fion,rhoe,v,vtemp,tfor,tstress)
     ENDIF
 #ifdef _USE_SCRATCHLIBRARY
-    CALL free_scratch(il_vtemp,vtemp,procedureN//'_vtemp')
+    CALL free_scratch(il_vtemp,vtemp,procedureN//'_vtemp',ierr)
 #else
     DEALLOCATE(vtemp,STAT=ierr)
+#endif
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
-#endif
     ! ==--------------------------------------------------------------==
     IF (store1%spot) CALL dcopy(fpar%nnr1*clsd%nlsd,rhoe,1,potr,1)
     ! ==--------------------------------------------------------------==

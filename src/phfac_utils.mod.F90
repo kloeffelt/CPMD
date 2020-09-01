@@ -126,20 +126,26 @@ CONTAINS
     il_ei3t(1)=2*spar%nr3s-1
     il_ei3t(2)=parai%ncpus
 #ifdef _USE_SCRATCHLIBRARY
-    CALL request_scratch(il_ei1t,ei1t,procedureN//'_ei1t')
-    CALL request_scratch(il_ei2t,ei2t,procedureN//'_ei2t')
-    CALL request_scratch(il_ei3t,ei3t,procedureN//'_ei3t')
+    CALL request_scratch(il_ei1t,ei1t,procedureN//'_ei1t',ierr)
 #else
     ALLOCATE(ei1t(il_ei1t(1),il_ei2t(2)),STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
-         __LINE__,__FILE__)
-    ALLOCATE(ei2t(il_ei2t(1),il_ei2t(2)),STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
-         __LINE__,__FILE__)
-    ALLOCATE(ei3t(il_ei3t(1),il_ei3t(2)),STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
-         __LINE__,__FILE__)
 #endif
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+         __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_ei2t,ei2t,procedureN//'_ei2t',ierr)
+#else
+    ALLOCATE(ei2t(il_ei2t(1),il_ei2t(2)),STAT=ierr)
+#endif
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+         __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL request_scratch(il_ei3t,ei3t,procedureN//'_ei3t',ierr)
+#else
+    ALLOCATE(ei3t(il_ei3t(1),il_ei3t(2)),STAT=ierr)
+#endif
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+         __LINE__,__FILE__)
     ! ==--------------------------------------------------------------==
     nh1=spar%nr1s/2
     nh2=spar%nr2s/2
@@ -280,20 +286,26 @@ CONTAINS
     ENDIF
 
 #ifdef _USE_SCRATCHLIBRARY
-    CALL free_scratch(il_ei3t,ei3t,procedureN//'_ei3t')
-    CALL free_scratch(il_ei2t,ei2t,procedureN//'_ei2t')
-    CALL free_scratch(il_ei1t,ei1t,procedureN//'_ei1t')
+    CALL free_scratch(il_ei3t,ei3t,procedureN//'_ei3t',ierr)
+#else
+    DEALLOCATE(ei3t,STAT=ierr)
+#endif
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
+         __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_ei2t,ei2t,procedureN//'_ei2t',ierr)
+#else
+    DEALLOCATE(ei2t,STAT=ierr)
+#endif
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
+         __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+    CALL free_scratch(il_ei1t,ei1t,procedureN//'_ei1t',ierr)
 #else
     DEALLOCATE(ei1t,STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
-         __LINE__,__FILE__)
-    DEALLOCATE(ei2t,STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
-         __LINE__,__FILE__)
-    DEALLOCATE(ei3t,STAT=ierr)
-    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
-         __LINE__,__FILE__)
 #endif
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem',&
+         __LINE__,__FILE__)
 
     CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==

@@ -143,16 +143,19 @@ CONTAINS
           il_fnlatj(2)=MAXVAL(ns)
           il_fnlatj(3)=nspin
 #ifdef _USE_SCRATCHLIBRARY
-          CALL request_scratch(il_fnlat,fnlat,procedureN//'_fnlat')
-          CALL request_scratch(il_fnlatj,fnlatj,procedureN//'_fnlatj')
+          CALL request_scratch(il_fnlat,fnlat,procedureN//'_fnlat',ierr)
 #else
           ALLOCATE(fnlat(il_fnlat(1),il_fnlat(2),il_fnlat(3)), stat=ierr)
+#endif
           IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate fnlat',&
                __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+          CALL request_scratch(il_fnlatj,fnlatj,procedureN//'_fnlatj',ierr)
+#else
           ALLOCATE(fnlatj(il_fnlatj(1),il_fnlatj(2),il_fnlatj(3)), stat=ierr)
+#endif
           IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate fnlatj',&
                __LINE__,__FILE__)
-#endif
           !$omp parallel private(ispin,off_i,i,isa0,off_mat,off_fnl,is,ia_fnl,ia_sum,&
           !$omp isa_start,start_fnl,end_fnl,fnl_start,start_mat,end_mat)
           DO ispin=1,nspin
@@ -204,16 +207,19 @@ CONTAINS
 #endif
           END DO
 #ifdef _USE_SCRATCHLIBRARY
-          CALL free_scratch(il_fnlatj,fnlatj,procedureN//'_fnlatj')
-          CALL free_scratch(il_fnlat,fnlat,procedureN//'_fnlat')
+          CALL free_scratch(il_fnlatj,fnlatj,procedureN//'_fnlatj',ierr)
 #else
-          DEALLOCATE(fnlat, stat=ierr)
-          IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate fnlat',&
-               __LINE__,__FILE__)
           DEALLOCATE(fnlatj, stat=ierr)
+#endif
           IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate fnlatj',&
                __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+          CALL free_scratch(il_fnlat,fnlat,procedureN//'_fnlat',ierr)
+#else
+          DEALLOCATE(fnlat, stat=ierr)
 #endif
+          IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate fnlat',&
+               __LINE__,__FILE__)
           IF(need_hmat_loc)THEN
              !$omp parallel do private(i,j)
              DO i=1,nstate

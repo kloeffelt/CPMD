@@ -396,13 +396,19 @@ CONTAINS
        il_c(2)=na_col(id)
        il_aux=il_c
 #ifdef _USE_SCRATCHLIBRARY
-       CALL request_scratch(il_c,c,procedureN//'_c')
-       CALL request_scratch(il_aux,aux,procedureN//'_aux')
+       CALL request_scratch(il_c,c,procedureN//'_c',ierr)
 #else
-       ALLOCATE(c(il_c(1),il_c(2)),aux(il_aux(1),il_aux(2)),STAT=ierr)
+       ALLOCATE(c(il_c(1),il_c(2)),STAT = ierr)
+#endif
        IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
             __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+       CALL request_scratch(il_aux,aux,procedureN//'_aux',ierr)
+#else
+       ALLOCATE(aux(il_aux(1),il_aux(2)),STAT=ierr)
 #endif
+       IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+            __LINE__,__FILE__)
        IF(id.EQ.1)THEN
           CALL elpa_set_mat(a,c,idx1,na_col(id),na_row(id))
           IF(cntl%use_elpa_autotune.AND..NOT.autotune1_done) THEN
@@ -431,13 +437,19 @@ CONTAINS
             __LINE__,__FILE__)
 
 #ifdef _USE_SCRATCHLIBRARY
-       CALL free_scratch(il_aux,aux,procedureN//'_aux')
-       CALL free_scratch(il_c,c,procedureN//'_c')
+       CALL free_scratch(il_aux,aux,procedureN//'_aux',ierr)
 #else
-       DEALLOCATE(c1,aux,STAT=ierr)
+       DEALLOCATE(aux,STAT=ierr)
+#endif
        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
             __LINE__,__FILE__)
+#ifdef _USE_SCRATCHLIBRARY
+       CALL free_scratch(il_c,c,procedureN//'_c',ierr)
+#else
+       DEALLOCATE(c1,STAT=ierr)
 #endif
+       IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+            __LINE__,__FILE__)
     ENDIF
 #else
     CALL stopgm(procedureN,'ELPA not installed', &
@@ -488,12 +500,12 @@ CONTAINS
     il_work(1)=INT(dummy_real(1))
     il_iwork=dummy_int(1)
 #ifdef _USE_SCRATCHLIBRARY
-    CALL request_scratch(il_work,work,procedureN//'_work')
+    CALL request_scratch(il_work,work,procedureN//'_work',ierr)
 #else
     ALLOCATE(work(il_work(1)),STAT=ierr)
+#endif
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
          __LINE__,__FILE__)
-#endif
     ALLOCATE(iwork(il_iwork),STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
          __LINE__,__FILE__)
@@ -502,12 +514,12 @@ CONTAINS
     IF (info.NE.0) CALL stopgm(procedureN,'FAILED TO DIAGONALIZE',&
          __LINE__,__FILE__)
 #ifdef _USE_SCRATCHLIBRARY
-    CALL free_scratch(il_work,work,procedureN//'_work')
+    CALL free_scratch(il_work,work,procedureN//'_work',ierr)
 #else
     DEALLOCATE(work,STAT=ierr)
+#endif
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
-#endif
     DEALLOCATE(iwork,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
@@ -575,24 +587,24 @@ CONTAINS
          z,n,dummy_real,il_work(1),iwork,ifail,info)
     il_work(1)=INT(dummy_real(1))
 #ifdef _USE_SCRATCHLIBRARY
-    CALL request_scratch(il_work,work,procedureN//'_work')
+    CALL request_scratch(il_work,work,procedureN//'_work',ierr)
 #else
     ALLOCATE(work(il_work(1)),STAT=ierr)
+#endif
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
          __LINE__,__FILE__)
-#endif
     !actual calculation
     CALL dsyevx(jobz,range,uplo,n,a,n,1.0_real_8,1.0_real_8,il,iu,-1_real_8,m,w,&
          z,n,work,il_work(1),iwork,ifail,info)
     IF (info.NE.0) CALL stopgm(procedureN,'FAILED TO DIAGONALIZE',&
          __LINE__,__FILE__)
 #ifdef _USE_SCRATCHLIBRARY
-    CALL free_scratch(il_work,work,procedureN//'_work')
+    CALL free_scratch(il_work,work,procedureN//'_work',ierr)
 #else
     DEALLOCATE(work,STAT=ierr)
+#endif
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)
-#endif
     DEALLOCATE(iwork,STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
          __LINE__,__FILE__)

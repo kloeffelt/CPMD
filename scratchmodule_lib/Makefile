@@ -1,12 +1,12 @@
 AR     = /usr/bin/ar ruv
 RANLIB = /usr/bin/ranlib
-FFLAGS =  -g -traceback -xHOST -qopt-zmm-usage=high -unroll -funroll-loops -O2 -IPO
+FFLAGS =  -g -traceback -cpp -axCORE-AVX2 -mavx -unroll -funroll-loops -O2 -IPO  #-O0 -check  bounds,assume,contiguous,format,pointers,shape,stack,udio_iostat,uninit   #
 CPPFLAGS =
 
 FC = ifort
 
 SCRATCHMODULE_LIB = libscratch_module.a
-SRC_SCRATCHMODULE = scratch_data.f90 scratch_utils.f90 scratch_managment.f90 scratch_segment_managment.f90 scratch_interface.f90
+SRC_SCRATCHMODULE = data_managment_utils.f90 segment_managment_utils.f90 pool_managment_utils.f90 scratch_interface.f90
 .SUFFIXES: .f90
 
 %.mod:
@@ -21,15 +21,15 @@ $(SCRATCHMODULE_LIB): $(OBJ_SCRATCHMODULE)
 	$(RANLIB) $(SCRATCHMODULE_LIB)
 
 
-scratch_kinds.mod: scratch_kinds.o
+data_managment_utils.mod: data_managment_utils.o
 	@true
-scratch_data.mod: scratch_data.o
+segment_managment_utils.mod: segment_managment_utils.o
 	@true
-scratch_utils.mod: scratch_utils.o
+pool_managment_utils.mod: pool_managment_utils.o
 	@true
-scratch_managment.o: scratch_data.mod scratch_managment.f90
-scratch_segment_mangament.o: scratch_data.mod scratch_utils.mod scratch_managment.mod scratch_segment_managment.f90
-scratch_interface.o: scratch_segment_managment.o scratch_interface.f90
+segment_managment_utils.o: data_managment_utils.mod segment_managment_utils.f90
+pool_managment_utils.o:  segment_managment_utils.mod pool_managment_utils.f90
+scratch_interface.o: pool_managment_utils.mod scratch_interface.f90
 
 
 clean: 

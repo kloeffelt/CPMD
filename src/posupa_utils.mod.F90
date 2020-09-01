@@ -119,12 +119,12 @@ CONTAINS
           il_ai(2)=1
        END IF
 #ifdef _USE_SCRATCHLIBRARY
-       CALL request_scratch(il_ai,ai,procedureN//'_ai')
+       CALL request_scratch(il_ai,ai,procedureN//'_ai',ierr)
 #else
        ALLOCATE(ai(il_ai(1),il_ai(2)),STAT=ierr)
+#endif
        IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate ai',&
          __LINE__,__FILE__)
-#endif
        ! ..LINEAR CONSTRAINTS
        IF (cntl%tharm) THEN
           !$omp parallel do private (i,ig,pf1,pf2,pf3,pf4)
@@ -202,12 +202,12 @@ CONTAINS
           END DO
        ENDIF
 #ifdef _USE_SCRATCHLIBRARY
-       CALL free_scratch(il_ai,ai,procedureN//'_ai')
+       CALL free_scratch(il_ai,ai,procedureN//'_ai',ierr)
 #else
        DEALLOCATE(ai,STAT=ierr)
+#endif
        IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate ai',&
          __LINE__,__FILE__)
-#endif
     ELSE
        IF (cntl%tharm) THEN
           !$omp parallel do private (I,IG,PF1,PF2,PF3,PF4)

@@ -103,15 +103,19 @@ CONTAINS
 
     COMPLEX(real_8), DIMENSION(:), &
       POINTER __CONTIGUOUS                   :: xf_ptr, yf_ptr
-    INTEGER                                  :: lda, m, mm, n1o, n1u
+    INTEGER                                  :: lda, m, mm, n1o, n1u, ierr
     INTEGER(int_8)                           :: il_xf(2)
     REAL(real_8)                             :: scale
 
 #ifdef _USE_SCRATCHLIBRARY
     il_xf(1)=maxfft
     il_xf(2)=1
-    CALL request_scratch(il_xf,xf,procedureN//'_xf')
-    CALL request_scratch(il_xf,yf,procedureN//'_yf')
+    CALL request_scratch(il_xf,xf,procedureN//'_xf',ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+         __LINE__,__FILE__)
+    CALL request_scratch(il_xf,yf,procedureN//'_yf',ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+         __LINE__,__FILE__)
 #endif
     xf_ptr => xf(:,1)
     yf_ptr => yf(:,1)
@@ -185,8 +189,12 @@ CONTAINS
        ENDIF
     ENDIF
 #ifdef _USE_SCRATCHLIBRARY
-    CALL free_scratch(il_xf,yf,procedureN//'_yf')
-    CALL free_scratch(il_xf,xf,procedureN//'_xf')
+    CALL free_scratch(il_xf,yf,procedureN//'_yf',ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+         __LINE__,__FILE__)
+    CALL free_scratch(il_xf,xf,procedureN//'_xf',ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+         __LINE__,__FILE__)
 #endif
     ! ==--------------------------------------------------------------==
   END SUBROUTINE fftnew
