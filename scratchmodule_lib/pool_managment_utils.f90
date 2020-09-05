@@ -148,8 +148,6 @@ CONTAINS
     INTEGER( INT64 ), INTENT( IN )     :: requested_len
     INTEGER( INT32 ), INTENT( OUT )    :: ierr
 
-    INTEGER( INT32)                    :: id
-
     CALL add_node_ptr( this%node, requested_len, ierr )
     
   END SUBROUTINE init_pool
@@ -181,7 +179,6 @@ CONTAINS
     INTEGER( INT32 ), INTENT( OUT )                :: ierr
 
     LOGICAL                                        :: free
-    INTEGER( INT64 )                               :: shift
     INTEGER( INT64 )                               :: new_pool_len
     INTEGER( INT64 )                               :: temp
     INTEGER( INT32 )                               :: num_nodes
@@ -238,7 +235,6 @@ CONTAINS
     INTEGER( INT64 ), INTENT( IN )                 :: requested_len
     INTEGER( INT32 ), INTENT( OUT )                :: ierr
 
-    INTEGER( INT64 )                               :: shift
     INTEGER( INT32 )                               :: num_nodes
     TYPE( pool_ptr ), ALLOCATABLE                  :: backup( : )
 

@@ -149,7 +149,6 @@ CONTAINS
     
     INTEGER( INT32 )                              :: id
     INTEGER( INT64 )                              :: pos( 3 )
-    TYPE( short_index )                           :: ind
     
     CALL search_free_segment( this, requested_len, id, ierr )
 
@@ -186,7 +185,6 @@ CONTAINS
     
     INTEGER( INT32 )                             :: id
     INTEGER( INT64 )                             :: pos( 3 )
-    TYPE( short_index )                          :: ind
     
     CALL search_tagged_segment( this, .FALSE., requested_len, tag, id, ierr )
     IF( ierr < 0 )RETURN
@@ -217,7 +215,6 @@ CONTAINS
 
     INTEGER( INT32 )                             :: id
     INTEGER( INT64 )                             :: pos( 3 )
-    TYPE( short_index )                          :: ind
 
     CALL search_tagged_segment( this, .FALSE., requested_len, tag, id, ierr )
     IF( ierr < 0 )RETURN
@@ -336,7 +333,6 @@ CONTAINS
     INTEGER( INT32 ), INTENT( OUT )  :: ierr
 
     INTEGER( INT64 )                 :: old_len
-    INTEGER( INT64 )                 :: max_payload
     INTEGER( INT32 )                 :: id
     INTEGER( INT32 )                 :: old_size
     
@@ -395,7 +391,7 @@ CONTAINS
 #endif
 
     ELSE
-       CALL grow_index( this, new_id, ierr )
+       CALL grow_index( this, ierr )
        IF( ierr /= 0 )EXIT_ON_ERROR
     END IF
 
@@ -433,10 +429,9 @@ CONTAINS
 
   END SUBROUTINE shrink_segment
   
-  SUBROUTINE grow_index( this, id, ierr )
+  SUBROUTINE grow_index( this, ierr )
     !grow index array by one
     TYPE( segment ), INTENT( INOUT ) :: this
-    INTEGER( INT32 ), INTENT( IN )   :: id
     INTEGER( INT32 ), INTENT( OUT )  :: ierr
 
     TYPE( segment )                  :: this_backup
@@ -444,8 +439,7 @@ CONTAINS
 
     new_size = SIZE( this%index_i, 1 ) + 1 !< expand index by 1
 #if defined(_DEBUG)
-    WRITE( OUTPUT_UNIT, '(A,X2I4)' ) "adding empty segment after segment_id, index size grows to:", &
-         id, new_size
+    WRITE( OUTPUT_UNIT, '(A,X2I4)' ) "growing segment to", new_size
 #endif
     !backup old index arrays
     CALL backup_index( this, this_backup )
@@ -469,11 +463,13 @@ CONTAINS
     TYPE( segment ), INTENT( INOUT ) :: this
     INTEGER( INT32 ), INTENT( IN)    :: start_id
 
-    INTEGER( INT32 )                 :: i
     INTEGER( INT32 )                 :: temp_id
     INTEGER( INT32 )                 :: id_left
     INTEGER( INT32 )                 :: id_right
     INTEGER( INT32 )                 :: num_segments
+#if defined(_DEBUG)
+    INTEGER( INT32 )                 :: i
+#endif
 
     CALL maximize_segment( this, start_id )
 
@@ -583,8 +579,6 @@ CONTAINS
     TYPE( segment )                  :: this_backup
     INTEGER( INT32 )                 :: old_size
     INTEGER( INT32 )                 :: new_size
-    INTEGER( INT32 )                 :: i
-    INTEGER( INT32 )                 :: j
 
     IF( .NOT. ALLOCATED( this%index_i ) ) THEN
        ierr = -1

@@ -236,6 +236,11 @@ CONTAINS
     pos_aligned( 2 ) = this%aligned_array_size + shift + pad_in_char
     pos_aligned( 3 ) = this%aligned_array_size
 
+#if defined(_DEBUG)
+    WRITE( OUTPUT_UNIT, '(A,7I17)') 'Align array, pos_alinged', pos_aligned, pad_in_char, shift, &
+         this%aligned_array_size, this%array_size
+#endif
+
     IF( this%array_size < pos_aligned( 2 ) )THEN
        ierr = -1
        WRITE( OUTPUT_UNIT, '(A,2I17)' ) "Alinged array outside of allocated array", this%array_size, &
@@ -411,11 +416,14 @@ PROGRAM test_data_managment_utils
   INTEGER( INT64 ) :: len_req
   INTEGER( INT64 ) :: len_out
 
-  len_req = INT( 1024*1024*1024*10, KIND = INT64 )
+  len_req = INT( 1024, KIND = INT64 ) * INT( 1024, KIND = INT64 ) * INT( 1024, KIND = INT64 ) * &
+       INT( 10, KIND = INT64 )
+  WRITE( OUTPUT_UNIT, '(A,3I17)' ) "allocated len =", len_req 
   CALL allocate_array( test_array, len_req, ierr )
-  WRITE( OUTPUT_UNIT, '(AX,3I17)' ) "allocated len =", test_array%array_size, test_array%aligned_array_size, len_req
+  WRITE( OUTPUT_UNIT, '(A,3I17)' ) "allocated len =", len_req
   CALL deallocate_array( test_array, len_out, ierr )
-  IF( len_req /= len_out ) WRITE( OUTPUT_UNIT, '(AX2I17)') "mismatch between requested and allocated length", len_req, len_out
+  IF( len_req /= len_out ) WRITE( OUTPUT_UNIT, '(A,2I17)') "mismatch between requested and allocated &
+       length", len_req, len_out
 
 END PROGRAM test_data_managment_utils
 #endif
