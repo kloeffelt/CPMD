@@ -356,7 +356,7 @@ CONTAINS
        WRITE( OUTPUT_UNIT, '(A)' ) "do not add a new segment, just grow this segment"
 #endif
 
-       this%index_i( new_id, 2 ) = this%index_i( new_id, 2 ) + old_len - requested_len
+       this%index_i( new_id, 2 ) = this%index_i( new_id, 2 ) - old_len + requested_len
        this%index_i( new_id, 3 ) = requested_len
 
 #if defined(_DEBUG)       
