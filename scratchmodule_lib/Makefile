@@ -1,8 +1,13 @@
-AR     = /usr/bin/ar ruv
-RANLIB = /usr/bin/ranlib
+AR = ar -r
+RANLIB = ranlib
+#AR     = /usr/bin/ar ruv
+#RANLIB = /usr/bin/ranlib
 FFLAGS =  -g -traceback -cpp -axCORE-AVX2 -mavx -unroll -funroll-loops -O2 -IPO  #-O0 -check  bounds,assume,contiguous,format,pointers,shape,stack,udio_iostat,uninit   #
+#FFLAGS =  -cpp -D_DEBUG -warn all -O0 -check bounds,assume,contiguous,format,pointers,shape,stack,udio_iostat,uninit   #-g -traceback -cpp -axCORE-AVX2 -mavx -unroll -funroll-loops -O2 -IPO  #-O0 -check  bounds,assume,contiguous,format,pointers,shape,stack,udio_iostat,uninit   #
+#FFLAGS =  -g -fbacktrace  -cpp -unroll -funroll-loops -O2   #-O0 -check  bounds,assume,contiguous,format,pointers,shape,stack,udio_iostat,uninit   #
 CPPFLAGS =
 
+#FC = gfortran
 FC = ifort
 
 SCRATCHMODULE_LIB = libscratch_module.a
