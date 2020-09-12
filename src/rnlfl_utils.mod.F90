@@ -6,6 +6,7 @@ MODULE rnlfl_utils
   USE cvan,                            ONLY: deeq,&
                                              dvan
   USE distribution_utils,              ONLY: dist_entity
+  USE elct,                            ONLY: crge
   USE error_handling,                  ONLY: stopgm
   USE ions,                            ONLY: ions0,&
                                              ions1
@@ -96,7 +97,7 @@ CONTAINS
        fiont(:,:,1:ions1%nsp,methread)=0.0_real_8
        !$omp do 
        do i=1,nstate
-          weight=2.0
+          weight=crge%f(i,1)
           ispin=1
           IF (cntl%tlsd.AND.i.GT.spin_mod%nsup) ispin=2
 
@@ -172,9 +173,9 @@ CONTAINS
     INTEGER                                  :: iv, jv, ia, k, isa
 
     fion=0.0_real_8
+    fac2=weight*2.0_real_8
     DO iv=1,ngh
        fac1=qq_(iv,iv)*2.0_real_8
-       fac2=weight*2.0_real_8
        t1=dvan_(iv,iv)
        !special case iv.eq.jv=> qq always .gt. 0 
        DO k=1,3
@@ -189,7 +190,6 @@ CONTAINS
        END DO
        DO jv=iv+1,ngh
           fac1=qq_(jv,iv)*2.0_real_8
-          fac2=weight*2.0_real_8
           t1=dvan_(jv,iv)
           IF (ABS(fac1).GT.2.e-5_real_8) THEN
              DO k=1,3
