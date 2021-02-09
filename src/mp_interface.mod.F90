@@ -432,10 +432,17 @@ CONTAINS
     ENDIF
 #ifdef __PARALLEL
     !IPHIGENIE/CPMD interface finalizes in IPHIGENIE
+    call mp_sync(parai%cp_grp)
     IF (cnti%iftype.NE.3) THEN
+       call mp_win_dealloc_shared_mem(parai%nproc,parai%me,parai%cp_grp)
+       CALL mpi_comm_free(parai%cp_inter_grp,ierr)
+       CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+       CALL mpi_comm_free(parai%node_grp,ierr)
+       CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
        CALL mpi_comm_free(parai%cp_grp,ierr)
        CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
        CALL mpi_finalize(ierr)
+       CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
        IF (ierr.NE.0) CALL stopgm('MPI_FINALIZE','error in mpi_finalize',& 
             __LINE__,__FILE__)
     ENDIF
@@ -1214,6 +1221,30 @@ CONTAINS
     END DO
 #endif
   END SUBROUTINE mp_win_alloc_shared_mem
+
+    SUBROUTINE mp_win_dealloc_shared_mem(nproc,mypos,comm)
+    USE, INTRINSIC :: ISO_C_BINDING, ONLY : C_PTR
+    ! ==--------------------------------------------------------------==
+    ! == Return baseptr to shared memory window                       ==
+    ! == Currently two shared memory windows are maintained, one for  ==
+    ! == comm.eq.node_grp (index.eq.1) and one for                    ==
+    ! == comm.eq.cp_inter_node_grp (index.eq.2)                       ==
+    ! == Deallocation for type .eq. A or a, reallocation possible     ==
+    ! ==--------------------------------------------------------------==
+    ! Author: Tobias Kloeffel, FAU Erlangen Nuernberg, March 2019
+#ifdef __PARALLEL
+    INTEGER,INTENT(IN) :: nproc,mypos
+    type(MPI_COMM),INTENT(IN) :: comm
+#else
+    INTEGER,INTENT(IN) :: nproc,mypos,comm
+#endif
+    TYPE(C_PTR) :: baseptr(0:nproc-1)
+#ifdef __PARALLEL
+    CHARACTER(*),PARAMETER::procedureN='mp_win_dealloc_shared_mem'
+
+    CALL mp_win_alloc_shared_mem('a',1,1,baseptr,nproc,mypos,comm)
+#endif
+  END SUBROUTINE mp_win_dealloc_shared_mem
 
   !
   ! include file for the interfaces
