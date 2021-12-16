@@ -45,6 +45,9 @@ MODULE nlforce_utils
   USE scratch_interface,               ONLY: request_scratch,&
                                              free_scratch
 #endif
+#ifdef _INTEL_MKL
+  use mkl_service
+#endif
 
   IMPLICIT NONE
 
@@ -235,12 +238,14 @@ CONTAINS
           CALL my_concat_inplace(dai,il_dai(1)*nstate,parai%cp_inter_grp)
        END IF
        IF(methread.EQ.1.OR.nthreads.EQ.1)THEN
-          !$ IF(methread.EQ.1) THEN
+          !$ methread = omp_get_thread_num()
+          !$ IF(methread.EQ.1)THEN
+          !$    CALL omp_set_max_active_levels(2)
           !$    CALL omp_set_num_threads(nested_threads)
 #ifdef _INTEL_MKL
           !$    CALL mkl_set_dynamic(0)
+          !$    ierr = mkl_set_num_threads_local(nested_threads)
 #endif
-          !$    CALL omp_set_nested(.TRUE.)
           !$ END IF
           grp=parai%cp_inter_me
           !$omp parallel num_threads(nested_threads)
@@ -251,12 +256,14 @@ CONTAINS
                   ,1._real_8,eiscr(1,1),2*ngw_local&
                   ,dai(1,1,grp+1),il_dai(1),1.0_real_8,c2(ibeg,1),2*ncpw%ngw)
           END IF
-          !$ IF(methread.EQ.1) THEN
+
+          !$ IF (methread.EQ.1) THEN
+          !$    CALL omp_set_max_active_levels(1)
           !$    CALL omp_set_num_threads(parai%ncpus)
 #ifdef _INTEL_MKL
           !$    CALL mkl_set_dynamic(1)
+          !$    ierr = mkl_set_num_threads_local(parai%ncpus)
 #endif
-          !$    CALL omp_set_nested(.FALSE.)
           !$ END IF
        END IF
        !$omp end parallel

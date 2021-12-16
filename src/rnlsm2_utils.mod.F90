@@ -49,6 +49,9 @@ MODULE rnlsm2_utils
   USE scratch_interface,               ONLY: request_scratch,&
                                              free_scratch
 #endif
+#ifdef _INTEL_MKL
+  use mkl_service
+#endif
 
   IMPLICIT NONE
 
@@ -258,17 +261,15 @@ CONTAINS
        !$omp private(methread,buff,ld_dai,end_dai,start_dai)&
        !$omp shared(locks,nthreads) proc_bind(close)
        !$ methread = omp_get_thread_num()
-       !$ IF (nested_threads .NE. parai%ncpus) THEN
-       !$    IF (methread .EQ. 1 .OR. nthreads .EQ. 1) THEN
-       !$       CALL omp_set_num_threads(nested_threads)
+       !$ IF(methread.EQ.1)THEN
+       !$    CALL omp_set_max_active_levels(2)
+       !$    CALL omp_set_num_threads(nested_threads)
 #ifdef _INTEL_MKL
-       !$       CALL mkl_set_dynamic(0)
+       !$    CALL mkl_set_dynamic(0)
+       !$    ierr = mkl_set_num_threads_local(nested_threads)
 #endif
-       !$       CALL omp_set_nested(.TRUE.)
-       !$    END IF
        !$ END IF
-       !$OMP barrier
-
+       
        IF(methread.EQ.1.OR.nthreads.EQ.1) THEN
           DO buff=2,buffcount
              ld_dai=ld_buffer(buff)
@@ -303,18 +304,16 @@ CONTAINS
                   timings(2)=timings(2)+m_walltime()-temp
           ENDDO
        ENDIF
-
-       !$omp barrier
-       !$ IF (nested_threads .NE. parai%ncpus) THEN
-       !$    IF (methread .EQ. 1 .OR. nthreads .EQ. 1) THEN
-       !$       CALL omp_set_num_threads(parai%ncpus)
+       
+       !$ IF (methread.EQ.1) THEN
+       !$    CALL omp_set_max_active_levels(1)
+       !$    CALL omp_set_num_threads(parai%ncpus)
 #ifdef _INTEL_MKL
-       !$       CALL mkl_set_dynamic(1)
+       !$    CALL mkl_set_dynamic(1)
+       !$    ierr = mkl_set_num_threads_local(parai%ncpus)
 #endif
-       !$       CALL omp_set_nested(.FALSE.)
-       !$    END IF
        !$ END IF
-
+       
        !$OMP end parallel
        IF(buffcount.GT.1)THEN
           CALL sort_dfnl(buffcount,na_buff(:,:,:),dai,dfnl_packed,&

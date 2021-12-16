@@ -135,7 +135,10 @@ MODULE rhoofr_utils
 #ifdef __PARALLEL
   USE mpi_f08
 #endif
-
+#ifdef _INTEL_MKL
+  use mkl_service
+#endif
+  
   IMPLICIT NONE
 
   PRIVATE
@@ -931,21 +934,23 @@ CONTAINS
     IF(.NOT.rsactive) wfn_r1=>wfn_r(:,1)
     IF(cntl%fft_tune_batchsize) temp_time=m_walltime()
     methread=0
+
     !$ locks_inv=.TRUE.
-    !$OMP parallel IF(nthreads.EQ.2) num_threads(2) &
-    !$omp private(methread,ibatch,bsize,offset_state,swap,count,is1,is2)
-    !$    CALL omp_set_max_active_levels(2)
+    !$OMP parallel IF(nthreads.EQ.2) num_threads(nthreads) &
+    !$omp private(methread,ibatch,bsize,offset_state,swap,count,is1,is2) &
+    !$omp proc_bind(close)
     !$ methread = omp_get_thread_num()
-!    !$    CALL omp_set_nested(.TRUE.)
-    !$ IF (methread.EQ.1) THEN
-    !$    CALL dfftw_plan_with_nthreads(nested_threads)
+    !$ IF(methread.EQ.1)THEN
+    !$    CALL omp_set_max_active_levels(2)
     !$    CALL omp_set_num_threads(nested_threads)
+    !$    CALL dfftw_plan_with_nthreads(nested_threads)
 #ifdef _INTEL_MKL
     !$    CALL mkl_set_dynamic(0)
+    !$    ierr = mkl_set_num_threads_local(nested_threads)
 #endif
     !$ END IF
-    !$omp barrier
-
+    !$OMP barrier
+    
     !Loop over batches
     DO ibatch=1,fft_numbatches+2
        IF(methread.EQ.1.OR.nthreads.EQ.1)THEN
@@ -1073,16 +1078,17 @@ CONTAINS
     !    END IF
 
     !$ IF (methread.EQ.1) THEN
+    !$    CALL omp_set_max_active_levels(1)
     !$    CALL omp_set_num_threads(parai%ncpus)
+    !$    CALL dfftw_plan_with_nthreads(parai%ncpus)
 #ifdef _INTEL_MKL
     !$    CALL mkl_set_dynamic(1)
+    !$    ierr = mkl_set_num_threads_local(parai%ncpus)
 #endif
-    !$    CALL dfftw_plan_with_nthreads(parai%ncpus)
-!    !$    CALL omp_set_nested(.FALSE.)
     !$ END IF
-    !$omp barrier
-    !$    CALL omp_set_max_active_levels(1)
+
     !$omp end parallel
+
     IF(cntl%fft_tune_batchsize) fft_time_total(fft_tune_num_it)=m_walltime()-temp_time
     !$ DEALLOCATE(locks_inv,STAT=ierr)
     !$ IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &

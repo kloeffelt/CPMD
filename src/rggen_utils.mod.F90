@@ -54,6 +54,9 @@ MODULE rggen_utils
   !$ USE omp_lib, ONLY: omp_get_proc_bind, omp_get_num_places, omp_get_place_proc_ids
   !$ USE omp_lib, ONLY: omp_get_place_num_procs
 #endif
+#ifdef _INTEL_MKL
+  use mkl_service
+#endif
 
   IMPLICIT NONE
 
@@ -273,6 +276,9 @@ CONTAINS
     CALL gvector
     ! ==--------------------------------------------------------------==
     CALL numcpus(parai%ncpus)
+#if defined(_INTEL_MKL)    
+    call mkl_set_num_threads(parai%ncpus)
+#endif
     CALL print_omp_info( )
 
     ! ==--------------------------------------------------------------==

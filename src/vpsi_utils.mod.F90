@@ -128,6 +128,9 @@ MODULE vpsi_utils
 #ifdef __PARALLEL
   USE mpi_f08
 #endif
+#ifdef _INTEL_MKL
+  use mkl_service
+#endif
 
   IMPLICIT NONE
 
@@ -1237,25 +1240,25 @@ CONTAINS
     CALL reshape_inplace(vpot, (/fpar%kr1*fpar%kr2s,fpar%kr3s,ispin/), vpotdg)
 
     methread=0
+
     IF(.NOT.rsactive) wfn_r1=>wfn_r(:,1)
     IF(cntl%fft_tune_batchsize) temp_time=m_walltime()
     !$ locks_inv = .TRUE.
     !$ locks_fw = .TRUE.
     !$OMP parallel IF(nthreads.eq.2) num_threads(nthreads) &
-    !$omp private(methread,ibatch,bsize,count,ist,is1,is2,ir,offset_state,swap)
-    !$    CALL omp_set_max_active_levels(2)
+    !$omp private(methread,ibatch,bsize,count,ist,is1,is2,ir,offset_state,swap) &
+    !$omp proc_bind(close)
     !$ methread = omp_get_thread_num()
-    !$ IF (methread.EQ.1) THEN
+    !$ IF(methread.EQ.1)THEN
+    !$    CALL omp_set_max_active_levels(2)
     !$    CALL omp_set_num_threads(nested_threads)
 #ifdef _INTEL_MKL
     !$    CALL mkl_set_dynamic(0)
+    !$    ierr = mkl_set_num_threads_local(nested_threads)
 #endif
-    !$    CALL dfftw_plan_with_nthreads(nested_threads)
-!    !$    CALL omp_set_nested(.TRUE.)
     !$ END IF
-
     !$OMP barrier
-
+    
     !Loop over batches
     DO ibatch=1,fft_numbatches+3
        IF(.NOT.rsactive)THEN
@@ -1426,18 +1429,17 @@ CONTAINS
        END IF
     END DO
 
-    !$OMP barrier
-
     !$ IF (methread.EQ.1) THEN
+    !$    CALL omp_set_max_active_levels(1)
     !$    CALL omp_set_num_threads(parai%ncpus)
 #ifdef _INTEL_MKL
     !$    CALL mkl_set_dynamic(1)
+    !$    ierr = mkl_set_num_threads_local(parai%ncpus)
 #endif
     !$    CALL dfftw_plan_with_nthreads(parai%ncpus)
-!    !$    CALL omp_set_nested(.FALSE.)
     !$ END IF
-    !$omp barrier
-    !$    CALL omp_set_max_active_levels(1)
+    !$OMP barrier
+
     !$omp end parallel
 
     IF(cntl%fft_tune_batchsize) fft_time_total(fft_tune_num_it)=fft_time_total(fft_tune_num_it)+m_walltime()-temp_time

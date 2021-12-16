@@ -27,6 +27,9 @@ MODULE rotate_utils
   USE scratch_interface,               ONLY: request_scratch,&
                                              free_scratch
 #endif
+#ifdef _INTEL_MKL
+  use mkl_service
+#endif
 
   IMPLICIT NONE
 
@@ -332,15 +335,16 @@ CONTAINS
     methread=0
     !$omp parallel if(nthreads.eq.2) num_threads(nthreads) &
     !$omp private (methread,ngw_local,ibeg_c0) proc_bind(close)
-    !$ methread=omp_get_thread_num()
+    !$ methread = omp_get_thread_num()
     !$ IF(methread.EQ.1)THEN
-    !$   CALL omp_set_num_threads(nested_threads)
+    !$    CALL omp_set_max_active_levels(2)
+    !$    CALL omp_set_num_threads(nested_threads)
 #ifdef _INTEL_MKL
-    !$   CALL mkl_set_dynamic(0)
+    !$    CALL mkl_set_dynamic(0)
+    !$    ierr = mkl_set_num_threads_local(nested_threads)
 #endif
-    !$   CALL omp_set_nested(.TRUE.)
     !$ END IF
-
+    
     IF(methread.EQ.1.OR.nthreads.EQ.1)THEN
        CALL cp_grp_get_sizes(ngw_l=ngw_local,first_g=ibeg_c0)
        CALL dsymm('R','U',ngw_local*2,nchunk,-1.0_real_8,&
@@ -355,14 +359,18 @@ CONTAINS
     IF(methread.EQ.0.OR.nthreads.EQ.1)THEN
        CALL my_concat_inplace(temp,il_temp(1)*nstate,parai%allgrp)
     END IF
-    !$ IF(methread.EQ.1)THEN
-    !$   CALL omp_set_num_threads(parai%ncpus)
+
+    !$ IF (methread.EQ.1) THEN
+    !$    CALL omp_set_max_active_levels(1)
+    !$    CALL omp_set_num_threads(parai%ncpus)
 #ifdef _INTEL_MKL
-    !$   CALL mkl_set_dynamic(1)
+    !$    CALL mkl_set_dynamic(1)
+    !$    ierr = mkl_set_num_threads_local(parai%ncpus)
 #endif
-    !$   CALL omp_set_nested(.false.)
     !$ END IF
+
     !$omp end parallel
+    
     CALL copy_back(fnlgam_p,temp,work_proc,ldf,nstate,parai%nproc)
 #ifdef _USE_SCRATCHLIBRARY
     CALL free_scratch(il_temp,temp,procedureN//'_temp',ierr)
@@ -460,11 +468,12 @@ CONTAINS
     !$omp private (methread,ngw_local,ibeg_c0) proc_bind(close)
     !$ methread=omp_get_thread_num()
     !$ IF(methread.EQ.1)THEN
-    !$   CALL omp_set_num_threads(nested_threads)
+    !$    CALL omp_set_max_active_levels(2)
+    !$    CALL omp_set_num_threads(nested_threads)
 #ifdef _INTEL_MKL
-    !$   CALL mkl_set_dynamic(0)
+    !$    CALL mkl_set_dynamic(0)
+    !$    ierr = mkl_set_num_threads_local(nested_threads)
 #endif
-    !$   CALL omp_set_nested(.TRUE.)
     !$ END IF
 
     IF(methread.EQ.1.OR.nthreads.EQ.1)THEN
@@ -481,14 +490,16 @@ CONTAINS
     IF(methread.EQ.0.OR.nthreads.EQ.1)THEN
        CALL my_concat_inplace(temp,il_temp(1)*nstate,parai%allgrp)
     END IF
-    !$ IF(methread.EQ.1)THEN
-    !$   CALL omp_set_num_threads(parai%ncpus)
+    !$ IF (methread.EQ.1) THEN
+    !$    CALL omp_set_max_active_levels(1)
+    !$    CALL omp_set_num_threads(parai%ncpus)
 #ifdef _INTEL_MKL
-    !$   CALL mkl_set_dynamic(1)
+    !$    CALL mkl_set_dynamic(1)
+    !$    ierr = mkl_set_num_threads_local(parai%ncpus)
 #endif
-    !$   CALL omp_set_nested(.false.)
     !$ END IF
     !$omp end parallel
+
     CALL copy_back(fnl,temp,work_proc,ldf,nstate,parai%nproc)
 #ifdef _USE_SCRATCHLIBRARY
     CALL free_scratch(il_temp,temp,procedureN//'_temp',ierr)
