@@ -325,6 +325,7 @@ CONTAINS
 
 
     CALL mp_get_node_env ( parai%cp_grp, node_numtasks, node_taskid )
+    call mp_max( node_numtasks, parai%cp_grp )
     !>vw get which node is the io node
     CALL mp_get_processor_name ( proc_name )
     IF( paral%io_parent ) node_io_name = proc_name
