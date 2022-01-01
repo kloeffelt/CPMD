@@ -434,7 +434,7 @@ CONTAINS
     !IPHIGENIE/CPMD interface finalizes in IPHIGENIE
     call mp_sync(parai%cp_grp)
     IF (cnti%iftype.NE.3) THEN
-       call mp_win_dealloc_shared_mem(parai%nproc,parai%me,parai%cp_grp)
+       call mp_win_dealloc_shared_mem(parai%node_nproc,parai%node_me,parai%node_grp)
        CALL mpi_comm_free(parai%cp_inter_grp,ierr)
        CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
        CALL mpi_comm_free(parai%node_grp,ierr)
@@ -1158,24 +1158,22 @@ CONTAINS
     INTEGER(KIND=MPI_ADDRESS_KIND) :: windowsize
     type(MPI_Info) :: info
     INTEGER :: proc,ierr,index,displ
-    LOGICAL, SAVE :: first(2)=.TRUE.
+    LOGICAL, SAVE :: alloc(2)=.FALSE.
     CHARACTER(*),PARAMETER::procedureN='mp_win_alloc_shared_mem'
 
     IF(type.EQ.'C'.OR.type.EQ.'c')THEN
        requested_size=lda*n*mp_double_complex_in_bytes
     ELSEIF(type.EQ.'R'.OR.type.EQ.'r')THEN
        requested_size=lda*n*mp_double_in_bytes
-    ELSEIF(type.EQ.'A'.OR.type.EQ.'a')THEN
-       IF(.NOT.first(1))THEN
-          CALL MPI_WIN_FREE(mpi_window(1), IERR)
-          CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
-          first(1)=.TRUE.
-       END IF
-       IF(.NOT.first(2))THEN
-          CALL MPI_WIN_FREE(mpi_window(2), IERR)
-          CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
-          first(2)=.TRUE.
-       END IF
+    ELSEIF(type.EQ.'D'.OR.type.EQ.'d')THEN
+       DO index=1,size(alloc)
+          IF(alloc(index))THEN
+             CALL MPI_WIN_FREE(mpi_window(index), IERR)
+             CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+             alloc(index)=.FALSE.
+             allocated_size(index)=0
+          END IF
+       END DO
        RETURN
     END IF
 
@@ -1192,10 +1190,11 @@ CONTAINS
 
     !check if allocated window is big enough...
     IF (allocated_size(index).LT.requested_size) THEN
-       IF(.NOT.first(index)) THEN
+       IF(alloc(index)) THEN
           CALL MPI_WIN_FREE(mpi_window(index), IERR)
           CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
-          first(index)=.FALSE.
+          alloc(index)=.FALSE.
+          allocated_size(index)=0
        END IF
        CALL MPI_INFO_CREATE(info,ierr)
        CALL MPI_INFO_SET(INFO, 'same_disp_unit', 'true',ierr)
@@ -1212,6 +1211,7 @@ CONTAINS
        CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
        CALL mpi_info_free(info,ierr)
        CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+       alloc(index)=.TRUE.
     END IF
     !set baseptrs for all procs
     DO proc=0,nproc-1
@@ -1242,7 +1242,7 @@ CONTAINS
 #ifdef __PARALLEL
     CHARACTER(*),PARAMETER::procedureN='mp_win_dealloc_shared_mem'
 
-    CALL mp_win_alloc_shared_mem('a',1,1,baseptr,nproc,mypos,comm)
+    CALL mp_win_alloc_shared_mem('d',1,1,baseptr,nproc,mypos,comm)
 #endif
   END SUBROUTINE mp_win_dealloc_shared_mem
 
