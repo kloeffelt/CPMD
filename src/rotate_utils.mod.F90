@@ -10,7 +10,9 @@ MODULE rotate_utils
                                              int_4
   USE mp_interface,                    ONLY: mp_win_alloc_shared_mem,&
                                              mp_win_sync,&
-                                             mp_sync
+                                             mp_sync,&
+                                             mp_win_lock_all_shared,&
+                                             mp_win_unlock_all_shared
   USE nvtx_utils
   !$ USE omp_lib,                      ONLY: omp_set_nested,&
   !$                                         omp_get_thread_num,&
@@ -88,6 +90,7 @@ CONTAINS
 
        CALL mp_win_alloc_shared_mem('r',lda,nstate,baseptr,parai%node_nproc,&
             parai%node_me,parai%node_grp)
+       CALL mp_win_lock_all_shared(parai%node_grp)
        arrayshape(1)=lda
        arrayshape(2)=nstate
        DO proc=0,parai%node_nproc-1
@@ -128,7 +131,6 @@ CONTAINS
     IF(parai%node_nproc.GT.1)THEN
        !sync shared memory window
        CALL mp_win_sync(parai%node_grp)
-       CALL mp_sync(parai%node_grp)
        !get data from all procs
        !$omp parallel do private(proc,i)
        DO i=1,nstate
@@ -140,6 +142,7 @@ CONTAINS
        DEALLOCATE(iproc, stat=ierr)
        IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate iproc',&
             __LINE__,__FILE__)
+       CALL mp_win_unlock_all_shared(parai%node_grp)
     END IF
     CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==
@@ -185,6 +188,7 @@ CONTAINS
 
        CALL mp_win_alloc_shared_mem('r',lda,nstate,baseptr,parai%node_nproc,&
             parai%node_me,parai%node_grp)
+       CALL mp_win_lock_all_shared(parai%node_grp)
        arrayshape(1)=lda
        arrayshape(2)=nstate
        DO proc=0,parai%node_nproc-1
@@ -226,7 +230,6 @@ CONTAINS
        END DO
        !sync shared memory window
        CALL mp_win_sync(parai%node_grp)
-       CALL mp_sync(parai%node_grp)
        !get data from other procs
        !$omp parallel do private (i,proc)
        DO i=1,nstate
@@ -236,7 +239,8 @@ CONTAINS
                   iproc(proc)%temp(:,i),len_proc(proc))
           END DO
        END DO
-
+       CALL mp_win_unlock_all_shared(parai%node_grp)
+       
        DEALLOCATE(iproc, stat=ierr)
        IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate iproc',&
             __LINE__,__FILE__)

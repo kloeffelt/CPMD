@@ -61,7 +61,8 @@ MODULE mp_interface
   PUBLIC :: mp_get_library_version
   PUBLIC :: mp_win_alloc_shared_mem
   PUBLIC :: mp_win_sync
-
+  PUBLIC :: mp_win_lock_all_shared
+  PUBLIC :: mp_win_unlock_all_shared
   !
   ! interfaces
   !
@@ -1107,6 +1108,60 @@ CONTAINS
 
   END SUBROUTINE mp_get_library_version
 
+  SUBROUTINE mp_win_lock_all_shared(comm)
+    ! ==--------------------------------------------------------------==
+    ! == Wrapper for mpi_win_fence                                    ==
+    ! ==--------------------------------------------------------------==
+    ! Author: Tobias Kloeffel, FAU Erlangen Nuernberg, March 2019
+#ifdef __PARALLEL
+    type(MPI_COMM),INTENT(IN) :: comm
+#else
+    INTEGER,INTENT(IN) :: comm
+#endif
+#ifdef __PARALLEL
+    INTEGER:: index,ierr
+    CHARACTER(*),PARAMETER::procedureN='mp_win_sync'
+
+    IF(comm.EQ.parai%node_grp)THEN
+       index=1
+    ELSEIF(comm.EQ.parai%cp_inter_node_grp)THEN
+       index=2
+    ELSE
+       CALL stopgm(procedureN,'Unsupported mpi communicator',&
+            __LINE__,__FILE__)
+    END IF
+    CALL mpi_win_lock_all(MPI_MODE_NOCHECK,mpi_window(index),ierr)
+    CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+#endif
+  END SUBROUTINE mp_win_lock_all_shared
+
+  SUBROUTINE mp_win_unlock_all_shared(comm)
+    ! ==--------------------------------------------------------------==
+    ! == Wrapper for mpi_win_fence                                    ==
+    ! ==--------------------------------------------------------------==
+    ! Author: Tobias Kloeffel, FAU Erlangen Nuernberg, March 2019
+#ifdef __PARALLEL
+    type(MPI_COMM),INTENT(IN) :: comm
+#else
+    INTEGER,INTENT(IN) :: comm
+#endif
+#ifdef __PARALLEL
+    INTEGER:: index,ierr
+    CHARACTER(*),PARAMETER::procedureN='mp_win_sync'
+
+    IF(comm.EQ.parai%node_grp)THEN
+       index=1
+    ELSEIF(comm.EQ.parai%cp_inter_node_grp)THEN
+       index=2
+    ELSE
+       CALL stopgm(procedureN,'Unsupported mpi communicator',&
+            __LINE__,__FILE__)
+    END IF
+    CALL mpi_win_unlock_all(mpi_window(index),ierr)
+    CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+#endif
+  END SUBROUTINE mp_win_unlock_all_shared
+
   SUBROUTINE mp_win_sync(comm)
     ! ==--------------------------------------------------------------==
     ! == Wrapper for mpi_win_fence                                    ==
@@ -1129,11 +1184,13 @@ CONTAINS
        CALL stopgm(procedureN,'Unsupported mpi communicator',&
             __LINE__,__FILE__)
     END IF
-    CALL mpi_win_fence(0,mpi_window(index),ierr)
+    CALL mpi_win_sync(mpi_window(index),ierr)
     CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
+    CALL mp_sync(comm)
 #endif
   END SUBROUTINE mp_win_sync
 
+  
   SUBROUTINE mp_win_alloc_shared_mem(type,lda,n,baseptr,nproc,mypos,comm)
     USE, INTRINSIC :: ISO_C_BINDING, ONLY : C_PTR
     ! ==--------------------------------------------------------------==
