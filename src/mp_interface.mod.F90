@@ -606,13 +606,12 @@ CONTAINS
   END SUBROUTINE mp_task_query
 
 
-  SUBROUTINE mp_cart(comm,nogrp,npgrp,nolist,nplist,meogrp,mepgrp)
+  SUBROUTINE mp_cart(comm,nogrp,npgrp,meogrp,mepgrp)
     ! ==--------------------------------------------------------------==
     ! == Forms cartesian groups of processors                         ==
     ! ==--------------------------------------------------------------==
     INTEGER                                  :: comm, nogrp, npgrp, &
-                                                nolist(*), nplist(*), meogrp, &
-                                                mepgrp
+                                                meogrp, mepgrp
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'mp_cart'
 
@@ -657,20 +656,6 @@ CONTAINS
     CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
     CALL mpi_comm_group(meogrp,ogr,ierr)
     CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
-    DO i=1,npgrp
-       CALL mpi_cart_rank(mepgrp,i-1,ioo,ierr)
-       CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
-       CALL mpi_group_translate_ranks(pgr,1,ioo,world,io,ierr)
-       CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
-       nplist(i)=io
-    ENDDO
-    DO i=1,nogrp
-       CALL mpi_cart_rank(meogrp,i-1,ioo,ierr)
-       CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
-       CALL mpi_group_translate_ranks(ogr,1,ioo,world,io,ierr)
-       CALL mp_mpi_error_assert(ierr,procedureN,__LINE__,__FILE__)
-       nolist(i)=io
-    ENDDO
 #else
     ! ==--------------------------------------------------------------==
     meogrp=0

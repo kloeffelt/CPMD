@@ -40,7 +40,6 @@ CONTAINS
     INTEGER                                  :: cp_inter_nproc, cp_npgrp, &
                                                 ierr, iprc, subversion, &
                                                 version
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cp_nolist, cp_nplist
 
 ! ==--------------------------------------------------------------==
 ! 
@@ -74,14 +73,8 @@ CONTAINS
     ! 
     ! set the cp group communicator
     ! 
-    ALLOCATE(cp_nolist(parai%cp_nproc),cp_nplist(parai%cp_nproc),stat=ierr)
-    IF (ierr.NE.0) CALL stopgm(proceduren,'allocation problem',& 
-         __LINE__,__FILE__)
-    CALL mp_cart(mp_comm_world,parai%cp_nogrp,cp_npgrp,cp_nolist,cp_nplist,&
+    CALL mp_cart(mp_comm_world,parai%cp_nogrp,cp_npgrp,&
          parai%cp_inter_grp,parai%allgrp)
-    DEALLOCATE(cp_nolist,cp_nplist,stat=ierr)
-    IF (ierr.NE.0) CALL stopgm(proceduren,'deallocation problem',& 
-         __LINE__,__FILE__)
     CALL mp_environ(parai%cp_inter_grp,cp_inter_nproc,parai%cp_inter_me)
     CALL mp_environ(parai%allgrp,parai%nproc,parai%me)
     parai%mepos = parai%me ! set this usefull variable as well
@@ -174,7 +167,6 @@ CONTAINS
 
     INTEGER                                  :: cp_inter_nproc, cp_npgrp, &
                                                 ierr, iprc
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: cp_nolist, cp_nplist
 
 !     ==--------------------------------------------------------------==
 !
@@ -207,14 +199,8 @@ CONTAINS
     !
     !     reset the cp group communicator
     !
-    ALLOCATE(cp_nolist(parai%cp_nproc),cp_nplist(parai%cp_nproc),stat=ierr)
-    IF(ierr.NE.0) CALL stopgm(proceduren,'allocation problem',&
-         & __LINE__,__FILE__)
-    CALL mp_cart(parai%cp_grp,parai%cp_nogrp,cp_npgrp,cp_nolist,cp_nplist,&
+    CALL mp_cart(parai%cp_grp,parai%cp_nogrp,cp_npgrp,&
          &     parai%cp_inter_grp,parai%allgrp)
-    DEALLOCATE(cp_nolist,cp_nplist,stat=ierr)
-    IF(ierr.NE.0) CALL stopgm(proceduren,'deallocation problem',&
-         & __LINE__,__FILE__)
     CALL mp_environ(parai%cp_inter_grp,cp_inter_nproc,parai%cp_inter_me)
     CALL mp_environ(parai%allgrp,parai%nproc,parai%me)
     parai%mepos = parai%me !set this useful variable as well

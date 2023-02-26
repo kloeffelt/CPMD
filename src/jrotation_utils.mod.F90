@@ -72,7 +72,6 @@ CONTAINS
     INTEGER                                  :: i, ierr, imax, isub, j, k, &
                                                 loc_nogrp, msglen, my_grp, &
                                                 my_nproc
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: loc_nolist, loc_nplist
     LOGICAL                                  :: debug
     LOGICAL, SAVE                            :: is_first = .TRUE.
     REAL(real_8), ALLOCATABLE                :: abc(:,:,:), gmat(:,:)
@@ -152,15 +151,8 @@ CONTAINS
           loc_nogrp = parai%cp_nproc / wan05%loc_npgrp
        ENDIF
 
-       ALLOCATE(loc_nolist(parai%cp_nproc),loc_nplist(parai%cp_nproc),stat=ierr)
-       IF (ierr.NE.0) CALL stopgm(procedureN,'Allocation problem',& 
-            __LINE__,__FILE__)
-       !      CALL mp_cart(mp_comm_world,loc_nogrp,wan05%loc_npgrp,loc_nolist,loc_nplist,&
-       CALL mp_cart(parai%cp_grp,loc_nogrp,wan05%loc_npgrp,loc_nolist,loc_nplist,&
+       CALL mp_cart(parai%cp_grp,loc_nogrp,wan05%loc_npgrp,&
             parai%loc_inter_grp,parai%loc_grp)
-       DEALLOCATE(loc_nolist,loc_nplist,stat=ierr)
-       IF (ierr.NE.0) CALL stopgm(procedureN,'Deallocation problem',& 
-            __LINE__,__FILE__)
        CALL mp_environ(parai%loc_grp,parai%loc_nproc,parai%loc_me)
     ENDIF
     my_grp=parai%loc_grp
