@@ -27,7 +27,7 @@
      AR='xiar -r'
      RANLIB='/usr/bin/ranlib'
      if [ $debug ]; then
-       FFLAGS='-g -check all -O0 -pc64 -align array64byte -falign-loops=32 -falign-functions=32 -fp-model=strict -fimf-use-svml=false -fp-model=source'
+       FFLAGS='-g -traceback -check all -O0 -pc64 -align array64byte -falign-loops=32 -falign-functions=32 -fp-model=strict -fimf-use-svml=false -fp-model=source'
        CFLAGS='-g -Wall -m64'
      else
        FFLAGS='-O2 -funroll-loops -assume byterecl -align array64byte \
@@ -37,8 +37,8 @@
      if [ $omp ]; then
        FFLAGS=${FFLAGS}' -qopenmp'
        OMP3_DISABLED='false'
-       LIBS=' -mkl=parallel -fopenmp'
+       LIBS=' -mkl=parallel -lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64 -fopenmp'
      else
-       LIBS=' -mkl=sequential '
+       LIBS=' -mkl=sequential -lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64 '
      fi
      LFLAGS=${LIBS}

@@ -1998,17 +1998,6 @@ SUBROUTINE extrapwf(infi,c0,gam,cold,nnow,numcold,nstate,m,scold,only_save)
                 cntl%tlsd,spin_mod%nsup,spin_mod%nsdown)
         ENDIF
      ENDDO
-     ! orthogonalization: as done in k_forces
-     DO ik=1,nkpt%nkpnt
-        IF (cntl%nonort) THEN
-           IF (geq0) CALL zclean(c0,nstate,ncpw%ngw)
-        ELSE
-           CALL preortho(c0(1,1,ik),nstate)
-           IF (pslo_com%tivan) CALL rnlsm(c0(:,:,1),nstate,1,1,.FALSE.)
-           CALL ortho(nstate,c0(:,:,ik),c2)
-        ENDIF
-     ENDDO
-     IF (pslo_com%tivan) GOTO 1
      ! ..COUNT NUMBER OF ELECTRONS IN EXTRAPOLATED WFN AND RENORMALIZE
      rsum=0._real_8
      IF (tkpts%tkpnt) THEN

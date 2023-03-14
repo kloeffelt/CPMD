@@ -534,12 +534,21 @@ CONTAINS
          isign,plan)
     CALL dfftw_execute_dft(plan,a,b)
     IF (tscal) THEN
-       !$omp parallel do private(I,J)
-       DO i = 1,m
-          DO j = 1,n
-             b(j,i)=scale*b(j,i)
+       IF (transb.EQ.'N'.OR.transb.EQ.'n') THEN
+          !$omp parallel do private(I,J)
+          DO i = 1,m
+             DO j = 1,n
+                b(j,i)=scale*b(j,i)
+             ENDDO
           ENDDO
-       ENDDO
+       ELSE
+          !$omp parallel do private(I,J)
+          DO i = 1,n
+             DO j = 1,m
+                b(j,i)=scale*b(j,i)
+             ENDDO
+          ENDDO
+       END IF
     ENDIF
 #endif
     IF (transb.EQ.'N'.OR.transb.EQ.'n') THEN
@@ -646,13 +655,21 @@ CONTAINS
        
        il_asave( 1 ) = INT( ldax, KIND = int_8)
        il_asave( 2 ) = INT( lday, KIND = int_8)
+#ifdef _USE_SCRATCHLIBRARY
        CALL request_scratch(il_asave,asave,procedureN//'_asave',ierr)
+#else
+       ALLOCATE(asave(il_asave(1),il_asave(2)),STAT=ierr)
+#endif
        IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
             __LINE__,__FILE__)
        CALL dcopy(ldax*lday*2, a, 1, asave,  1 )
        CALL create_fftw_plan(plan,params(:,num_plans),a,b)
        CALL dcopy(ldax*lday*2, asave, 1, a,  1 )
+#ifdef _USE_SCRATCHLIBRARY
        CALL free_scratch(il_asave,asave,procedureN//'_asave',ierr)
+#else
+       DEALLOCATE(asave,STAT=ierr)
+#endif
        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
             __LINE__,__FILE__)
 

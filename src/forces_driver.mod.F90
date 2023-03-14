@@ -308,10 +308,6 @@ CONTAINS
        ALLOCATE(a3mat(nstate,nstx),STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
             __LINE__,__FILE__)
-       ALLOCATE(auxc(il_auxc),STAT=ierr)
-       IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
-            __LINE__,__FILE__)
-       CALL reshape_inplace(auxc, (/2*il_auxc/), aux)
     END IF
 #ifdef _USE_SCRATCHLIBRARY
     CALL request_scratch(il_gam,gam,procedureN//'_gam',ierr)
@@ -327,7 +323,12 @@ CONTAINS
        IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
             __LINE__,__FILE__)
     END IF
-    IF(lspin2%tlse)THEN
+    IF (lspin2%tlse) THEN
+       ALLOCATE(auxc(il_auxc),STAT=ierr)
+       IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
+            __LINE__,__FILE__)
+       CALL reshape_inplace(auxc, (/2*il_auxc/), aux)
+
        ALLOCATE(psiab(il_psiab),STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
             __LINE__,__FILE__)
@@ -554,9 +555,6 @@ CONTAINS
        DEALLOCATE(a3mat,STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
             __LINE__,__FILE__)
-       DEALLOCATE(auxc,STAT=ierr)
-       IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-            __LINE__,__FILE__)
     END IF
 #ifdef _USE_SCRATCHLIBRARY
     CALL free_scratch(il_gam,gam,procedureN//'_gam',ierr)
@@ -571,6 +569,9 @@ CONTAINS
             __LINE__,__FILE__)
     END IF
     IF(lspin2%tlse)THEN
+       DEALLOCATE(auxc,STAT=ierr)
+       IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+            __LINE__,__FILE__)
        DEALLOCATE(psiab,STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
             __LINE__,__FILE__)
