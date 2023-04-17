@@ -849,6 +849,7 @@ CONTAINS
                 ENDIF
              ELSEIF (keyword_contains(line,'PHFX')) THEN
                 ! ..For controlling only the amount of Hartree exchange
+                ! WARNING: PHFX is incompatible with XC_DRIVER. Use NEWCODE instead.
                 cp_xc_functional_env%overwrite_hfx = .TRUE.
                 cp_xc_functional_env%get_hfx       = .TRUE.
                 READ(iunit,*, iostat=ierr) cp_xc_functional_env%hfx_constant

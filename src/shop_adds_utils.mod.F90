@@ -439,7 +439,7 @@ CONTAINS
        ! STOP
     ELSE
        IF (paral%io_parent)&
-            WRITE(6,*)'ACHTUNG, KEIN LSD! !'
+            WRITE(6,*)'WARNING: NO UNRESTRICTED SPIN (LSD)'
 
        CALL zeroing(um)!,sh02%nst_s0*sh02%nst_s0)
        CALL zeroing(dm)!,sh02%nst_s0*sh02%nst_s0)
@@ -542,6 +542,7 @@ CONTAINS
        ! .................................................................
        c12=0.0_real_8
        c21=0.0_real_8
+!$omp parallel do private(istate,jstate)
        DO istate=1,sh02%nelb2
           DO jstate=1,sh02%nelb2
              c12=c12+det*( udotm(istate,jstate)*um(jstate,istate)+&
@@ -670,19 +671,19 @@ CONTAINS
        CALL state_select(tag(sh03%isurf))
        ener_com%etot=e(sh03%isurf)
        IF (sh03%isurf.EQ.2) THEN
-          DO i=1,3
-             DO j=1,maxsys%nax
-                DO k=1,maxsys%nsx
-                   fion(i,j,k)= fion1(i,j,k)
-                ENDDO
-             ENDDO
-          ENDDO
+           DO k=1,maxsys%nsx
+              DO j=1,maxsys%nax
+                 fion(1,j,k)= fion1(1,j,k)
+                 fion(2,j,k)= fion1(2,j,k)
+                 fion(3,j,k)= fion1(3,j,k)
+              ENDDO
+           ENDDO
        ELSE
-          DO i=1,3
+          DO k=1,maxsys%nsx
              DO j=1,maxsys%nax
-                DO k=1,maxsys%nsx
-                   fion(i,j,k)= fion0(i,j,k)
-                ENDDO
+                fion(1,j,k)= fion0(1,j,k)
+                fion(2,j,k)= fion0(2,j,k)
+                fion(3,j,k)= fion0(3,j,k)
              ENDDO
           ENDDO
        ENDIF
@@ -726,30 +727,30 @@ CONTAINS
              skal=SQRT(arg)
              IF (paral%io_parent)&
                   WRITE(6,*)'SKAL',skal,ekinsh
-             DO i=1,3
-                ! scale QM centres only!
-                ! DO J=1,maxsys%nax
-                ! DO K=1,maxsys%nsx
-                DO is=1,mmdim%nspq
-                   DO ia=1,NAq(is)
-                      velp(i,ia,is)= skal*velp(i,ia,is)! rescale velos
-                   ENDDO
+             ! scale QM centres only!
+             ! DO J=1,maxsys%nax
+             ! DO K=1,maxsys%nsx
+             DO is=1,mmdim%nspq
+                DO ia=1,NAq(is)
+                   velp(1,ia,is)= skal*velp(1,ia,is)! rescale velos
+                   velp(2,ia,is)= skal*velp(2,ia,is)! rescale velos
+                   velp(3,ia,is)= skal*velp(3,ia,is)! rescale velos
                 ENDDO
              ENDDO
              IF (jsurf.EQ.2)THEN
-                DO i=1,3
+                DO k=1,maxsys%nsx
                    DO j=1,maxsys%nax
-                      DO k=1,maxsys%nsx
-                         fion(i,j,k)= fion1(i,j,k)
-                      ENDDO
+                      fion(1,j,k)= fion1(1,j,k)
+                      fion(2,j,k)= fion1(2,j,k)
+                      fion(3,j,k)= fion1(3,j,k)
                    ENDDO
                 ENDDO
              ELSE
-                DO i=1,3
+                DO k=1,maxsys%nsx
                    DO j=1,maxsys%nax
-                      DO k=1,maxsys%nsx
-                         fion(i,j,k)= fion0(i,j,k)
-                      ENDDO
+                      fion(1,j,k)= fion0(1,j,k)
+                      fion(2,j,k)= fion0(2,j,k)
+                      fion(3,j,k)= fion0(3,j,k)
                    ENDDO
                 ENDDO
              ENDIF
@@ -759,19 +760,19 @@ CONTAINS
              CALL state_select(tag(sh03%isurf))
              ener_com%etot=e(sh03%isurf)
              IF (sh03%isurf.EQ.2)THEN! isurf=2
-                DO i=1,3
+                DO k=1,maxsys%nsx
                    DO j=1,maxsys%nax
-                      DO k=1,maxsys%nsx
-                         fion(i,j,k)= fion1(i,j,k)
-                      ENDDO
+                      fion(1,j,k)= fion1(1,j,k)
+                      fion(2,j,k)= fion1(2,j,k)
+                      fion(3,j,k)= fion1(3,j,k)
                    ENDDO
                 ENDDO
              ELSE
-                DO i=1,3
+                DO k=1,maxsys%nsx
                    DO j=1,maxsys%nax
-                      DO k=1,maxsys%nsx
-                         fion(i,j,k)= fion0(i,j,k)
-                      ENDDO
+                      fion(1,j,k)= fion0(1,j,k)
+                      fion(2,j,k)= fion0(2,j,k)
+                      fion(3,j,k)= fion0(3,j,k)
                    ENDDO
                 ENDDO
              ENDIF        ! isurf=2
@@ -807,11 +808,13 @@ CONTAINS
           CALL shop_sgrnd
        ENDIF
        ! 
+!$omp parallel do private(kk)
        DO kk=0,n-m-1
           y=IOR(IAND(rng_block%mt(kk),umask),IAND(rng_block%mt(kk+1),lmask))
           rng_block%mt(kk)=IEOR(IEOR(rng_block%mt(kk+m),ISHFT(y,-1)),mag01(IAND(y,1)))
        ENDDO
 
+!$omp parallel do private(kk)
        DO kk=n-m,n-2
           y=IOR(IAND(rng_block%mt(kk),umask),IAND(rng_block%mt(kk+1),lmask))
           rng_block%mt(kk)=IEOR(IEOR(rng_block%mt(kk+(m-n)),ISHFT(y,-1)),mag01(IAND(y,1)))
@@ -922,6 +925,7 @@ CONTAINS
                   WRITE(6,'(1X,A,I12,/)') 'SEEDING RNG WITH SEED:',seed
           ENDIF
           rng_block%mt(0)= IAND(seed,-1)
+!$omp parallel do private(mtitmp)
           DO mtitmp =1, n-1
              ! McB
              mttmp=69069 * rng_block%mt(mtitmp-1)
