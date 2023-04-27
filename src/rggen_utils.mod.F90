@@ -5,6 +5,7 @@ MODULE rggen_utils
   USE cell,                            ONLY: cell_com,&
                                              lcell
   USE cppt,                            ONLY: gk,&
+                                             gk_trans,&
                                              gl,&
                                              hg,&
                                              igl,&
@@ -43,19 +44,12 @@ MODULE rggen_utils
                                              tiset
   USE utils,                           ONLY: numcpus
 
-#ifdef _HASNT_OMP_SET_NESTED
-  !$ USE omp_lib, ONLY: omp_get_dynamic
-#else
   !$ USE omp_lib, ONLY: omp_get_nested, omp_get_dynamic
-#endif
   !$ USE omp_lib, ONLY: omp_get_max_active_levels
 
 #ifndef _HASNT_OMP_45
   !$ USE omp_lib, ONLY: omp_get_proc_bind, omp_get_num_places, omp_get_place_proc_ids
   !$ USE omp_lib, ONLY: omp_get_place_num_procs
-#endif
-#ifdef _INTEL_MKL
-  use mkl_service
 #endif
 
   IMPLICIT NONE
@@ -209,6 +203,9 @@ CONTAINS
     ALLOCATE(gk(3,ncpw%nhg),STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
          __LINE__,__FILE__)
+    ALLOCATE(gk_trans(ncpw%nhg,3),STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+         __LINE__,__FILE__)
     ALLOCATE(igl(ncpw%nhg),STAT=ierr)
     IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
          __LINE__,__FILE__)
@@ -276,9 +273,6 @@ CONTAINS
     CALL gvector
     ! ==--------------------------------------------------------------==
     CALL numcpus(parai%ncpus)
-#if defined(_INTEL_MKL)    
-    call mkl_set_num_threads(parai%ncpus)
-#endif
     CALL print_omp_info( )
 
     ! ==--------------------------------------------------------------==
@@ -316,16 +310,13 @@ CONTAINS
     IF (paral%io_parent) THEN
        WRITE(6,'(/," ",10("OPENMP"),"OPEN")')
        WRITE(6,'(A,T60,I6)') " OMP: NUMBER OF CPUS PER TASK",parai%ncpus
-#ifndef _HASNT_OMP_SET_NESTED
        !$ WRITE(6,'(A,T60,L6)') " OMP: omp_get_nested",omp_get_nested( )
-#endif
        !$ WRITE(6,'(A,T60,L6)') " OMP: omp_get_dynamic",omp_get_dynamic( )
        !$ WRITE(6,'(A,T54,I12)') " OMP: omp_get_max_active_levels",omp_get_max_active_levels( )
     ENDIF
 
 
     CALL mp_get_node_env ( parai%cp_grp, node_numtasks, node_taskid )
-    call mp_max( node_numtasks, parai%cp_grp )
     !>vw get which node is the io node
     CALL mp_get_processor_name ( proc_name )
     IF( paral%io_parent ) node_io_name = proc_name
@@ -387,7 +378,7 @@ CONTAINS
     ! ==--------------------------------------------------------------==
     ! Variables
     INTEGER                                  :: ig, iri1, iri2, iri3, ish, &
-                                                nh1, nh2, nh3
+                                                nh1, nh2, nh3, i
 
 ! ==--------------------------------------------------------------==
 
@@ -395,6 +386,7 @@ CONTAINS
     nh1=spar%nr1s/2+1
     nh2=spar%nr2s/2+1
     nh3=spar%nr3s/2+1
+    !$omp parallel do private(ig, iri1,iri2,iri3)
     DO ig=1,ncpw%nhg
        iri1=inyh(1,ig)-nh1
        iri2=inyh(2,ig)-nh2
@@ -404,6 +396,13 @@ CONTAINS
        gk(3,ig)=iri1*gvec_com%b1(3)+iri2*gvec_com%b2(3)+iri3*gvec_com%b3(3)
        hg(ig)=gk(1,ig)**2+gk(2,ig)**2+gk(3,ig)**2
     ENDDO
+    !$omp parallel do private(i,ig) collapse(2)
+    DO i=1,3
+       DO ig=1, ncpw%nhg
+          gk_trans(ig,i)=gk(i,ig)
+       END DO
+    END DO
+    !$omp parallel do private(ig)
     DO ish=1,ncpw%nhgl
        ig=isptr(ish)
        gl(ish)=hg(ig)

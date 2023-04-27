@@ -78,7 +78,7 @@ CONTAINS
                                                 ierr, ifft, ig, is, is1, &
                                                 ispin1, isub, ix, ix1, ixp, &
                                                 l, lead, leadx, msglen, nl2, &
-                                                nnrx, nsta, i_start, i_end
+                                                nnrx, nsta, nstates(2,1)
     LOGICAL                                  :: tfcal
     REAL(real_8)                             :: coef3, r1, r2, rsum, rsum1, &
                                                 rsum1abs, rsumv, tt
@@ -239,27 +239,27 @@ CONTAINS
     IF (pslo_com%tivan) THEN
        IF (cntl%tlsd) THEN
           ! ALPHA SPIN
-          i_start=1
-          i_end=spin_mod%nsup
-          CALL rhov(i_start,i_end,rsumv,psi)
+          nstates(1,1)=1
+          nstates(2,1)=spin_mod%nsup
+          CALL rhov(nstates,rsumv,psi,.FALSE.,.FALSE.)
           rsum=rsum+parm%omega*rsumv
           !$omp parallel do private(I)
           DO i=1,fpar%nnr1
              rhoe(i,1)=rhoe(i,1)+REAL(psi(i))
           ENDDO
           ! BETA SPIN
-          i_start=spin_mod%nsup+1
-          i_end=spin_mod%nsup+spin_mod%nsdown
-          CALL rhov(i_start,i_end,rsumv,psi)
+          nstates(1,1)=spin_mod%nsup+1
+          nstates(2,1)=spin_mod%nsup+spin_mod%nsdown
+          CALL rhov(nstates,rsumv,psi,.FALSE.,.FALSE.)
           rsum=rsum+parm%omega*rsumv
           !$omp parallel do private(I)
           DO i=1,fpar%nnr1
              rhoe(i,2)=rhoe(i,2)+REAL(psi(i))
           ENDDO
        ELSE
-          i_start=1
-          i_end=nstate
-          CALL rhov(i_start,i_end,rsumv,psi)
+          nstates(1,1)=1
+          nstates(2,1)=nstate
+          CALL rhov(nstates,rsumv,psi,.FALSE.,.FALSE.)
           rsum=rsum+parm%omega*rsumv
           !$omp parallel do private(I)
           DO i=1,fpar%nnr1

@@ -31,6 +31,7 @@ MODULE forces_driver
   USE kinds,                           ONLY: real_8,&
                                              int_8
   USE kpts,                            ONLY: tkpts
+  USE kpnt,                            ONLY: wk
   USE mp_interface,                    ONLY: mp_sum
   USE nlforce_utils,                   ONLY: nlforce
   USE nlps,                            ONLY: imagp
@@ -52,6 +53,7 @@ MODULE forces_driver
   USE reshaper,                        ONLY: reshape_inplace
   USE rgsvan_utils,                    ONLY: rgsvan
   USE rnlfl_utils,                     ONLY: rnlfl
+  use rnlfor_utils,                    ONLY: rnlfor_hfx
   USE rnlsm_utils,                     ONLY: rnlsm
   USE ropt,                            ONLY: ropt_mod
   USE rotate_utils,                    ONLY: rotate,&
@@ -353,7 +355,8 @@ CONTAINS
             IF (paral%io_parent) write(6,*) procedureN,"| starting add_hubbardu"
        ENDIF
        IF (cntl%thubb) CALL add_hubbardu(c2,c2u0,nstate)
-       CALL hfx(c0_ptr(:,:,ik),c2,crge%f(:,1),psi(:,1),nstate,ehfx,vhfx,redist_c2)
+       CALL hfx(c0_ptr(:,:,ik),c2,crge%f(:,1),psi(:,1),nstate,ehfx,vhfx,redist_c2,fion,tfor)
+       
        ! McB    IF (cntl%tfield) CALL EFIELD(TAU0,FION,C0_PTR,C2,SCRDIP,IL_SCRDIP,NSTATE)
        IF (cntl%tfield) THEN
           CALL extfield(tau0,fion,c0_ptr,c2,nstate)
@@ -389,6 +392,7 @@ CONTAINS
              CALL rnlsm(c0_ptr(:,:,ik),nstate,1,ik,tfor,unpack_dfnl_fnl=.FALSE.,&
                   only_dfnl=.TRUE.)
              CALL rnlfl(fion,nstate,nkpoint,fnl_packed,fnlgam_packed,dfnl_packed)
+             IF (func1%mhfx.EQ.1.) call rnlfor_hfx(fion,crge%f,wk,nstate,ik,dfnl_packed)
           END IF
 #ifdef _USE_SCRATCHLIBRARY
           CALL free_scratch(il_fnl_packed,fnlgam_packed,procedureN//'_fnlgam_packed',ierr)

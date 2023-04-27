@@ -647,7 +647,7 @@ CONTAINS
     CALL mp_sum(ener_com%egc,parai%allgrp)
 
     ! Hartree-Fock contribution to energy
-    CALL hfx(c0(:,:,1),c2,crge%f(:,1),psi(:,1),nstate,ehfx,vhfx,.TRUE.)
+    CALL hfx(c0(:,:,1),c2,crge%f(:,1),psi(:,1),nstate,ehfx,vhfx,.TRUE.,fion,tfor)
     ener_com%exc=ener_com%exc-ehfx
     ! If you want to have non-local pp contribution
     ! CALL RNLRH(ENL,NSTATE,NKPTS)

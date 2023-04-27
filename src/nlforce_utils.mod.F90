@@ -109,12 +109,12 @@ CONTAINS
     ! again. so we stop here until somebody fixes it
     ! update ak 2008/05/24: it looks as IF it can be worked around using
     ! oldcode. it seems to be faster, too.
-    IF (pslo_com%tivan.and.cntl%tlsd) THEN
-       IF (.NOT.toldcode)&
-            CALL stopgm(procedureN,'vanderbilt with lsd requires USE of'&
-            // ' "oldcode" flag in &dft section.',&
-            __LINE__,__FILE__)
-    ENDIF
+!    IF (pslo_com%tivan.and.cntl%tlsd) THEN
+!       IF (.NOT.toldcode)&
+!            CALL stopgm(procedureN,'vanderbilt with lsd requires USE of'&
+!            // ' "oldcode" flag in &dft section.',&
+!            __LINE__,__FILE__)
+!    ENDIF
     ! ==--------------------------------------------------------------==
     ALLOCATE(na_grp(2,ions1%nsp,0:parai%cp_nogrp-1), na(2,ions1%nsp), na_fnl(2,ions1%nsp),&
          stat=ierr)
@@ -405,12 +405,12 @@ CONTAINS
     CALL cp_grp_split_atoms(na_grp)
     na(:,:)=na_grp(:,:,parai%cp_inter_me)
 
-    IF (pslo_com%tivan.AND.cntl%tlsd) THEN
-       IF (.NOT.toldcode)&
-            CALL stopgm(procedureN,'VANDERBILT WITH LSD REQUIRES USE OF'&
-            // ' "OLDCODE" FLAG IN &DFT SECTION.',&
-            __LINE__,__FILE__)
-    ENDIF
+!    IF (pslo_com%tivan.AND.cntl%tlsd) THEN
+!       IF (.NOT.toldcode)&
+!            CALL stopgm(procedureN,'VANDERBILT WITH LSD REQUIRES USE OF'&
+!            // ' "OLDCODE" FLAG IN &DFT SECTION.',&
+!            __LINE__,__FILE__)
+!    ENDIF
     ! ==--------------------------------------------------------------==
     isa0=0
     DO is=1,ions1%nsp

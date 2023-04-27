@@ -179,12 +179,12 @@ CONTAINS
 #ifdef __PARALLEL
     INTEGER :: device_idx, i, i_stream, ia, iat, ierr, ir, is, is1, &
       is2, ispin1, ispin2, isub, isub2, isub3, isub4, iwf, n_max_threads, &
-      n_nested_threads, n_streams_per_task, stream_idx, i_start, i_end
+      n_nested_threads, n_streams_per_task, stream_idx, nstates(2,1)
     type(MPI_COMM)                           :: fft_comm
 #else
     INTEGER :: device_idx, fft_comm, i, i_stream, ia, iat, ierr, ir, is, is1, &
       is2, ispin1, ispin2, isub, isub2, isub3, isub4, iwf, n_max_threads, &
-      n_nested_threads, n_streams_per_task, stream_idx, i_start, i_end
+      n_nested_threads, n_streams_per_task, stream_idx, nstates(2,1)
 #endif
     LOGICAL                                  :: copy_data_to_device, &
                                                 copy_data_to_host, tfcal
@@ -536,27 +536,27 @@ CONTAINS
     IF (pslo_com%tivan) THEN
        IF (cntl%tlsd) THEN
           ! ALPHA SPIN
-          i_start=1
-          i_end=spin_mod%nsup
-          CALL rhov(i_start,i_end,rsumv,psi)
+          nstates(1,1)=1
+          nstates(2,1)=spin_mod%nsup
+          CALL rhov(nstates,rsumv,psi,.FALSE.,.FALSE.)
           rsum=rsum+parm%omega*rsumv
           !$omp parallel do private(I)
           DO i=1,fpar%nnr1
              rhoe(i,1)=rhoe(i,1)+REAL(psi(i))
           ENDDO
           ! BETA SPIN
-          i_start=spin_mod%nsup+1
-          i_end=spin_mod%nsup+spin_mod%nsdown
-          CALL rhov(i_start,i_end,rsumv,psi)
+          nstates(1,1)=spin_mod%nsup+1
+          nstates(2,1)=spin_mod%nsup+spin_mod%nsdown
+          CALL rhov(nstates,rsumv,psi,.FALSE.,.FALSE.)
           rsum=rsum+parm%omega*rsumv
           !$omp parallel do private(I)
           DO i=1,fpar%nnr1
              rhoe(i,2)=rhoe(i,2)+REAL(psi(i))
           ENDDO
        ELSE
-          i_start=1
-          i_end=nstate
-          CALL rhov(i_start,i_end,rsumv,psi)
+          nstates(1,1)=1
+          nstates(2,1)=nstate
+          CALL rhov(nstates,rsumv,psi,.FALSE.,.FALSE.)
           rsum=rsum+parm%omega*rsumv
           !$omp parallel do private(I)
           DO i=1,fpar%nnr1
@@ -567,25 +567,6 @@ CONTAINS
        !TK This part here is meaningless, only calculated to print at the very first and very last step
        !VDB Charges are calculated in rhov and newd
        !optimized and parallelized routine: calc_rho
-!       IF (paral%parent) THEN
-!          ALLOCATE(qa(ions1%nat),STAT=ierr)
-!          IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
-!               __LINE__,__FILE__)
-!          CALL zeroing(qa)!,ions1%nat)
-!          CALL augchg(fnl,crge%f,qa,nstate)
-!          iat=0
-!          DO is=1,ions1%nsp
-!             chrg%vdbchg(is)=0._real_8
-!             DO ia=1,ions0%na(is)
-!                iat=iat+1
-!                chrg%vdbchg(is)=chrg%vdbchg(is)+qa(iat)
-!             ENDDO
-!             chrg%vdbchg(is)=chrg%vdbchg(is)/REAL(ions0%na(is),kind=real_8)
-!          ENDDO
-!          DEALLOCATE(qa,STAT=ierr)
-!          IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-!               __LINE__,__FILE__)
-!       ENDIF
     ENDIF
 
     ! ALPHA+BETA DENSITY IN RHOE(*,1), BETA DENSITY IN RHOE(*,2)
@@ -811,7 +792,7 @@ CONTAINS
 
     INTEGER                                  :: i, ierr, ir, is1, is2, iwf, &
                                                 ibatch, isub, isub3, isub4, bsize, &
-                                                first_state, offset_state, i_start, i_end, &
+                                                first_state, offset_state, nstates(2,1), &
                                                 i_start1, i_start2, i_start3,  me_grp, n_grp, &
                                                 nthreads, nested_threads, methread, count, &
                                                 swap,  int_mod, start_loop, end_loop
@@ -1156,27 +1137,27 @@ CONTAINS
     IF (pslo_com%tivan) THEN
        IF (cntl%tlsd) THEN
           ! ALPHA SPIN
-          i_start=1
-          i_end=spin_mod%nsup
-          CALL rhov(i_start,i_end,rsumv,psi)
+          nstates(1,1)=1
+          nstates(2,1)=spin_mod%nsup
+          CALL rhov(nstates,rsumv,psi,.FALSE.,.FALSE.)
           rsum=rsum+parm%omega*rsumv
           !$omp parallel do private(I)
           DO i=1,fpar%nnr1
              rhoe(i,1)=rhoe(i,1)+REAL(psi(i))
           ENDDO
           ! BETA SPIN
-          i_start=spin_mod%nsup+1
-          i_end=spin_mod%nsup+spin_mod%nsdown
-          CALL rhov(i_start,i_end,rsumv,psi)
+          nstates(1,1)=spin_mod%nsup+1
+          nstates(2,1)=spin_mod%nsup+spin_mod%nsdown
+          CALL rhov(nstates,rsumv,psi,.FALSE.,.FALSE.)
           rsum=rsum+parm%omega*rsumv
           !$omp parallel do private(I)
           DO i=1,fpar%nnr1
              rhoe(i,2)=rhoe(i,2)+REAL(psi(i))
           ENDDO
        ELSE
-          i_start=1
-          i_end=nstate
-          CALL rhov(i_start,i_end,rsumv,psi)
+          nstates(1,1)=1
+          nstates(2,1)=nstate
+          CALL rhov(nstates,rsumv,psi,.FALSE.,.FALSE.)
           rsum=rsum+parm%omega*rsumv
           !$omp parallel do private(I)
           DO i=1,fpar%nnr1
@@ -1187,25 +1168,6 @@ CONTAINS
        !TK This part here is meaningless, only calculated to print at the very first and very last step
        !VDB Charges are calculated in rhov and newd
        !optimized and parallelized routine: calc_rho
-!       IF (paral%parent) THEN
-!          ALLOCATE(qa(ions1%nat),STAT=ierr)
-!          IF(ierr/=0) CALL stopgm(procedureN,'allocation problem', &
-!               __LINE__,__FILE__)
-!          CALL zeroing(qa)!,ions1%nat)
-!          CALL augchg(fnl,crge%f,qa,nstate)
-!          iat=0
-!          DO is=1,ions1%nsp
-!             chrg%vdbchg(is)=0._real_8
-!             DO ia=1,ions0%na(is)
-!                iat=iat+1
-!                chrg%vdbchg(is)=chrg%vdbchg(is)+qa(iat)
-!             ENDDO
-!             chrg%vdbchg(is)=chrg%vdbchg(is)/REAL(ions0%na(is),kind=real_8)
-!          ENDDO
-!          DEALLOCATE(qa,STAT=ierr)
-!          IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
-!               __LINE__,__FILE__)
-!       ENDIF
     ENDIF
 
     ! ALPHA+BETA DENSITY IN RHOE(*,1), BETA DENSITY IN RHOE(*,2)

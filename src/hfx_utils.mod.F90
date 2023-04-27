@@ -1,3 +1,5 @@
+#include "cpmd_global.h"
+
 #define PRINT_GROUP_INFOS .FALSE.
 
 MODULE hfx_utils
@@ -16,6 +18,7 @@ MODULE hfx_utils
   USE fftmain_utils,                   ONLY: fwfftn,&
                                              invfftn
   USE fftnew_utils,                    ONLY: setfftn
+  USE fnonloc_utils,                   ONLY: fnonloc_hfx
   USE func,                            ONLY: func1,&
                                              func3
   USE geq0mod,                         ONLY: geq0
@@ -23,6 +26,7 @@ MODULE hfx_utils
                                              hfxc4,&
                                              ipoolhfx,&
                                              wcentx
+  USE ions,                            ONLY: ions1
   USE kinds,                           ONLY: int_8,&
                                              real_8
   USE kpts,                            ONLY: tkpts
@@ -31,6 +35,7 @@ MODULE hfx_utils
   USE mp_interface,                    ONLY: mp_bcast,&
                                              mp_max,&
                                              mp_sum
+  USE newd_utils,                      ONLY: newd
   USE parac,                           ONLY: parai,&
                                              paral
   USE part_1d,                         ONLY: part_1d_elem_to_proc,&
@@ -40,6 +45,7 @@ MODULE hfx_utils
                                              proc_to_grid2d
   USE pbc_utils,                       ONLY: pbc
   USE pslo,                            ONLY: pslo_com
+  USE rhov_utils,                      ONLY: rhov
   USE ropt,                            ONLY: infi,&
                                              infw,&
                                              iteropt
@@ -209,16 +215,19 @@ CONTAINS
   END SUBROUTINE hfx_ace
 ! ==================================================================
 
-  SUBROUTINE hfx_old(c0,c2,f,psia,nstate,ehfx,vhfx)
+  SUBROUTINE hfx_old(c0,c2,f,psia,nstate,ehfx,vhfx,deeq_fnl_hfx,fion,tfor)
     ! ==================================================================
     ! == HARTREE-FOCK EXCHANGE                                        ==
     ! ==--------------------------------------------------------------==
 
-    COMPLEX(real_8)                          :: c0(:,:), c2(:,:)
-    REAL(real_8)                             :: f(:)
-    COMPLEX(real_8)                          :: psia(:)
-    INTEGER                                  :: nstate
-    REAL(real_8)                             :: ehfx, vhfx
+    COMPLEX(real_8),INTENT(INOUT) __CONTIGUOUS :: c2(:,:),c0(:,:)
+    REAL(real_8),INTENT(IN) __CONTIGUOUS       :: f(:)
+    REAL(real_8),INTENT(INOUT) __CONTIGUOUS    :: fion(:,:,:)
+    REAL(real_8),INTENT(inOUT) __CONTIGUOUS      :: deeq_fnl_hfx(:,:,:)
+    COMPLEX(real_8),INTENT(INOUT) __CONTIGUOUS :: psia(:)
+    INTEGER,INTENT(IN)                         :: nstate
+    REAL(real_8),INTENT(OUT)                   :: ehfx, vhfx
+    LOGICAL,INTENT(IN)                         :: tfor
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'hfx_old'
     COMPLEX(real_8), PARAMETER :: zone = (1.0_real_8,0.0_real_8), &
@@ -630,7 +639,7 @@ CONTAINS
                 IF (parai%me.EQ.0)nbr_integrals=nbr_integrals+1
                 pfx=pfl*f(ia)*f(ia)
                 CALL hfxaa(EHFX_loc,GHFX_loc,pfx,psia,vpotg,vpotr,psic,&
-                     C2_hfx(1,ia))
+                     C2_hfx(1,ia),ia,f,deeq_fnl_hfx,fion,tfor)
                 ehfx=ehfx+EHFX_loc
 
                 IF (hfxc3%twscr) THEN
@@ -838,7 +847,8 @@ CONTAINS
                            pfx1,pfx2,psia,&
                            psib(1,ibuf),&
                            vpotg,vpotr,psic,C2_hfx(1,ia),&
-                           C2_hfx(1,jb1),c2_hfx(1,jb2))
+                           C2_hfx(1,jb1),c2_hfx(1,jb2),ia,&
+                           jb1,jb2,f,deeq_fnl_hfx,fion,tfor)
                       EHFX_loc = EHFX_loc_1 + EHFX_loc_2
                       IF (hfxc3%twscr) THEN
                          int_i=MIN(ia,jb1)
@@ -861,7 +871,8 @@ CONTAINS
                       CALL hfxab(EHFX_loc,GHFX_loc,&
                            pfx,psia,psib(1,ibuf),1,&
                            vpotg,vpotr,psic,C2_hfx(1,ia),&
-                           C2_hfx(1,jb1))
+                           C2_hfx(1,jb1),ia,jb1,f,deeq_fnl_hfx,&
+                           fion,tfor)
                       IF (hfxc3%twscr) THEN
                          int_i=MIN(ia,jb1)
                          int_j=MAX(ia,jb1)
@@ -877,7 +888,8 @@ CONTAINS
                       CALL hfxab(EHFX_loc,GHFX_loc,pfx,&
                            psia,psib(1,ibuf),2,&
                            vpotg,vpotr,psic,C2_hfx(1,ia),&
-                           C2_hfx(1,jb2))
+                           C2_hfx(1,jb2),ia,jb2,f,deeq_fnl_hfx,&
+                           fion,tfor)
                       IF (hfxc3%twscr) THEN
                          int_i=MIN(ia,ib2)
                          int_j=MAX(ia,jb2)
@@ -916,7 +928,7 @@ CONTAINS
              CALL invfftn(psia,.TRUE.,parai%allgrp)
              pfx=pfl*f(ia)*f(ia)
              CALL hfxaa(EHFX_loc,GHFX_loc,pfx,psia,vpotg,vpotr,&
-                  psic,C2_hfx(1,ia))
+                  psic,C2_hfx(1,ia),ia,f,deeq_fnl_hfx,fion,tfor)
              ehfx=ehfx+EHFX_loc
           ENDIF
        ENDDO
@@ -957,7 +969,8 @@ CONTAINS
     ! add up the hfx contribution to C2
     ! 
     CALL add_wfn(jgw,nstate,zone,C2_hfx,ncpw%ngw,c2,ncpw%ngw)
-
+    IF(pslo_com%tivan)CALL fnonloc_hfx(c2,nstate)
+    
     IF (hfxc3%twscr) THEN
        CALL mp_sum(acc_vals,SIZE(acc_vals),parai%cp_grp)
        CALL mp_sum(new_vals,SIZE(new_vals),parai%cp_inter_grp)
@@ -1164,19 +1177,24 @@ CONTAINS
 
   ! ==================================================================
   SUBROUTINE hfxab(ehfx,ghfx,pf,psia,psib,iran,vpotg,vpotr,psic,&
-       c2a,c2b)
+       c2a,c2b,ia,ib,f,deeq_fnl_hfx,fion,tfor)
     ! ==================================================================
-    REAL(real_8)                             :: ehfx, ghfx, pf
-    COMPLEX(real_8)                          :: psia(llr1), psib(llr1)
-    INTEGER                                  :: iran
-    COMPLEX(real_8)                          :: vpotg(jhg)
-    REAL(real_8)                             :: vpotr(llr1)
-    COMPLEX(real_8)                          :: psic(:), c2a(jgw), c2b(jgw)
-
+    REAL(real_8),INTENT(OUT)                 :: ehfx, ghfx
+    REAL(real_8),INTENT(IN)                  :: pf
+    COMPLEX(real_8),INTENT(IN)               :: psia(llr1), psib(llr1)
+    INTEGER,INTENT(IN)                       :: iran, ia, ib
+    COMPLEX(real_8),INTENT(OUT)              :: vpotg(jhg)
+    REAL(real_8),INTENT(OUT)                 :: vpotr(llr1)
+    COMPLEX(real_8),INTENT(OUT) __CONTIGUOUS :: psic(:)
+    COMPLEX(real_8),INTENT(INOUT)            :: c2a(jgw), c2b(jgw)
+    REAL(real_8),INTENT(INOUT) __CONTIGUOUS  :: fion(:,:,:)
+    REAL(real_8),INTENT(IN) __CONTIGUOUS     :: f(:)
+    REAL(real_8),INTENT(inOUT) __CONTIGUOUS    :: deeq_fnl_hfx(:,:,:)
+    LOGICAL,INTENT(IN)                       :: tfor
     CHARACTER(*), PARAMETER                  :: procedureN = 'hfxab'
 
-    COMPLEX(real_8)                          :: fm, fp
-    INTEGER                                  :: ig, ir, isub
+    COMPLEX(real_8)                          :: fm, fp, geq0_vpotg
+    INTEGER                                  :: ig, ir, isub, nstates(2,1)
 
     CALL tiset(procedureN,isub)
     ehfx=0.0_real_8
@@ -1194,15 +1212,29 @@ CONTAINS
     ENDIF
     CALL dscal(2*llr1,1._real_8/parm%omega,psic,1)
     CALL fwfftn(psic,.FALSE.,parai%allgrp)
-    !$omp parallel do private(IG) &
+
+    IF(pslo_com%tivan)THEN
+       nstates(1,1)=ia
+       nstates(2,1)=ib
+       CALL rhov(nstates,psi=vpotg,hfx=.TRUE.)
+    ELSE
+       !$omp workshare
+       vpotg=CMPLX(0.0_real_8,0.0_real_8)
+       !$omp end workshare
+    END IF
+    IF(geq0)geq0_vpotg=vpotg(1)
+
+    !$omp parallel do private(IG,FP) &
     !$omp  reduction(+:EHFX)
     DO ig=1,jhg
-       vpotg(ig)=-pf*scgx(ig)*psic(nzff(ig))
-       ehfx=ehfx+REAL(4._real_8*vpotg(ig)*CONJG(psic(nzff(ig))))
+       fp=psic(nzff(ig))+vpotg(ig)
+       vpotg(ig)=-pf*scgx(ig)*fp
+       ehfx=ehfx+REAL(4._real_8*vpotg(ig)*CONJG(fp))
     ENDDO
-    IF (geq0) ehfx=ehfx-REAL(2._real_8*vpotg(1)*CONJG(psic(nzff(1))))
+    IF(geq0) ehfx=ehfx-REAL(2._real_8*vpotg(1)*CONJG(psic(nzff(1))+geq0_vpotg))
+    IF(pslo_com%tivan)CALL newd(deeq_fnl_hfx,f,vpotg,fion,tfor,nstates,.TRUE.)
+
     CALL zeroing(psic)!,maxfftn)
-    !ocl novrec
     !$omp parallel do private(IG)
     DO ig=1,jhg
        psic(nzff(ig))=vpotg(ig)
@@ -1242,20 +1274,26 @@ CONTAINS
   END SUBROUTINE hfxab
   ! ==================================================================
   SUBROUTINE hfxab2(ehfx_1,ehfx_2,ghfx_1,ghfx_2,pf1,pf2,psia,psib,&
-       vpotg,vpotr,psic,c2a,c2b1,c2b2)
+       vpotg,vpotr,psic,c2a,c2b1,c2b2,ia,ib1,ib2,f,deeq_fnl_hfx,fion,tfor)
     ! ==================================================================
-    REAL(real_8)                             :: ehfx_1, ehfx_2, ghfx_1, &
-                                                ghfx_2, pf1, pf2
-    COMPLEX(real_8)                          :: psia(llr1), psib(llr1), &
-                                                vpotg(jhg,2)
-    REAL(real_8)                             :: vpotr(llr1,2)
-    COMPLEX(real_8)                          :: psic(:), c2a(jgw), c2b1(jgw), &
-                                                c2b2(jgw)
+    REAL(real_8),INTENT(OUT)                 :: ehfx_1, ehfx_2, ghfx_1, &
+                                                ghfx_2
+    REAL(real_8),INTENT(IN)                  :: pf1, pf2
+    COMPLEX(real_8),INTENT(IN)               :: psia(llr1), psib(llr1)
+    COMPLEX(real_8),INTENT(OUT)              :: vpotg(jhg,2)
+    REAL(real_8),INTENT(OUT)                 :: vpotr(llr1,2)
+    COMPLEX(real_8),INTENT(OUT) __CONTIGUOUS :: psic(:)
+    COMPLEX(real_8),INTENT(INOUT)            :: c2a(jgw), c2b1(jgw), c2b2(jgw)
+    INTEGER,INTENT(IN)                       :: ia,ib1,ib2
+    REAL(real_8),INTENT(INOUT) __CONTIGUOUS  :: fion(:,:,:)
+    REAL(real_8),INTENT(IN) __CONTIGUOUS     :: f(:)
+    REAL(real_8),INTENT(inOUT) __CONTIGUOUS    :: deeq_fnl_hfx(:,:,:)
+    LOGICAL,INTENT(IN)                       :: tfor
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'hfxab2'
 
-    COMPLEX(real_8)                          :: fm, fp
-    INTEGER                                  :: ig, ir, isub
+    COMPLEX(real_8)                          :: fm, fp, geq0_vpotg1, geq0_vpotg2, vp1, vp2
+    INTEGER                                  :: ig, ir, isub, nstates(2,2)
 
     CALL tiset(procedureN,isub)
     ehfx_1=0.0_real_8
@@ -1267,24 +1305,44 @@ CONTAINS
     ENDDO
     CALL dscal(2*llr1,1._real_8/parm%omega,psic,1)
     CALL fwfftn(psic,.FALSE.,parai%allgrp)
-    !$omp parallel do private(IG,FP,FM) &
+    IF(pslo_com%tivan) THEN
+       nstates(1,1)=ia
+       nstates(2,1)=ib1
+       nstates(1,2)=ia
+       nstates(2,2)=ib2
+       CALL rhov(nstates,psi=vpotg,hfx=.TRUE.)
+    ELSE
+       !$omp workshare
+       vpotg(:,:)=cmplx(0.0_real_8,0.0_real_8)
+       !$omp end workshare
+    END IF
+    IF(geq0)then
+       geq0_vpotg1=vpotg(1,1)
+       geq0_vpotg2=vpotg(1,2)
+    END IF
+
+    !$omp parallel do private(IG,FP,FM,vp1,vp2) &
     !$omp  reduction(+:EHFX_1,EHFX_2)
     DO ig=1,jhg
        fp=psic(nzff(ig))+psic(inzf(ig))
        fm=psic(nzff(ig))-psic(inzf(ig))
-       vpotg(ig,1)=-pf1*scgx(ig)*0.5_real_8*CMPLX(REAL(fp),AIMAG(fm),kind=real_8)
-       vpotg(ig,2)=-pf2*scgx(ig)*0.5_real_8*CMPLX(AIMAG(fp),-REAL(fm),kind=real_8)
-       ehfx_1=ehfx_1+REAL(2._real_8*vpotg(ig,1)*CMPLX(REAL(fp),-AIMAG(fm),kind=real_8))
-       ehfx_2=ehfx_2+REAL(2._real_8*vpotg(ig,2)*CMPLX(AIMAG(fp),REAL(fm),kind=real_8))
+       vp1=vpotg(ig,1)
+       vp2=vpotg(ig,2)
+       vpotg(ig,1)=-pf1*scgx(ig)*(0.5_real_8*CMPLX(REAL(fp),AIMAG(fm),kind=real_8)+vp1)
+       vpotg(ig,2)=-pf2*scgx(ig)*(0.5_real_8*CMPLX(AIMAG(fp),-REAL(fm),kind=real_8)+vp2)
+       ehfx_1=ehfx_1+REAL(2._real_8*vpotg(ig,1)*(CMPLX(REAL(fp),-AIMAG(fm),kind=real_8)&
+            +CONJG(vp1)*2.0_real_8))
+       ehfx_2=ehfx_2+REAL(2._real_8*vpotg(ig,2)*(CMPLX(AIMAG(fp),REAL(fm),kind=real_8)&
+            +CONJG(vp2)*2.0_real_8))
     ENDDO
     IF (geq0) THEN
-       fp=psic(nzff(1))+psic(inzf(1))
-       fm=psic(nzff(1))-psic(inzf(1))
+       fp=psic(nzff(1))+psic(inzf(1))+geq0_vpotg1
+       fm=psic(nzff(1))-psic(inzf(1))+geq0_vpotg2
        ehfx_1=ehfx_1-REAL(vpotg(1,1)*CMPLX(REAL(fp),-AIMAG(fm),kind=real_8))
        ehfx_2=ehfx_2-REAL(vpotg(1,2)*CMPLX(AIMAG(fp),REAL(fm),kind=real_8))
     ENDIF
+    IF(pslo_com%tivan)CALL newd(deeq_fnl_hfx,f,vpotg,fion,tfor,nstates,.TRUE.)
     CALL zeroing(psic)!,maxfftn)
-    !ocl novrec
     !$omp parallel do private(IG)
     DO ig=1,jhg
        psic(nzff(ig))=vpotg(ig,1)+uimag*vpotg(ig,2)
@@ -1332,17 +1390,25 @@ CONTAINS
     RETURN
   END SUBROUTINE hfxab2
   ! ==================================================================
-  SUBROUTINE hfxaa(ehfx,ghfx,pf,psia,vpotg,vpotr,psic,c2a)
+  SUBROUTINE hfxaa(ehfx,ghfx,pf,psia,vpotg,vpotr,psic,c2a,ia,f,deeq_fnl_hfx,fion,tfor)
     ! ==================================================================
-    REAL(real_8)                             :: ehfx, ghfx, pf
-    COMPLEX(real_8)                          :: psia(:), vpotg(*)
+    REAL(real_8),INTENT(OUT)                 :: ehfx, ghfx
+    REAL(real_8),INTENT(IN)                  :: pf
+    COMPLEX(real_8),INTENT(IN) __CONTIGUOUS  :: psia(:)
+    COMPLEX(real_8),INTENT(OUT)              :: vpotg(jhg)
     REAL(real_8)                             :: vpotr(*)
-    COMPLEX(real_8)                          :: psic(:), c2a(*)
+    REAL(real_8),INTENT(INOUT) __CONTIGUOUS  :: fion(:,:,:)
+    REAL(real_8),INTENT(IN) __CONTIGUOUS     :: f(:)
+    REAL(real_8),INTENT(inOUT) __CONTIGUOUS    :: deeq_fnl_hfx(:,:,:)
+    INTEGER,INTENT(IN)                       :: ia
+    LOGICAL,INTENT(IN)                       :: tfor
+    COMPLEX(real_8),INTENT(OUT) __CONTIGUOUS :: psic(:)
+    COMPLEX(real_8),INTENT(INOUT)            :: c2a(*)
 
     CHARACTER(*), PARAMETER                  :: procedureN = 'hfxaa'
 
-    COMPLEX(real_8)                          :: fm, fp
-    INTEGER                                  :: ig, ir, isub
+    COMPLEX(real_8)                          :: fm, fp, geq0_vpotg
+    INTEGER                                  :: ig, ir, isub, nstates(2,1)
 
     CALL tiset(procedureN,isub)
     ehfx=0.0_real_8
@@ -1353,16 +1419,27 @@ CONTAINS
     ENDDO
     CALL dscal(2*llr1,1._real_8/parm%omega,psic,1)
     CALL fwfftn(psic,.FALSE.,parai%allgrp)
+
+    IF(pslo_com%tivan)THEN
+       nstates(1,1)=ia
+       nstates(2,1)=ia
+       CALL rhov(nstates,psi=vpotg,hfx=.TRUE.)
+    ELSE
+       !$omp workshare
+       vpotg=CMPLX(0.0_real_8,0.0_real_8)
+       !$omp end workshare
+    END IF
+    IF(geq0) geq0_vpotg=vpotg(1)
     !$omp parallel do private(IG,FP) &
     !$omp  reduction(+:EHFX)
     DO ig=1,jhg
-       fp=psic(nzff(ig))
+       fp=psic(nzff(ig))+vpotg(ig)
        vpotg(ig)=-pf*scgx(ig)*fp
        ehfx=ehfx+REAL(2._real_8*vpotg(ig)*CONJG(fp))
     ENDDO
-    IF (geq0) ehfx=ehfx-REAL(vpotg(1)*CONJG(psic(nzff(1))))
+    IF(geq0) ehfx=ehfx-REAL(vpotg(1)*CONJG(psic(nzff(1))+geq0_vpotg))
+    IF(pslo_com%tivan) CALL newd(deeq_fnl_hfx,f,vpotg,fion,tfor,nstates,.TRUE.)
     CALL zeroing(psic)!,maxfftn)
-    !ocl novrec
     !$omp parallel do private(IG)
     DO ig=1,jhg
        psic(nzff(ig))=vpotg(ig)
@@ -1811,7 +1888,7 @@ CONTAINS
 
 !   ==================================================================
 !   ==================================================================
-    SUBROUTINE HFX_SCDM(C0,C2,F,PSIA,NSTATE,EHFX,VHFX,redist_c2)
+    SUBROUTINE HFX_SCDM(C0,C2,F,PSIA,NSTATE,EHFX,VHFX,redist_c2,deeq_fnl_hfx,fion,tfor)
 !   ==================================================================
 !   == HARTREE-FOCK EXCHANGE                                        ==
 !   ==--------------------------------------------------------------==
@@ -1822,6 +1899,9 @@ CONTAINS
     INTEGER                                  :: nstate
     REAL(real_8)                             :: ehfx, vhfx
     LOGICAL                                  :: redist_c2
+    REAL(real_8),INTENT(INOUT) __CONTIGUOUS  :: fion(:,:,:)
+    REAL(real_8),INTENT(inOUT) __CONTIGUOUS    :: deeq_fnl_hfx(:,:,:)
+    LOGICAL,INTENT(IN)                       :: tfor
 !============================================================
 !     Variables
 !------------------------------------------------------------
@@ -2082,7 +2162,7 @@ CONTAINS
                 IF (parai%me.EQ.0)nbr_integrals=nbr_integrals+1
                 pfx=pfl*f(ia)*f(ia)
                 CALL hfxaa(EHFX_loc,GHFX_loc,pfx,psia,vpotg,vpotr,psic,&
-                     C2_hfx(1,ia))
+                     C2_hfx(1,ia),ia,f,deeq_fnl_hfx,fion,tfor)
                 ehfx=ehfx+EHFX_loc
              ENDIF
 !C     Now for the other terms IA-IB
@@ -2253,7 +2333,8 @@ CONTAINS
                         PFX1,PFX2,PSIA, &
                         PSIB(1,ibuf), &
                         VPOTG,VPOTR,PSIC,C2_hfx(1,IA), &
-                        C2_hfx(1,JB1),C2_hfx(1,JB2)) 
+                        C2_hfx(1,JB1),C2_hfx(1,JB2),&
+                        ia,jb1,jb2,f,deeq_fnl_hfx,fion,tfor) 
                     EHFX_loc = EHFX_loc_1 + EHFX_loc_2
                  ELSEIF(JB1.NE.0 .AND. JB2.EQ.0) THEN
 !C     Terms IA*IB1
@@ -2262,7 +2343,8 @@ CONTAINS
                     CALL HFXAB(EHFX_loc,GHFX_loc, &
                         PFX,PSIA,PSIB(1,ibuf),1, &
                         VPOTG,VPOTR,PSIC,C2_hfx(1,IA), &
-                        C2_hfx(1,JB1)) 
+                        C2_hfx(1,JB1),ia,jb1,f,deeq_fnl_hfx,&
+                        fion,tfor) 
                  ELSEIF(JB1.EQ.0 .AND. JB2.NE.0) THEN
 !C     Terms IA*IB2
                     nbr_integrals=nbr_integrals+1
@@ -2270,7 +2352,8 @@ CONTAINS
                     CALL HFXAB(EHFX_loc,GHFX_loc,PFX, &
                         PSIA,PSIB(1,ibuf),2, &
                         VPOTG,VPOTR,PSIC,C2_hfx(1,IA), &
-                        C2_hfx(1,JB2))
+                        C2_hfx(1,JB2),ia,jb2,f,deeq_fnl_hfx,&
+                        fion,tfor)
                  ENDIF
                  EHFX=EHFX+EHFX_loc
 
@@ -2321,7 +2404,7 @@ CONTAINS
                CALL invfftn(psia,.TRUE.,parai%allgrp)
                PFX=PFL*F(IA)*F(IA)
                CALL HFXAA(EHFX_loc,GHFX_loc,PFX,PSIA,VPOTG,VPOTR, &
-                    PSIC,C2_hfx(1,IA))
+                    PSIC,C2_hfx(1,IA),ia,f,deeq_fnl_hfx,fion,tfor)
                EHFX=EHFX+EHFX_loc
             ENDIF
          ENDDO

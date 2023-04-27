@@ -12,6 +12,7 @@ MODULE phfac_utils
                                              eikr,&
                                              rk
   USE kpts,                            ONLY: tkpts
+  USE mp_interface,                    ONLY: mp_sum
   !$ USE omp_lib,                         ONLY: omp_get_thread_num
   USE parac,                           ONLY: paral, &
                                              parai
@@ -21,6 +22,7 @@ MODULE phfac_utils
                                              ei3,&
                                              eigr,&
                                              eigrb,&
+                                             eigrb_dipole,&
                                              natx
   USE system,                          ONLY: cntl,&
                                              iatpt,&
@@ -42,10 +44,42 @@ MODULE phfac_utils
   PRIVATE
 
   PUBLIC :: phfac
+  PUBLIC :: phfac_dipole
   PUBLIC :: calc_eigkr
 
 CONTAINS
 
+  SUBROUTINE phfac_dipole(aug_ind,aug_cntrl,wanncwwei)
+    ! ==--------------------------------------------------------------==
+    ! ==  CALCULATION OF ARRAY EIGRB_DIPOLE                           ==
+    ! ==--------------------------------------------------------------==
+    CHARACTER(*), PARAMETER                  :: procedureN = 'phfac_dipole'
+
+    INTEGER, INTENT(IN)                      :: aug_ind(6)
+    LOGICAL, INTENT(IN)                      :: aug_cntrl(6)
+    REAL(real_8), INTENT(IN) __CONTIGUOUS    :: wanncwwei(:)
+    INTEGER                                  :: isub, k, ierr
+    CALL tiset(procedureN,isub)
+    IF(cntl%bigmem)THEN
+       IF(.NOT. ALLOCATED(eigrb_dipole))THEN
+          ALLOCATE(eigrb_dipole(6,ions1%nat),STAT=ierr)
+          IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+               __LINE__,__FILE__)
+       END IF
+       eigrb_dipole=cmplx(0.0_real_8,0.0_real_8)
+       !$omp parallel do private(k)
+       DO k=1, 6
+          IF ((wanncwwei(k) > 0 .OR. wanncwwei(k) < 0) .AND. aug_cntrl(k)) THEN
+             eigrb_dipole(k,:)=eigrb(aug_ind(k),:)
+          ENDIF
+       END DO
+       CALL mp_sum(eigrb_dipole,6*ions1%nat,parai%allgrp)
+    END IF
+    CALL tihalt(procedureN,isub)
+    RETURN
+    
+  END SUBROUTINE phfac_dipole
+  
   ! ==================================================================
   SUBROUTINE phfac(tau0)
     ! ==--------------------------------------------------------------==
