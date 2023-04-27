@@ -14,6 +14,8 @@ MODULE benc
   ! == IBENCH(4)  : 0  default, do not print detailed FFT tuning    ==
   ! ==                 timings                                      ==
   ! ==              1  print detailed FFT tuning timings            ==
+  ! == IBENCH(5)  : 0  default, do not print scratchlib usage       ==
+  ! ==              1  print scrtachlib usage                       ==
   ! ==                                                              ==
   ! ==================================================================
   INTEGER, PARAMETER ::   nbentr=10

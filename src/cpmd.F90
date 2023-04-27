@@ -21,6 +21,7 @@ END PROGRAM cpmd_stuttgart
 ! ==================================================================
 SUBROUTINE cpmd
   ! ==--------------------------------------------------------------==
+  USE benc, ONLY: ibench
   USE kinds, ONLY: real_4, real_8, int_1, int_2, int_4, int_8
   USE error_handling, ONLY: stopgm
   USE timer, ONLY: tiset, tihalt, tilimex, tipri, tistart, ttimp
@@ -421,7 +422,7 @@ SUBROUTINE cpmd
     
 #ifdef _USE_SCRATCHLIBRARY
   CALL finalize_memory_pool( len, ierr )
-  write( *, * ) 'allocated memory pool:', len
+  IF(ibench(5).EQ.1)  write( 6, * ) 'rank',parai%me,'allocated memory pool:', len
 #endif
   CALL finalize_cp_grp() 
   CALL mp_end()
