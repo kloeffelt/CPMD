@@ -1938,7 +1938,8 @@ SUBROUTINE extrapwf(infi,c0,gam,cold,nnow,numcold,nstate,m,scold,only_save)
   
   LOGICAL, INTENT(IN), OPTIONAL              :: only_save
   logical                                    :: save
-  INTEGER                                    :: i, ik, isub, ma, n1, nm, nnow_save, ig
+  INTEGER                                    :: i, ik, isub, ma, n1, nm, nnow_save, ig, &
+                                                nstates(2,1)
   REAL(real_8)                               :: fa, rsum, scalef, rsumv
   REAL(real_8), EXTERNAL                     :: ddot
   CHARACTER(*), PARAMETER                    :: procedureN = 'extrapwf'
@@ -2018,7 +2019,9 @@ SUBROUTINE extrapwf(infi,c0,gam,cold,nnow,numcold,nstate,m,scold,only_save)
         ENDDO
         IF(pslo_com%tivan)THEN
            CALL rnlsm(c0(:,:,1),nstate,1,1,.FALSE.,unpack_dfnl_fnl=.FALSE.)
-           CALL rhov(1,nstate,rsumv)
+           nstates(1,1)=1
+           nstates(2,1)=nstate
+           CALL rhov(nstates,rsumv,hfx=.FALSE.,dipole=.FALSE.)
            rsum=rsum+rsumv
         END IF
      ENDIF

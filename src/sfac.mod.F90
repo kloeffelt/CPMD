@@ -31,7 +31,8 @@ MODULE sfac
   ! (:,:,1) because EIGR is used only if NKPNT=1. in K-points EIGKR is used instead 
   COMPLEX(real_8), ALLOCATABLE, TARGET :: eigr(:,:,:)
 
-  COMPLEX(real_8), ALLOCATABLE :: eigrb(:,:)
+  COMPLEX(real_8), ALLOCATABLE, TARGET :: eigrb(:,:)
+  COMPLEX(real_8), ALLOCATABLE, TARGET :: eigrb_dipole(:,:)
 
   LOGICAL :: tfnl2
   INTEGER :: ldf1,ldf2

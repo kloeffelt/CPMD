@@ -6,7 +6,8 @@ MODULE vdbinit_utils
   USE cvan,                            ONLY: dvan,&
                                              nelev,&
                                              qq,&
-                                             qg
+                                             qg,&
+                                             qg_dipole
   USE error_handling,                  ONLY: stopgm
   USE fitpack_utils,                   ONLY: curv1,&
                                              curv2
@@ -54,6 +55,7 @@ MODULE vdbinit_utils
   PUBLIC :: vdbinit
   PUBLIC :: qinit
   PUBLIC :: qvan2_init
+  PUBLIC :: qvan2_init_dipole
 CONTAINS
 
   ! ==================================================================
@@ -367,5 +369,50 @@ CONTAINS
     CALL tihalt(procedureN,isub)
     RETURN
   END SUBROUTINE qvan2_init
+  ! ==================================================================
+  ! ==================================================================
+  SUBROUTINE qvan2_init_dipole(aug_ind,aug_cntrl,wanncwwei)
+    ! ==--------------------------------------------------------------==
+    ! ==  CALCULATION OF ARRAY QG_dipole SAVE ONLY FOR BIGMEM         ==
+    ! ==--------------------------------------------------------------==
+    CHARACTER(*), PARAMETER                  :: procedureN = 'qvan2_init_dipole'
+
+    INTEGER, INTENT(IN)          :: aug_ind(6)
+    LOGICAL, INTENT(IN)          :: aug_cntrl(6)
+    REAL(real_8), INTENT(IN)     :: wanncwwei(:)
+
+    INTEGER                                  :: ierr, is, isub, iv, &
+                                                jv, nhh,k
+
+    CALL tiset(procedureN,isub)
+    IF(cntl%bigmem)THEN
+       nhh=0
+       DO is=1,ions1%nsp
+          IF(pslo_com%tvan(is))nhh=nhh+nlps_com%ngh(is)*(nlps_com%ngh(is)+1)/2
+       END DO
+       ALLOCATE(qg_dipole(6,nhh),STAT=ierr)
+       IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
+            __LINE__,__FILE__)
+       qg_dipole=cmplx(0.0_real_8,0.0_real_8)
+       nhh=0
+       DO is=1,ions1%nsp
+          IF(pslo_com%tvan(is))THEN
+             DO iv=1,nlps_com%ngh(is)
+                DO jv=iv,nlps_com%ngh(is)
+                   nhh=nhh+1
+                   DO k=1, 6
+                      IF ((wanncwwei(k) > 0 .OR. wanncwwei(k) < 0) .AND. aug_cntrl(k)) THEN
+                         qg_dipole(k,nhh)=qg(aug_ind(k),nhh)
+                      ENDIF
+                   ENDDO
+                END DO
+             END DO
+          END IF
+       END DO
+       CALL mp_sum(qg_dipole,6*nhh,parai%allgrp)
+    END IF
+    CALL tihalt(procedureN,isub)
+    RETURN
+  END SUBROUTINE qvan2_init_dipole
   ! ==================================================================
 END MODULE vdbinit_utils

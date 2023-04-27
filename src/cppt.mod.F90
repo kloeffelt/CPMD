@@ -44,6 +44,7 @@ MODULE cppt
   ! ==--------------------------------------------------------------==
   REAL(real_8), ALLOCATABLE :: hg(:)
   REAL(real_8), ALLOCATABLE :: gk(:,:)
+  REAL(real_8), ALLOCATABLE :: gk_trans(:,:)
   REAL(real_8), ALLOCATABLE :: gl(:)
   REAL(real_8), ALLOCATABLE :: vps(:,:)
   REAL(real_8), ALLOCATABLE :: rhops(:,:)

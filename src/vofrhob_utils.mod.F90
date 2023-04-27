@@ -97,7 +97,7 @@ CONTAINS
 
     COMPLEX(real_8), POINTER                 :: dqg_1d(:)
     INTEGER                                  :: ierr, ig, ir, isub, kk, nnrs, &
-                                                i_start, i_end
+                                                nstates(2,1)
     INTEGER(int_8)                           :: il_grad(2), il_rhoval(2), il_rvtmp(2),&
                                                 il_vpt1(1), il_vpt2(1), il_vtmp(2)
     LOGICAL                                  :: debug
@@ -507,16 +507,16 @@ CONTAINS
        ! == FORCE ON IONS DUE TO THE "VANDERBILT CHARGE"                 ==
        ! ==--------------------------------------------------------------==
        IF (cntl%tlsd) THEN
-          i_start=1
-          i_end=spin_mod%nsup
-          CALL newd(i_start,i_end,deeq(:,:,:,1),crge%f,vtemp(:,1),fion,tfor)
-          i_start=spin_mod%nsup+1
-          i_end=spin_mod%nsup+spin_mod%nsdown
-          CALL newd(i_start,i_end,deeq(:,:,:,2),crge%f,vtemp(:,2),fion,tfor)
+          nstates(1,1)=1
+          nstates(2,1)=spin_mod%nsup
+          CALL newd(deeq(:,:,:,1),crge%f,vtemp(:,1),fion,tfor,nstates,.FALSE.)
+          nstates(1,1)=spin_mod%nsup+1
+          nstates(2,1)=spin_mod%nsup+spin_mod%nsdown
+          CALL newd(deeq(:,:,:,2),crge%f,vtemp(:,2),fion,tfor,nstates,.FALSE.)
        ELSE
-          i_start=1
-          i_end=crge%n
-          CALL newd(i_start,i_end,deeq,crge%f,vtemp,fion,tfor)
+          nstates(1,1)=1
+          nstates(2,1)=crge%n
+          CALL newd(deeq(:,:,:,1),crge%f,vtemp,fion,tfor,nstates,.FALSE.)
        ENDIF
     ENDIF
     ! ==--------------------------------------------------------------==
