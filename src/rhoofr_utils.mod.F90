@@ -921,10 +921,26 @@ CONTAINS
     IF(ierr/=0) CALL stopgm(procedureN,'cannot allocate yf', &
          __LINE__,__FILE__)
 #else
-    IF(.NOT.rsactive.OR..NOT.ALLOCATED(wfn_r))THEN
+    IF(ALLOCATED(wfn_r))THEN
+       IF(SIZE(wfn_r,1).LT.il_wfnr(1).OR.SIZE(wfn_r,2).LT.il_wfnr(2))THEN
+          DEALLOCATE(wfn_r,STAT=ierr)
+          IF(ierr/=0) CALL stopgm(procedureN,'cannot deallocate wfn_r', &
+               __LINE__,__FILE__)
+       END IF
+    END IF
+    IF(.NOT.ALLOCATED(wfn_r))THEN
        ALLOCATE(wfn_r(il_wfnr(1),il_wfnr(2)),STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'cannot allocate wfn_r', &
             __LINE__,__FILE__)
+    END IF
+    IF(ALLOCATED(wfn_g))THEN
+       IF(SIZE(wfn_g,1).LT.il_wfng(1).OR.SIZE(wfn_g,2).LT.il_wfng(2))THEN
+          DEALLOCATE(wfn_g,STAT=ierr)
+          IF(ierr/=0) CALL stopgm(procedureN,'cannot deallocate wfn_g', &
+               __LINE__,__FILE__)
+       END IF
+    END IF
+    IF(.NOT.ALLOCATED(wfn_g))THEN
        ALLOCATE(wfn_g(il_wfng(1),il_wfng(2)),STAT=ierr)
        IF(ierr/=0) CALL stopgm(procedureN,'cannot allocate wfn_g', &
             __LINE__,__FILE__)
@@ -1110,11 +1126,9 @@ CONTAINS
     IF(ierr/=0) CALL stopgm(procedureN,'cannot deallocate xf', &
          __LINE__,__FILE__)
     CALL free_scratch(il_wfng,wfn_g,'wfn_g',ierr)
-#else
-    DEALLOCATE(wfn_g,STAT=ierr)
-#endif
     IF(ierr/=0) CALL stopgm(procedureN,'cannot deallocate wfn_g', &
          __LINE__,__FILE__)
+#endif
 
     IF(.NOT.rsactive) THEN
 #ifdef _USE_SCRATCHLIBRARY
