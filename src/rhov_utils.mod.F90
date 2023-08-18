@@ -174,7 +174,7 @@ CONTAINS
        CALL prep_smallmem_rhov(nstates_local,ig_start,nhg_loc,na,deltar_ptr,fnl_packed)
     ENDIF
 
-    IF(.NOT.do_hfx.AND..NOT.do_dipole)THEN
+    IF(.NOT.do_hfx.OR..NOT.do_dipole)THEN
        IF (parai%cp_nogrp.GT.1) THEN
           CALL TISET(procedureN//'_grpsb',isub1)
           CALL cp_grp_redist_array(deltar(:,1),ncpw%nhg)
@@ -365,7 +365,7 @@ CONTAINS
     
     COMPLEX(real_8), POINTER __CONTIGUOUS    :: eigrb_ptr(:,:), qg_ptr(:,:)
     INTEGER                                  :: methread, istart, qgstart, iblock, num_pairs, &
-                                                loc_block, my_start, my_end, my_size
+                                                loc_block, my_start, my_end, my_size,ierr
 
     num_pairs=SIZE(nst,2)
     IF(do_dipole)THEN
@@ -387,7 +387,7 @@ CONTAINS
        END IF
     ELSE
        CALL calc_rho(nst(1,1),nst(2,1),ngh,ia_fnl,offset_fnl0,num_orb,offset_ylm,ia_sum,dia,&
-            fnlt(:,:,methread),f,fnl_p)
+            fnlt(1,1,methread),f,fnl_p)
     END IF
     !$omp end parallel
     IF(.NOT.do_hfx.AND..NOT.do_dipole) CALL mp_sum(dia,nhh*ia_sum,parai%cp_grp)
@@ -406,11 +406,12 @@ CONTAINS
        IF(methread.EQ.parai%ncpus)my_end=blocksize+istart-1
        my_size=my_end-my_start+1
 
-       CALL rho_evaluate(my_size,my_start,ia_sum,nhh,dia,ctmp(:,methread),&
-            deltar,eigrb_ptr(:,isa0:),qg_ptr(:,nhh0:),num_pairs)
+       IF(my_size.GT.0)THEN
+          CALL rho_evaluate(my_size,my_start,ia_sum,nhh,dia,ctmp(:,methread),&
+               deltar,eigrb_ptr(:,isa0:),qg_ptr(:,nhh0:),num_pairs)
+       END IF
        qgstart=qgstart+blocksize
        istart=istart+blocksize
-
     END DO
     IF(last_block.gt.0)THEN
        loc_block=CEILING(REAL(last_block,real_8)/REAL(parai%ncpus,real_8))
@@ -419,9 +420,10 @@ CONTAINS
        IF(my_end.GE.istart+last_block-1)my_end=0
        IF(methread.EQ.parai%ncpus)my_end=last_block+istart-1
        my_size=my_end-my_start+1
-
-       CALL rho_evaluate(my_size,my_start,ia_sum,nhh,dia,ctmp(:,methread),&
-            deltar,eigrb_ptr(:,isa0:),qg_ptr(:,nhh0:),num_pairs)
+       IF(my_size.GT.0)THEN
+          CALL rho_evaluate(my_size,my_start,ia_sum,nhh,dia,ctmp(:,methread),&
+               deltar,eigrb_ptr(:,isa0:),qg_ptr(:,nhh0:),num_pairs)
+       END IF
     END IF
     !$omp end parallel
   END SUBROUTINE evaluate_bigmem_rhov
