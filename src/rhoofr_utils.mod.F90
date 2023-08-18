@@ -1099,7 +1099,7 @@ CONTAINS
     !$    CALL dfftw_plan_with_nthreads(parai%ncpus)
 #ifdef _INTEL_MKL
     !$    CALL mkl_set_dynamic(1)
-    !$    ierr = mkl_set_num_threads_local(parai%ncpus)
+    !$    ierr = mkl_set_num_threads_local(0)
 #endif
     !$ END IF
 
