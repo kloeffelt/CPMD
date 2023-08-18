@@ -221,7 +221,7 @@ CONTAINS
        END IF
     END DO
     il_qg1(1)=ceiling(real(blocksize,real_8)/real(parai%ncpus,real_8)) &
-         *il_ylm(1)*num_pot
+         *((maxsys%nhxs*(maxsys%nhxs+1))/2)*num_pot
     if(tfor)il_qg1(1)=il_qg1(1)*4
     il_qg1(1)=(((il_qg1(1) * 8 + 511) / 512) * 512 + 64) / 8
     il_qg1(2)=parai%ncpus
@@ -251,14 +251,14 @@ CONTAINS
 #ifdef _USE_SCRATCHLIBRARY
     CALL request_scratch(il_fnlt,fnlt,procedureN//'_fnlt',ierr)
 #else
-    ALLOCATE(fnlt(il_fnlt(1),il_fnlt(2),il_fnlt(3)), stat=ierr)
+    ALLOCATE(fnlt(il_fnlt(1),il_fnlt(2)), stat=ierr)
 #endif
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate fnlt',&
          __LINE__,__FILE__)
 #ifdef _USE_SCRATCHLIBRARY
     CALL request_scratch(il_qg1,qg1,procedureN//'_qg1',ierr)
 #else
-    ALLOCATE(qg1(il_qg1(1),il_qg1(2),il_qg1(3)), stat=ierr)
+    ALLOCATE(qg1(il_qg1(1),il_qg1(2)), stat=ierr)
 #endif
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate qg1',&
          __LINE__,__FILE__)
@@ -335,7 +335,7 @@ CONTAINS
 
     INTEGER                                  :: istart, iblock, qgstart, ijv, methread, ia, &
                                                 isa, iv, jv, k, len_qg1, start_ylm, num_pot, &
-                                                ipot, my_size, my_start, my_end, loc_block
+                                                ipot, my_size, my_start, my_end, loc_block,ierr
     REAL(real_8)                             :: fac, omtpiba, fiont(3), otr
 
     num_pot=SIZE(nst,2)
@@ -348,10 +348,12 @@ CONTAINS
     END IF
 
     omtpiba=parm%omega*parm%tpiba
+
     !$omp parallel private(loc_block,istart,qgstart,methread,iblock,my_start,my_end,my_size,fac)
     loc_block=ceiling(real(blocksize,real_8)/real(parai%ncpus,real_8))
     istart=ig_start
     qgstart=ig_start-1
+    methread=1
     !$ methread=omp_get_thread_num()+1
     fac=0.0_real_8
 
