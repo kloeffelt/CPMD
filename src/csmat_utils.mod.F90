@@ -168,11 +168,11 @@ CONTAINS
           !$omp end parallel
           DO ispin=1,nspin
 #ifdef _HAS_DGEMMT
-             CALL dgemmt('U','T','N',ns(ispin),tot_work,1.0_real_8,&
+             CALL cpmd_dgemmt('U','T','N',ns(ispin),tot_work,1.0_real_8,&
                   fnlat(1,1,ispin),tot_work,fnlatj(1,1,ispin),tot_work,1.0_real_8,&
                   a(nmin(ispin),nmin(ispin)),nstate)
 #else
-             CALL dgemm('T','N',ns(ispin),ns(ispin),tot_work,1.0_real_8,&
+             CALL cpmd_dgemm('T','N',ns(ispin),ns(ispin),tot_work,1.0_real_8,&
                   fnlat(1,1,ispin),tot_work,fnlatj(1,1,ispin),tot_work,1.0_real_8,&
                   a(nmin(ispin),nmin(ispin)),nstate)
 #endif

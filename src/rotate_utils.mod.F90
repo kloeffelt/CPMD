@@ -117,12 +117,12 @@ CONTAINS
        nchunk_2=0
     ENDIF
 
-    CALL dsymm('R','U',loc_work,nchunk,1.0_real_8,&
+    CALL cpmd_dsymm('R','U',loc_work,nchunk,1.0_real_8,&
          gam(nmin,nmin),nstate,&
          fnl_p(start_work,nmin),ldf,&
          0.0_real_8,loc(1,nmin),lda)
     IF(cntl%tlsd)THEN
-       CALL dsymm('R','U',loc_work,nchunk_2,1.0_real_8,&
+       CALL cpmd_dsymm('R','U',loc_work,nchunk_2,1.0_real_8,&
             gam(nmin_2,nmin_2),nstate,&
             fnl_p(start_work,nmin_2),ldf,&
             0.0_real_8,loc(1,nmin_2),lda)
@@ -213,10 +213,10 @@ CONTAINS
        nchunk_2=0
     ENDIF
     IF(loc_work.GT.0)THEN
-       CALL dtrmm('R','U','N','N',loc_work,nchunk,1.0_real_8,gam(nmin,nmin),nstate, &
+       CALL cpmd_dtrmm('R','U','N','N',loc_work,nchunk,1.0_real_8,gam(nmin,nmin),nstate, &
             fnl_p(start_work,nmin),ldf)
        IF(cntl%tlsd)THEN
-          CALL dtrmm('R','U','N','N',loc_work,nchunk_2,1.0_real_8,gam(nmin_2,nmin_2),nstate,&
+          CALL cpmd_dtrmm('R','U','N','N',loc_work,nchunk_2,1.0_real_8,gam(nmin_2,nmin_2),nstate,&
                fnl_p(start_work,nmin_2),ldf)
        END IF
     END IF
@@ -316,11 +316,11 @@ CONTAINS
 #endif
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate temp',&
          __LINE__,__FILE__)
-    CALL dsymm('R','U',loc_work,nchunk,1.0_real_8,&
+    CALL cpmd_dsymm('R','U',loc_work,nchunk,1.0_real_8,&
          gam(nmin,nmin),nstate,fnl_p(start_work,nmin),ldf,&
          0.0_real_8,temp(1,nmin,proc),INT(il_temp(1),kind=int_4))
     IF(cntl%tlsd)THEN
-       CALL dsymm('R','U',loc_work,nchunk_2,1.0_real_8,&
+       CALL cpmd_dsymm('R','U',loc_work,nchunk_2,1.0_real_8,&
             gam(nmin_2,nmin_2),nstate,fnl_p(start_work,nmin_2),ldf,&
             0.0_real_8,temp(1,nmin_2,proc),INT(il_temp(1),kind=int_4))
     END IF
@@ -351,11 +351,11 @@ CONTAINS
     
     IF(methread.EQ.1.OR.nthreads.EQ.1)THEN
        CALL cp_grp_get_sizes(ngw_l=ngw_local,first_g=ibeg_c0)
-       CALL dsymm('R','U',ngw_local*2,nchunk,-1.0_real_8,&
+       CALL cpmd_dsymm('R','U',ngw_local*2,nchunk,-1.0_real_8,&
             gam(nmin,nmin),nstate,c0(ibeg_c0,nmin),ldc*2,&
             1.0_real_8,c2(ibeg_c0,nmin),ldc*2)
        IF(cntl%tlsd)THEN
-          CALL dsymm('R','U',ngw_local*2,nchunk_2,-1.0_real_8,&
+          CALL cpmd_dsymm('R','U',ngw_local*2,nchunk_2,-1.0_real_8,&
                gam(nmin_2,nmin_2),nstate,c0(ibeg_c0,nmin_2),ldc*2,&
                1.0_real_8,c2(ibeg_c0,nmin_2),ldc*2)
        END IF
@@ -447,10 +447,10 @@ CONTAINS
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate temp',&
          __LINE__,__FILE__)
     IF(loc_work.GT.0)THEN
-       CALL dtrmm('R','U','N','N',loc_work,nchunk,1.0_real_8,gam(nmin,nmin),nstate, &
+       CALL cpmd_dtrmm('R','U','N','N',loc_work,nchunk,1.0_real_8,gam(nmin,nmin),nstate, &
             fnl(start_work,nmin),ldf)
        IF(cntl%tlsd)THEN
-          CALL dtrmm('R','U','N','N',loc_work,nchunk_2,1.0_real_8,gam(nmin_2,nmin_2),nstate,&
+          CALL cpmd_dtrmm('R','U','N','N',loc_work,nchunk_2,1.0_real_8,gam(nmin_2,nmin_2),nstate,&
                fnl(start_work,nmin_2),ldf)
        END IF
     END IF
@@ -483,10 +483,10 @@ CONTAINS
     IF(methread.EQ.1.OR.nthreads.EQ.1)THEN
        CALL cp_grp_get_sizes(ngw_l=ngw_local,first_g=ibeg_c0)
        IF(ngw_local.GT.0)THEN
-          CALL dtrmm('R','U','N','N',ngw_local*2,nchunk,1.0_real_8,gam(nmin,nmin),nstate,&
+          CALL cpmd_dtrmm('R','U','N','N',ngw_local*2,nchunk,1.0_real_8,gam(nmin,nmin),nstate,&
                c0(ibeg_c0,nmin),ldc*2)
           IF(cntl%tlsd)THEN
-             CALL dtrmm('R','U','N','N',ngw_local*2,nchunk_2,1.0_real_8,gam(nmin_2,nmin_2),&
+             CALL cpmd_dtrmm('R','U','N','N',ngw_local*2,nchunk_2,1.0_real_8,gam(nmin_2,nmin_2),&
                   nstate,c0(ibeg_c0,nmin_2),ldc*2)
           END IF
        END IF
@@ -585,12 +585,12 @@ CONTAINS
     END IF
     IF (tlsd) THEN
        naa=na+1
-       CALL dtrmm('R','U',transa,'N',2*ngw_local,na,a,gam,nstate,&
+       CALL cpmd_dtrmm('R','U',transa,'N',2*ngw_local,na,a,gam,nstate,&
             c1(ibeg_c0,1),2*n)
-       CALL dtrmm('R','U',transa,'N',2*ngw_local,nb,a,gam(naa,naa),&
+       CALL cpmd_dtrmm('R','U',transa,'N',2*ngw_local,nb,a,gam(naa,naa),&
             nstate,c1(ibeg_c0,naa),2*n)
     ELSE
-       CALL dtrmm('R','U',transa,'N',2*ngw_local,nstate,a,gam,&
+       CALL cpmd_dtrmm('R','U',transa,'N',2*ngw_local,nstate,a,gam,&
             nstate,c1(ibeg_c0,1),2*n)
     ENDIF
     IF(rdst) CALL cp_grp_redist_array_f(c1,n,nstate)
@@ -650,12 +650,12 @@ CONTAINS
        IF (n>0) THEN
           IF (tlsd) THEN
              naa=na+1
-             CALL dsymm('R','U',2*ngw_local,na,a,gam(1,1),nstate,&
+             CALL cpmd_dsymm('R','U',2*ngw_local,na,a,gam(1,1),nstate,&
                   c1(ibeg_c0,1),n,b,c2(ibeg_c0,1),n)
-             CALL dsymm('R','U',2*ngw_local,nb,a,gam(naa,naa),nstate,&
+             CALL cpmd_dsymm('R','U',2*ngw_local,nb,a,gam(naa,naa),nstate,&
                   c1(ibeg_c0,naa),n,b,c2(ibeg_c0,naa),n)
           ELSE
-             CALL dsymm('R','U',2*ngw_local,nstate,a,gam,nstate,&
+             CALL cpmd_dsymm('R','U',2*ngw_local,nstate,a,gam,nstate,&
                   c1(ibeg_c0,1),n,b,c2(ibeg_c0,1),n)
           ENDIF
        ENDIF
@@ -663,12 +663,12 @@ CONTAINS
        IF (n>0) THEN
           IF (tlsd) THEN
              naa=na+1
-             CALL dgemm('N','N',2*ngw_local,na,na,a,c1(ibeg_c0,1),n,&
+             CALL cpmd_dgemm('N','N',2*ngw_local,na,na,a,c1(ibeg_c0,1),n,&
                   gam(1,1),nstate,b,c2(ibeg_c0,1),n)
-             CALL dgemm('N','N',2*ngw_local,nb,nb,a,c1(ibeg_c0,naa),n,&
+             CALL cpmd_dgemm('N','N',2*ngw_local,nb,nb,a,c1(ibeg_c0,naa),n,&
                   gam(naa,naa),nstate,b,c2(ibeg_c0,naa),n)
           ELSE
-             CALL dgemm('N','N',2*ngw_local,nstate,nstate,a,c1(ibeg_c0,1),&
+             CALL cpmd_dgemm('N','N',2*ngw_local,nstate,nstate,a,c1(ibeg_c0,1),&
                   n,gam,nstate,b,c2(ibeg_c0,1),n)
           ENDIF
        ENDIF
@@ -787,7 +787,7 @@ SUBROUTINE rotate_da(a,c1,b,c2,gam,ld,n,nstate,ndd1,ndd2,nddx,mepos,pgroup,nproc
                    & gam_d, nstate, &
                    & 1.0_real_8, cuda_d_points_to(c2_d,(i1-1)*ld+1), ld )
            ELSE
-              CALL dgemm('N','N',n,n1,nstate,a,c1(1,1),ld,&
+              CALL cpmd_dgemm('N','N',n,n1,nstate,a,c1(1,1),ld,&
                    gam(1,1),nstate,1._real_8,c2(1,i1),ld)
            ENDIF
         ENDIF
@@ -843,14 +843,14 @@ SUBROUTINE rotate_c(a,c1,b,c2,gam,nstate)
   IF (cntl%tlsd) THEN
      naa=spin_mod%nsup+1
      IF (nkpt%ngwk>0) THEN
-        CALL zgemm('N','N',nkpt%ngwk,spin_mod%nsup,spin_mod%nsup,a,c1(1,1),nkpt%ngwk,gam(1,1),&
+        CALL cpmd_zgemm('N','N',nkpt%ngwk,spin_mod%nsup,spin_mod%nsup,a,c1(1,1),nkpt%ngwk,gam(1,1),&
              nstate,b,c2(1,1),nkpt%ngwk)
-        CALL zgemm('N','N',nkpt%ngwk,spin_mod%nsdown,spin_mod%nsdown,a,c1(1,naa),nkpt%ngwk,&
+        CALL cpmd_zgemm('N','N',nkpt%ngwk,spin_mod%nsdown,spin_mod%nsdown,a,c1(1,naa),nkpt%ngwk,&
              gam(naa,naa),nstate,b,c2(1,naa),nkpt%ngwk)
      ENDIF
   ELSE
      IF (nkpt%ngwk>0) THEN
-        CALL zgemm('N','N',nkpt%ngwk,nstate,nstate,a,c1(1,1),nkpt%ngwk,&
+        CALL cpmd_zgemm('N','N',nkpt%ngwk,nstate,nstate,a,c1(1,1),nkpt%ngwk,&
              gam(1,1),nstate,b,c2(1,1),nkpt%ngwk)
      ENDIF
   ENDIF

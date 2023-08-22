@@ -197,11 +197,11 @@ CONTAINS
 
           DO ispin=1,nspin
 #ifdef _HAS_DGEMMT
-             CALL dgemmt('U','T','N',ns(ispin),tot_work,fac,&
+             CALL cpmd_dgemmt('U','T','N',ns(ispin),tot_work,fac,&
                   fnlat(1,1,ispin),tot_work,fnlatj(1,1,ispin),tot_work,1.0_real_8,&
                   hmat_loc(nmin(ispin),nmin(ispin)),nstate)
 #else
-             CALL dgemm('T','N',ns(ispin),ns(ispin),tot_work,fac,&
+             CALL cpmd_dgemm('T','N',ns(ispin),ns(ispin),tot_work,fac,&
                   fnlat(1,1,ispin),tot_work,fnlatj(1,1,ispin),tot_work,1.0_real_8,&
                   hmat_loc(nmin(ispin),nmin(ispin)),nstate)
 #endif
