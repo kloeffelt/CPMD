@@ -395,11 +395,10 @@ CONTAINS
           fac=1.0_real_8
           !remove double counting of geq0
           IF(geq0.AND.istart.EQ.1.AND.my_start.EQ.istart) THEN
-             CALL dger(ia_sum,len_qg1*nhh,-1.0_real_8,&
+             CALL cpmd_dger(ia_sum,len_qg1*nhh,-1.0_real_8,&
                   eigrb(1,isa0+1),2*ncpw%nhg, &
                   qg1,2*my_size,&
                   fnlt(:,methread),ia_sum)
-
           END IF
        END IF
        istart=istart+blocksize
@@ -678,7 +677,7 @@ CONTAINS
     END IF
     len_qg1=num_pot
     IF(tfor)len_qg1=4*num_pot
-    CALL dgemm('T','N',ia_sum,nhh*len_qg1,2*blocksize,2.0_real_8,&
+    CALL cpmd_dgemm('T','N',ia_sum,nhh*len_qg1,2*blocksize,2.0_real_8,&
          eigrb(block_start,isa0+1),2*ncpw%nhg,&
          qg1,2*blocksize,&
          fac,ylm,ia_sum)

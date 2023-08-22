@@ -113,32 +113,32 @@ CONTAINS
           ! ==--------------------------------------------------------------==
           ! ..Alpha spin
           IF (symmetric) THEN
-             CALL dsyrk('U','T',spin_mod%nsup,2*NGW_local,2._real_8,C1(ibeg_c0,1),2*ncpw%ngw,&
+             CALL cpmd_dsyrk('U','T',spin_mod%nsup,2*NGW_local,2._real_8,C1(ibeg_c0,1),2*ncpw%ngw,&
                   0._real_8,a,nstate)
              IF(need_full)CALL dmatc('U',spin_mod%nsup,a,nstate)
           ELSE
 #ifdef _HAS_DGEMMT
              IF(need_full)THEN
-                CALL dgemm('T','N',spin_mod%nsup,spin_mod%nsup,2*NGW_local,2.0_real_8,C1(ibeg_c0,1),&
+                CALL cpmd_dgemm('T','N',spin_mod%nsup,spin_mod%nsup,2*NGW_local,2.0_real_8,C1(ibeg_c0,1),&
                      2*NCPW%NGW,C2(ibeg_c0,1),2*ncpw%ngw,0.0_real_8,a(1,1),&
                      nstate)
              ELSE
-                CALL dgemmt('U','T','N',spin_mod%nsup,2*NGW_local,2.0_real_8,C1(ibeg_c0,1),&
+                CALL cpmd_dgemmt('U','T','N',spin_mod%nsup,2*NGW_local,2.0_real_8,C1(ibeg_c0,1),&
                      2*NCPW%NGW,C2(ibeg_c0,1),2*ncpw%ngw,0.0_real_8,a(1,1),&
                      nstate)
              END IF
 #else
-             CALL dgemm('T','N',spin_mod%nsup,spin_mod%nsup,2*NGW_local,2.0_real_8,C1(ibeg_c0,1),&
+             CALL cpmd_dgemm('T','N',spin_mod%nsup,spin_mod%nsup,2*NGW_local,2.0_real_8,C1(ibeg_c0,1),&
                   2*NCPW%NGW,C2(ibeg_c0,1),2*ncpw%ngw,0.0_real_8,a(1,1),&
                   nstate)
 #endif
           ENDIF
           IF (GEQ0_local) THEN
              IF (symmetric) THEN
-                CALL dger(spin_mod%nsup,spin_mod%nsup,-1.0_real_8,C1(ibeg_c0,1),2*NCPW%NGW,&
+                CALL cpmd_dger(spin_mod%nsup,spin_mod%nsup,-1.0_real_8,C1(ibeg_c0,1),2*NCPW%NGW,&
                      C1(ibeg_c0,1),2*NCPW%NGW,a(1,1),nstate)
              ELSE
-                CALL dger(spin_mod%nsup,spin_mod%nsup,-1.0_real_8,C1(ibeg_c0,1),2*NCPW%NGW,&
+                CALL cpmd_dger(spin_mod%nsup,spin_mod%nsup,-1.0_real_8,C1(ibeg_c0,1),2*NCPW%NGW,&
                      C2(ibeg_c0,1),2*NCPW%NGW,a(1,1),nstate)
              ENDIF
           ENDIF
@@ -151,27 +151,27 @@ CONTAINS
           ELSE
 #ifdef _HAS_DGEMMT
              IF(need_full)THEN
-                CALL dgemm('T','N',spin_mod%nsdown,spin_mod%nsdown,2*NGW_local,2.0_real_8,&
+                CALL cpmd_dgemm('T','N',spin_mod%nsdown,spin_mod%nsdown,2*NGW_local,2.0_real_8,&
                      C1(ibeg_c0,spin_mod%nsup+1),2*NCPW%NGW,C2(ibeg_c0,spin_mod%nsup+1),&
                      2*NCPW%NGW,0.0_real_8,a(spin_mod%nsup+1,spin_mod%nsup+1),nstate)
              ELSE
-                CALL dgemmt('U','T','N',spin_mod%nsdown,2*NGW_local,2.0_real_8,&
+                CALL cpmd_dgemmt('U','T','N',spin_mod%nsdown,2*NGW_local,2.0_real_8,&
                      C1(ibeg_c0,spin_mod%nsup+1),2*NCPW%NGW,C2(ibeg_c0,spin_mod%nsup+1),&
                      2*NCPW%NGW,0.0_real_8,a(spin_mod%nsup+1,spin_mod%nsup+1),nstate)
              END IF
 #else
-             CALL dgemm('T','N',spin_mod%nsdown,spin_mod%nsdown,2*NGW_local,2.0_real_8,&
+             CALL cpmd_dgemm('T','N',spin_mod%nsdown,spin_mod%nsdown,2*NGW_local,2.0_real_8,&
                   C1(ibeg_c0,spin_mod%nsup+1),2*NCPW%NGW,C2(ibeg_c0,spin_mod%nsup+1),&
                   2*NCPW%NGW,0.0_real_8,a(spin_mod%nsup+1,spin_mod%nsup+1),nstate)
 #endif
           ENDIF
           IF (GEQ0_local) THEN
              IF (symmetric) THEN
-                CALL dger(spin_mod%nsdown,spin_mod%nsdown,-1.0_real_8,C1(ibeg_c0,spin_mod%nsup+1),&
+                CALL cpmd_dger(spin_mod%nsdown,spin_mod%nsdown,-1.0_real_8,C1(ibeg_c0,spin_mod%nsup+1),&
                      2*NCPW%NGW,C1(ibeg_c0,spin_mod%nsup+1),2*ncpw%ngw,&
                      a(spin_mod%nsup+1,spin_mod%nsup+1),nstate)
              ELSE
-                CALL dger(spin_mod%nsdown,spin_mod%nsdown,-1.0_real_8,C1(ibeg_c0,spin_mod%nsup+1),&
+                CALL cpmd_dger(spin_mod%nsdown,spin_mod%nsdown,-1.0_real_8,C1(ibeg_c0,spin_mod%nsup+1),&
                      2*NCPW%NGW,C2(ibeg_c0,spin_mod%nsup+1),2*ncpw%ngw,&
                      a(spin_mod%nsup+1,spin_mod%nsup+1),nstate)
              ENDIF
@@ -186,26 +186,26 @@ CONTAINS
           ELSE
 #ifdef _HAS_DGEMMT
              IF(need_full)THEN
-                CALL dgemm('T','N',nstate,nstate,2*NGW_local,2.0_real_8,&
+                CALL cpmd_dgemm('T','N',nstate,nstate,2*NGW_local,2.0_real_8,&
                      C1(ibeg_c0,1),2*NCPW%NGW,C2(ibeg_c0,1),2*ncpw%ngw,&
                      0.0_real_8,a(1,1),nstate)
              ELSE
-                CALL dgemmt('U','T','N',nstate,2*NGW_local,2.0_real_8,&
+                CALL cpmd_dgemmt('U','T','N',nstate,2*NGW_local,2.0_real_8,&
                      C1(ibeg_c0,1),2*NCPW%NGW,C2(ibeg_c0,1),2*ncpw%ngw,&
                      0.0_real_8,a(1,1),nstate)
              END IF
 #else
-             CALL dgemm('T','N',nstate,nstate,2*NGW_local,2.0_real_8,&
+             CALL cpmd_dgemm('T','N',nstate,nstate,2*NGW_local,2.0_real_8,&
                   C1(ibeg_c0,1),2*NCPW%NGW,C2(ibeg_c0,1),2*ncpw%ngw,&
                   0.0_real_8,a(1,1),nstate)
 #endif
           ENDIF
           IF (GEQ0_local) THEN
              IF (symmetric) THEN
-                CALL dger(nstate,nstate,-1.0_real_8,C1(ibeg_c0,1),2*NCPW%NGW,&
+                CALL cpmd_dger(nstate,nstate,-1.0_real_8,C1(ibeg_c0,1),2*NCPW%NGW,&
                      C1(ibeg_c0,1),2*NCPW%NGW,a(1,1),nstate)
              ELSE
-                CALL dger(nstate,nstate,-1.0_real_8,C1(ibeg_c0,1),2*NCPW%NGW,&
+                CALL cpmd_dger(nstate,nstate,-1.0_real_8,C1(ibeg_c0,1),2*NCPW%NGW,&
                      C2(ibeg_c0,1),2*NCPW%NGW,a(1,1),nstate)
              ENDIF
           ENDIF
@@ -275,24 +275,24 @@ CONTAINS
     CALL tiset('     OVLAP',isub)
     IF (cntl%tlsd) THEN
        ! ..Alpha spin
-       CALL dgemm('T','N',spin_mod%nsup,spin_mod%nsup,2*ncpw%ngw,2.0_real_8,c1(1,1),2*ncpw%ngw,&
+       CALL cpmd_dgemm('T','N',spin_mod%nsup,spin_mod%nsup,2*ncpw%ngw,2.0_real_8,c1(1,1),2*ncpw%ngw,&
             c2(1,1),2*ncpw%ngw,1.0_real_8,a(1,1),nstate)
        IF (Geq0)&
-            CALL dger(spin_mod%nsup,spin_mod%nsup,-1.0_real_8,c1(1,1),2*ncpw%ngw,&
+            CALL cpmd_dger(spin_mod%nsup,spin_mod%nsup,-1.0_real_8,c1(1,1),2*ncpw%ngw,&
             c2(1,1),2*ncpw%ngw,a(1,1),nstate)
        ! ..Beta spin
-       CALL dgemm('T','N',spin_mod%nsdown,spin_mod%nsdown,2*ncpw%ngw,2.0_real_8,c1(1,spin_mod%nsup+1),&
+       CALL cpmd_dgemm('T','N',spin_mod%nsdown,spin_mod%nsdown,2*ncpw%ngw,2.0_real_8,c1(1,spin_mod%nsup+1),&
             2*ncpw%ngw,c2(1,spin_mod%nsup+1),2*ncpw%ngw,1.0_real_8,&
             a(spin_mod%nsup+1,spin_mod%nsup+1),nstate)
        IF (Geq0)&
-            CALL dger(spin_mod%nsdown,spin_mod%nsdown,-1.0_real_8,c1(1,spin_mod%nsup+1),2*ncpw%ngw,&
+            CALL cpmd_dger(spin_mod%nsdown,spin_mod%nsdown,-1.0_real_8,c1(1,spin_mod%nsup+1),2*ncpw%ngw,&
             c2(1,spin_mod%nsup+1),2*ncpw%ngw,a(spin_mod%nsup+1,spin_mod%nsup+1),nstate)
 
     ELSE
-       CALL dgemm('T','N',nstate,nstate,2*ncpw%ngw,2.0_real_8,c1(1,1),2*ncpw%ngw,&
+       CALL cpmd_dgemm('T','N',nstate,nstate,2*ncpw%ngw,2.0_real_8,c1(1,1),2*ncpw%ngw,&
             c2(1,1),2*ncpw%ngw,1.0_real_8,a(1,1),nstate)
        IF (Geq0)&
-            CALL dger(nstate,nstate,-1.0_real_8,c1(1,1),2*ncpw%ngw,c2(1,1),&
+            CALL cpmd_dger(nstate,nstate,-1.0_real_8,c1(1,1),2*ncpw%ngw,c2(1,1),&
             2*ncpw%ngw,a(1,1),nstate)
     ENDIF
     CALL tihalt('     OVLAP',isub)
@@ -446,10 +446,10 @@ SUBROUTINE ovlap2_c(ngwk,n1,n2,a,c1,c2)
   ENDIF
   CALL tiset ('  OVLAP2_C',isub)
   IF (n2.GT.1) THEN
-     CALL zgemm('C','N',n1,n2,ngwk,zone,c1(1,1),ngwk,c2(1,1),&
+     CALL cpmd_zgemm('C','N',n1,n2,ngwk,zone,c1(1,1),ngwk,c2(1,1),&
           ngwk,zzero,a(1,1),n1)
   ELSE
-     CALL zgemv('C',ngwk,n1,zone,c1(1,1),ngwk,c2(1,1),1,&
+     CALL cpmd_zgemv('C',ngwk,n1,zone,c1(1,1),ngwk,c2(1,1),1,&
           zzero,a(1,1),1)
   ENDIF
   CALL tihalt('  OVLAP2_C',isub)
@@ -539,11 +539,11 @@ SUBROUTINE ovlap2(ngw,n1,n2,a,c1,c2,use_cp_grp)
      CALL dgemm2('T','N',n1,n2,2*NGW_local,2.0_real_8,c1(ibeg_c0,1),&
           2*ngw,c2(ibeg_c0,1),2*ngw,0.0_real_8,a(1,1),n1)
 #else
-     CALL dgemm('T','N',n1,n2,2*NGW_local,2.0_real_8,c1(ibeg_c0,1),&
+     CALL cpmd_dgemm('T','N',n1,n2,2*NGW_local,2.0_real_8,c1(ibeg_c0,1),&
           2*ngw,c2(ibeg_c0,1),2*ngw,0.0_real_8,a(1,1),n1)
 #endif
      IF (GEQ0_local)&
-          CALL dger(n1,n2,-1.0_real_8,c1(ibeg_c0,1),2*ngw,&
+          CALL cpmd_dger(n1,n2,-1.0_real_8,c1(ibeg_c0,1),2*ngw,&
           c2(ibeg_c0,1),2*ngw,a(1,1),n1)
   ELSE
      CALL zeroing(a)!,n1*n2)
@@ -613,15 +613,15 @@ SUBROUTINE ovlap_c(nstate,a,c1,c2)
      IF (cntl%tlsd) THEN
         CALL zeroing(a)!,nstate*nstate)
         ! ..Alpha spin
-        CALL zgemm('C','N',spin_mod%nsup,spin_mod%nsup,NGWK_local,zone,C1_local(1,1),&
+        CALL cpmd_zgemm('C','N',spin_mod%nsup,spin_mod%nsup,NGWK_local,zone,C1_local(1,1),&
              NGWK_local,C2_local(1,1),ngwk_local,zzero,a(1,1),&
              nstate)
         ! ..Beta spin
-        CALL zgemm('C','N',spin_mod%nsdown,spin_mod%nsdown,NGWK_local,zone,&
+        CALL cpmd_zgemm('C','N',spin_mod%nsdown,spin_mod%nsdown,NGWK_local,zone,&
              C1_local(1,spin_mod%nsup+1),NGWK_local,C2_local(1,spin_mod%nsup+1),&
              NGWK_local,zzero,a(spin_mod%nsup+1,spin_mod%nsup+1),nstate)
      ELSE
-        CALL zgemm('C','N',nstate,nstate,NGWK_local,zone,&
+        CALL cpmd_zgemm('C','N',nstate,nstate,NGWK_local,zone,&
              C1_local(1,1),NGWK_local,C2_local(1,1),ngwk_local,&
              zzero,a(1,1),nstate)
      ENDIF
