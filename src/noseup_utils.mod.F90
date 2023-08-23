@@ -31,7 +31,9 @@ MODULE noseup_utils
                                              ncpw
   USE timer,                           ONLY: tihalt,&
                                              tiset
-
+#ifdef _VERBOSE_IONIC_VELOCITIES_DBG
+  USE ions,                            ONLY: ions0,ions1
+#endif
   IMPLICIT NONE
 
   PRIVATE
@@ -53,6 +55,9 @@ CONTAINS
     INTEGER                                  :: i, isub, j, &
                                                 ig, ibeg_c0, iend_c0
     REAL(real_8)                             :: ekinc, sctot
+#ifdef _VERBOSE_IONIC_VELOCITIES_DBG
+    INTEGER                                  :: ia, is
+#endif
 
     CALL tiset(procedureN,isub)
     IF(PRESENT(use_cp_grps))THEN
@@ -66,6 +71,17 @@ CONTAINS
        ibeg_c0=1
        iend_c0=ncpw%ngw
     END IF
+#ifdef _VERBOSE_IONIC_VELOCITIES_DBG
+    IF (paral%io_parent) THEN
+       WRITE(6,*) "===================================="
+       WRITE(6,*) "DEBUG VELOCITIES, noseup" 
+       DO is=1,ions1%nsp
+          DO ia=1,ions0%na(is)
+             WRITE(6,*) velp(1:3,ia,is),ia,is
+          END DO
+       END DO
+    END IF
+#endif
     IF (cntl%tnosee) THEN
        CALL rekine(cm,nstate,ekinc,use_cp_grps=cp_active)
        IF (paral%io_parent) THEN
@@ -236,6 +252,17 @@ CONTAINS
     !TK syncronize cp_grps
     IF(paral%parent) CALL mp_bcast(velp,SIZE(velp),parai%io_source,&
          parai%cp_inter_grp)
+#ifdef _VERBOSE_IONIC_VELOCITIES_DBG
+    IF (paral%io_parent) THEN
+       WRITE(6,*) "===================================="
+       WRITE(6,*) "DEBUG VELOCITIES, noseup" 
+       DO is=1,ions1%nsp
+          DO ia=1,ions0%na(is)
+             WRITE(6,*) velp(1:3,ia,is),ia,is
+          END DO
+       END DO
+    END IF
+#endif
     ! ==--------------------------------------------------------------==
     CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==

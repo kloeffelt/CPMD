@@ -74,7 +74,10 @@ CONTAINS
     INTEGER                                  :: iesr_arr((iesr*2+1)**3,3), num_ind, &
                                                 tot_ind,ind
     CHARACTER(*), PARAMETER                  :: procedureN='rpiiint'
-    real(real_8) :: ti(6)
+#ifdef _VERBOSE_FORCE_DBG
+    REAL(real_8),ALLOCATABLE                 :: dbg_forces(:,:,:)
+#endif
+
     ! ==--------------------------------------------------------------==
     IF (iflag.EQ.0.AND.paral%parent) THEN
        IF (paral%io_parent)&
@@ -85,7 +88,7 @@ CONTAINS
     ENDIF
     ! ==--------------------------------------------------------------==
     CALL tiset(procedureN,isub)
-    ti=0.0_real_8
+
     ind=0
     DO IX=-IESR,IESR
        DO IY=-IESR,IESR
@@ -308,6 +311,25 @@ CONTAINS
 #endif
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot deallocate ftmp',&
          __LINE__,__FILE__)
+#ifdef _VERBOSE_FORCE_DBG
+    ALLOCATE(dbg_forces(3,maxsys%nax,maxsys%nsx), stat=ierr)
+    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate dbg_forces',& 
+         __LINE__,__FILE__)
+    dbg_forces=fion
+    CALL mp_sum(dbg_forces,3*maxsys%nax*maxsys%nsx,parai%allgrp)
+    IF (paral%io_parent) THEN
+       WRITE(6,*) "===================================="
+       WRITE(6,*) "DEBUG FORCES", procedureN
+       DO is=1,ions1%nsp
+          DO ia=1,ions0%na(is)
+             WRITE(6,*) dbg_forces(1:3,ia,is),ia,is
+          END DO
+       END DO
+    END IF
+    DEALLOCATE(dbg_forces,STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+         __LINE__,__FILE__)
+#endif
     CALL tihalt(procedureN,isub)
 
     ! ==================================================================    

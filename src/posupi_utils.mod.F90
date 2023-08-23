@@ -1,3 +1,5 @@
+#include "cpmd_global.h"
+
 MODULE posupi_utils
   USE cnst,                            ONLY: fbohr
   USE ions,                            ONLY: ions0,&
@@ -43,6 +45,15 @@ CONTAINS
                                                 velp(:,:,:)
 
     INTEGER                                  :: ia, iat, is
+#ifdef _VERBOSE_IONIC_POSITIONS_DBG
+    WRITE(6,*) "===================================="
+    WRITE(6,*) "DEBUG POSITIONS, posupi" 
+    DO is=1,ions1%nsp
+       DO ia=1,ions0%na(is)
+          WRITE(6,*) tau0(1:3,ia,is),ia,is
+       END DO
+    END DO
+#endif
 
 #if defined(__VECTOR)
     !$omp parallel do private(IA,IS,IAT)
@@ -56,6 +67,15 @@ CONTAINS
        taup(2,ia,is)=tau0(2,ia,is)+dt_ions*velp(2,ia,is)
        taup(3,ia,is)=tau0(3,ia,is)+dt_ions*velp(3,ia,is)
     ENDDO
+#ifdef _VERBOSE_IONIC_POSITIONS_DBG
+    WRITE(6,*) "===================================="
+    WRITE(6,*) "DEBUG POSITIONS, posupi" 
+    DO is=1,ions1%nsp
+       DO ia=1,ions0%na(is)
+          WRITE(6,*) taup(1:3,ia,is),ia,is
+       END DO
+    END DO
+#endif
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE posupi

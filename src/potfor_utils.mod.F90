@@ -1,3 +1,4 @@
+#include "cpmd_global.h"
 MODULE potfor_utils
   USE cppt,                            ONLY: gk,&
                                              inyh,&
@@ -5,19 +6,36 @@ MODULE potfor_utils
                                              rhops,&
                                              scg,&
                                              vps
+#ifdef _VERBOSE_FORCE_DBG
+  USE error_handling,                  ONLY: stopgm
+#endif
   USE geq0mod,                         ONLY: geq0
   USE ions,                            ONLY: ions0,&
                                              ions1
   USE kinds,                           ONLY: real_8
+#ifdef _VERBOSE_FORCE_DBG 
+  USE mp_interface,                    ONLY: mp_sum
+  USE parac,                           ONLY: parai,&
+                                             paral
+#endif
   USE sfac,                            ONLY: ei1,&
                                              ei2,&
                                              ei3,&
                                              eigrb
+#ifdef _VERBOSE_FORCE_DBG
+  USE system,                          ONLY: cntl,&
+                                             fpar,&
+                                             iatpt,&
+                                             ncpw,&
+                                             parm,&
+                                             maxsys
+#else
   USE system,                          ONLY: cntl,&
                                              fpar,&
                                              iatpt,&
                                              ncpw,&
                                              parm
+#endif
   USE timer,                           ONLY: tihalt,&
                                              tiset
 
@@ -46,6 +64,10 @@ CONTAINS
                                                 tyy, tzz, vcgs
     INTEGER                                  :: ia, ig, ig1, is, isa, isub
     REAL(real_8)                             :: omtp
+#ifdef _VERBOSE_FORCE_DBG
+    INTEGER                                  :: ierr
+    REAL(real_8),ALLOCATABLE                 :: dbg_forces(:,:,:)
+#endif
 
     CALL tiset(procedureN,isub)
     omtp=2._real_8*parm%omega*parm%tpiba
@@ -99,6 +121,25 @@ CONTAINS
           ENDDO
        ENDDO
     ENDIF
+#ifdef _VERBOSE_FORCE_DBG
+    ALLOCATE(dbg_forces(3,maxsys%nax,maxsys%nsx), stat=ierr)
+    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate dbg_forces',& 
+         __LINE__,__FILE__)
+    dbg_forces=fion
+    CALL mp_sum(dbg_forces,3*maxsys%nax*maxsys%nsx,parai%allgrp)
+    IF (paral%io_parent) THEN
+       WRITE(6,*) "===================================="
+       WRITE(6,*) "DEBUG FORCES", procedureN
+       DO is=1,ions1%nsp
+          DO ia=1,ions0%na(is)
+             WRITE(6,*) dbg_forces(1:3,ia,is),ia,is
+          END DO
+       END DO
+    END IF
+    DEALLOCATE(dbg_forces,STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+         __LINE__,__FILE__)
+#endif
     CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==
     RETURN

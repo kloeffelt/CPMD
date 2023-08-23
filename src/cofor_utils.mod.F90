@@ -4,6 +4,9 @@ MODULE cofor_utils
   USE cppt,                            ONLY: gk,&
                                              inyh
   USE cp_grp_utils,                    ONLY: cp_grp_get_sizes
+#ifdef _VERBOSE_FORCE_DBG
+  USE error_handling,                  ONLY: stopgm
+#endif
   USE ions,                            ONLY: ions1,&
                                              ions0
   USE mp_interface,                    ONLY: mp_sum
@@ -12,7 +15,12 @@ MODULE cofor_utils
                                              rhoc,&
                                              vnlcc,&
                                              vnlt
+#ifdef _VERBOSE_FORCE_DBG
+  USE parac,                           ONLY: parai, &
+                                             paral
+#else
   USE parac,                           ONLY: parai
+#endif
   USE sfac,                            ONLY: ei1,&
                                              ei2,&
                                              ei3,&
@@ -47,6 +55,10 @@ CONTAINS
     INTEGER                                  :: ia, ig, is, isa, k, isa0, &
                                                 ig_start, ig_end, isub
     REAL(real_8)                             :: omtp, vcgs, fiont(3)
+#ifdef _VERBOSE_FORCE_DBG
+    INTEGER                                  :: ierr
+    REAL(real_8),ALLOCATABLE                 :: dbg_forces(:,:,:)
+#endif
     CHARACTER(*), PARAMETER                  :: procedureN = 'cofor'
 
     CALL tiset(procedureN,isub)
@@ -137,6 +149,26 @@ CONTAINS
     IF(parai%cp_nogrp.GT.1)THEN
        CALL mp_sum(fion,3*maxsys%nax*maxsys%nsx,parai%cp_inter_grp)
     END IF
+
+#ifdef _VERBOSE_FORCE_DBG
+    ALLOCATE(dbg_forces(3,maxsys%nax,maxsys%nsx), stat=ierr)
+    IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate dbg_forces',& 
+         __LINE__,__FILE__)
+    dbg_forces=fion
+    CALL mp_sum(dbg_forces,3*maxsys%nax*maxsys%nsx,parai%allgrp)
+    IF (paral%io_parent) THEN
+       WRITE(6,*) "===================================="
+       WRITE(6,*) "DEBUG FORCES", procedureN
+       DO is=1,ions1%nsp
+          DO ia=1,ions0%na(is)
+             WRITE(6,*) dbg_forces(1:3,ia,is),ia,is
+          END DO
+       END DO
+    END IF
+    DEALLOCATE(dbg_forces,STAT=ierr)
+    IF(ierr/=0) CALL stopgm(procedureN,'deallocation problem', &
+         __LINE__,__FILE__)
+#endif
     CALL tihalt(procedureN,isub)
     ! ==--------------------------------------------------------------==
     RETURN

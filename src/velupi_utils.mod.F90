@@ -1,3 +1,5 @@
+#include "cpmd_global.h"
+
 MODULE velupi_utils
   USE cnst,                            ONLY: au_fs
   USE ions,                            ONLY: ions0,&
@@ -46,6 +48,15 @@ CONTAINS
     REAL(real_8)                             :: fact
 
 !ocl NOALIAS
+#ifdef _VERBOSE_IONIC_VELOCITIES_DBG
+    WRITE(6,*) "===================================="
+    WRITE(6,*) "DEBUG VELOCITIES, VELUPI" 
+    DO is=1,ions1%nsp
+       DO ia=1,ions0%na(is)
+          WRITE(6,*) VELP(1:3,ia,is),ia,is
+       END DO
+    END DO
+#endif
 
     !$omp parallel do private(I,IS,IA,FACT) schedule(static)
     DO i=1,ions1%nat
@@ -56,7 +67,18 @@ CONTAINS
        velp(2,ia,is)=velp(2,ia,is)+fact*fion(2,ia,is)
        velp(3,ia,is)=velp(3,ia,is)+fact*fion(3,ia,is)
     ENDDO
+
     CALL taucl(velp)
+#ifdef _VERBOSE_IONIC_VELOCITIES_DBG
+    WRITE(6,*) "===================================="
+    WRITE(6,*) "DEBUG VELOCITIES, VELUPI" 
+    DO is=1,ions1%nsp
+       DO ia=1,ions0%na(is)
+          WRITE(6,*) VELP(1:3,ia,is),ia,is
+       END DO
+    END DO
+#endif
+
     ! ==--------------------------------------------------------------==
     RETURN
   END SUBROUTINE velupi
