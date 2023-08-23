@@ -238,6 +238,8 @@ CONTAINS
     INTEGER( INT64 ), INTENT( IN )   :: requested_len
     INTEGER( INT32 ), INTENT( OUT )  :: id
     INTEGER( INT32 ), INTENT( OUT )  :: ierr
+
+    ierr = 0
     
     DO id = 1, SIZE( this%index_i, 1 )
        !get a free segment

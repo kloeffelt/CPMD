@@ -48,7 +48,8 @@ CONTAINS
     start = pos( 1 )
     end = pos( 2 )
     len = pos( 3 )
-
+    ierr = 0
+    
     IF( end + alignment_in_char + alignment_in_char - &
          MOD( len, alignment_in_char) > this%aligned_array_size  ) THEN
        ierr = -1
