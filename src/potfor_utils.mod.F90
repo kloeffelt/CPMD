@@ -63,7 +63,7 @@ CONTAINS
                                                 rhets, rhog, rhogs, rp, txx, &
                                                 tyy, tzz, vcgs
     INTEGER                                  :: ia, ig, ig1, is, isa, isub
-    REAL(real_8)                             :: omtp
+    REAL(real_8)                             :: omtp, ft1, ft2, ft3
 #ifdef _VERBOSE_FORCE_DBG
     INTEGER                                  :: ierr
     REAL(real_8),ALLOCATABLE                 :: dbg_forces(:,:,:)
@@ -75,10 +75,13 @@ CONTAINS
     IF (geq0) ig1=2
     IF (cntl%bigmem) THEN
        !$omp parallel do private(ISA,IA,IS,IG,EI123,RP,RHET,RHOG,RHETS,RHOGS, &
-       !$omp  GX,GY,GZ,VCGS)
+       !$omp  GX,GY,GZ,VCGS,ft1,ft2,ft3)
        DO isa=1,ions1%nat
           ia=iatpt(1,isa)
           is=iatpt(2,isa)
+          ft1=0._real_8
+          ft2=0._real_8
+          ft3=0._real_8
           DO ig=ig1,ncpw%nhg
              ei123=eigrb(ig,isa)
              rp=eirop(ig)
@@ -91,14 +94,17 @@ CONTAINS
              gz=CMPLX(0._real_8,gk(3,ig),kind=real_8)
              vcgs=scg(ig)*rhogs
              ei123=ei123*(rhops(is,ig)*vcgs+vps(is,ig)*rhets)
-             fion(1,ia,is)=fion(1,ia,is)+REAL(ei123*gx)*omtp
-             fion(2,ia,is)=fion(2,ia,is)+REAL(ei123*gy)*omtp
-             fion(3,ia,is)=fion(3,ia,is)+REAL(ei123*gz)*omtp
+             ft1=ft1+REAL(ei123*gx)
+             ft2=ft2+REAL(ei123*gy)
+             ft3=ft3+REAL(ei123*gz)
           ENDDO
+          fion(1,ia,is)=fion(1,ia,is)+ft1*omtp
+          fion(2,ia,is)=fion(2,ia,is)+ft2*omtp
+          fion(3,ia,is)=fion(3,ia,is)+ft3*omtp
        ENDDO
     ELSE
        !$omp parallel do private(ISA,IA,IS,IG,EI123,RP,RHET,RHOG,RHETS,RHOGS, &
-       !$omp  GX,GY,GZ,VCGS)
+       !$omp  GX,GY,GZ,VCGS,ft1,ft2,ft3)
        DO isa=1,ions1%nat
           ia=iatpt(1,isa)
           is=iatpt(2,isa)
@@ -115,10 +121,13 @@ CONTAINS
              gz=CMPLX(0._real_8,gk(3,ig),kind=real_8)
              vcgs=scg(ig)*rhogs
              ei123=ei123*(rhops(is,ig)*vcgs+vps(is,ig)*rhets)
-             fion(1,ia,is)=fion(1,ia,is)+REAL(ei123*gx)*omtp
-             fion(2,ia,is)=fion(2,ia,is)+REAL(ei123*gy)*omtp
-             fion(3,ia,is)=fion(3,ia,is)+REAL(ei123*gz)*omtp
+             ft1=ft1+REAL(ei123*gx)
+             ft2=ft2+REAL(ei123*gy)
+             ft3=ft3+REAL(ei123*gz)
           ENDDO
+          fion(1,ia,is)=fion(1,ia,is)+ft1*omtp
+          fion(2,ia,is)=fion(2,ia,is)+ft2*omtp
+          fion(3,ia,is)=fion(3,ia,is)+ft3*omtp
        ENDDO
     ENDIF
 #ifdef _VERBOSE_FORCE_DBG

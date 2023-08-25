@@ -298,8 +298,8 @@ CONTAINS
 
 
     INTEGER                                  :: istart, iblock, qgstart, ijv, methread, ia, &
-                                                isa, iv, jv, k, len_qg1, start_ylm
-    REAL(real_8)                             :: fac, omtpiba, fiont(3), otr
+                                                isa, iv, jv, len_qg1, start_ylm
+    REAL(real_8)                             :: fac, omtpiba, ft1, ft2, ft3, otr
 
     len_qg1=1
     start_ylm=1
@@ -361,19 +361,20 @@ CONTAINS
     ENDDO
     !$omp end parallel
     IF (tfor) THEN
-       !$omp parallel do private(ia,fiont,ijv,otr,k)
+       !$omp parallel do private(ia,ft1,ft2,ft3,ijv,otr)
        DO ia=1,ia_sum
-          fiont=0._real_8
-          ijv=0
+          ft1=0._real_8
+          ft2=0._real_8
+          ft3=0._real_8
           DO ijv=1,nhh
              OTR=YLM(ia,ijv,1)*omtpiba
-             DO k=1,3
-                fiont(k)=fiont(k)+OTR*YLM(ia,ijv,2+k)
-             ENDDO
+             ft1=ft1+OTR*YLM(ia,ijv,2+1)
+             ft2=ft2+OTR*YLM(ia,ijv,2+2)
+             ft3=ft3+OTR*YLM(ia,ijv,2+3)
           END DO
-          DO k=1,3
-             fion(k,ia)=fion(k,ia)+fiont(k)
-          END DO
+          fion(1,ia)=fion(1,ia)+ft1
+          fion(2,ia)=fion(2,ia)+ft2
+          fion(3,ia)=fion(3,ia)+ft3
        END DO
     ENDIF
   END SUBROUTINE evaluate_bigmem_newd
