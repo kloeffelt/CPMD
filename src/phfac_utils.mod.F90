@@ -49,19 +49,18 @@ MODULE phfac_utils
 
 CONTAINS
 
-  SUBROUTINE phfac_dipole(aug_ind,aug_cntrl,wanncwwei)
+  SUBROUTINE phfac_dipole(aug_ind,aug_cntrl)
     ! ==--------------------------------------------------------------==
     ! ==  CALCULATION OF ARRAY EIGRB_DIPOLE                           ==
     ! ==--------------------------------------------------------------==
     CHARACTER(*), PARAMETER                  :: procedureN = 'phfac_dipole'
 
-    INTEGER, INTENT(IN)                      :: aug_ind(6)
-    LOGICAL, INTENT(IN)                      :: aug_cntrl(6)
-    REAL(real_8), INTENT(IN) __CONTIGUOUS    :: wanncwwei(:)
-    INTEGER                                  :: isub, k, ierr
+    INTEGER, INTENT(IN)          :: aug_ind(6)
+    LOGICAL, INTENT(IN)          :: aug_cntrl(6)
+    INTEGER                      :: isub, k, ierr
     CALL tiset(procedureN,isub)
     IF(cntl%bigmem)THEN
-       IF(.NOT. ALLOCATED(eigrb_dipole))THEN
+       IF(.not. allocated(eigrb_dipole))THEN
           ALLOCATE(eigrb_dipole(6,ions1%nat),STAT=ierr)
           IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
                __LINE__,__FILE__)
@@ -69,7 +68,7 @@ CONTAINS
        eigrb_dipole=cmplx(0.0_real_8,0.0_real_8)
        !$omp parallel do private(k)
        DO k=1, 6
-          IF ((wanncwwei(k) > 0 .OR. wanncwwei(k) < 0) .AND. aug_cntrl(k)) THEN
+          IF (aug_cntrl(k)) THEN
              eigrb_dipole(k,:)=eigrb(aug_ind(k),:)
           ENDIF
        END DO
