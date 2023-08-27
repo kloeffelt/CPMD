@@ -213,14 +213,12 @@ CONTAINS
        CALL setdip(mapful,mapcol)
 
        ! initialization for uspp case 
-       ! operators are needed for both the wannier and the uspp case
-       IF (wannl%twann .OR. pslo_com%tivan) CALL set_operator(.TRUE.)
-
        IF (pslo_com%tivan) CALL get_augind(aug_ind,aug_cntrl)
-       IF (pslo_com%tivan) CALL qvan2_init_dipole(aug_ind,aug_cntrl,wannc%wwei)
+       IF (pslo_com%tivan) CALL qvan2_init_dipole(aug_ind,aug_cntrl)
 
        ! ..initialization for Wannier function part
        IF (wannl%twann) THEN
+          CALL set_operator(.TRUE.)
           ALLOCATE(xyzmat(nstate,nstate,wannc%nwanopt),STAT=ierr)
           IF(ierr/=0) CALL stopgm(procedureN,'allocation problem',&
                __LINE__,__FILE__)
@@ -938,7 +936,7 @@ CONTAINS
    INTEGER, ALLOCATABLE, SAVE :: nst(:,:)
    
    xyz_aug=cmplx(0.0_real_8,0.0_real_8)
-   CALL phfac_dipole(aug_ind,aug_cntrl,wannc%wwei)
+   CALL phfac_dipole(aug_ind,aug_cntrl)
    nstate_total=nstate*(nstate+1)/2
    IF(.not.allocated(nst))THEN
       ALLOCATE(nst(2,0:parai%nproc-1),stat=ierr)
@@ -963,34 +961,9 @@ CONTAINS
          end if
       end DO
    end DO
-   !   DO i=1, nstate
-!      DO j=i, nstate, 2
-!         IF(j+1.LE.nstate)THEN
-!            CALL rhov13(aug,i,j,j+1)
-!            DO k=1, 6
-!               IF ((wannc%wwei(k) > 0 .OR. wannc%wwei(k) < 0) .AND. aug_cntrl(k)) THEN
-!                  xyz_aug(i,j,k)=aug(aug_ind(k),1)*parm%omega
-!                  xyz_aug(i,j+1,k)=aug(aug_ind(k),2)*parm%omega
-!                  xyz_aug(j,i,k)=aug(aug_ind(k),1)*parm%omega
-!                  xyz_aug(j+1,i,k)=aug(aug_ind(k),2)*parm%omega
-!               ENDIF
-!            ENDDO
-!         ELSE
-!            CALL rhov12(aug(:,1),i,j)
-!            DO k=1, 6
-!               IF ((wannc%wwei(k) > 0 .OR. wannc%wwei(k) < 0) .AND. aug_cntrl(k)) THEN
-!                  xyz_aug(i,j,k)=aug(aug_ind(k),1)*parm%omega
-!                  xyz_aug(j,i,k)=aug(aug_ind(k),1)*parm%omega
-!               ENDIF
-!            ENDDO
-!         END IF
-!      ENDDO
-!   ENDDO 
     
    CALL mp_sum(xyz_aug, 6*nstate*nstate, parai%allgrp) 
    
-   !CALL MPI_ALLREDUCE(aug_send, xyz_aug, 6*nstate*nstate, MPI_DOUBLE_COMPLEX, MPI_SUM, MP_COMM_WORLD)
-
    ! ==--------------------------------------------------------------==
    RETURN
   END SUBROUTINE get_aug

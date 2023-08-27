@@ -371,15 +371,14 @@ CONTAINS
   END SUBROUTINE qvan2_init
   ! ==================================================================
   ! ==================================================================
-  SUBROUTINE qvan2_init_dipole(aug_ind,aug_cntrl,wanncwwei)
+  SUBROUTINE qvan2_init_dipole(aug_ind,aug_cntrl)
     ! ==--------------------------------------------------------------==
-    ! ==  CALCULATION OF ARRAY QG_dipole SAVE ONLY FOR BIGMEM         ==
+    ! ==  CALCULATION OF ARRAY QG SAVE ONLY FOR BIGMEM                ==
     ! ==--------------------------------------------------------------==
     CHARACTER(*), PARAMETER                  :: procedureN = 'qvan2_init_dipole'
 
     INTEGER, INTENT(IN)          :: aug_ind(6)
     LOGICAL, INTENT(IN)          :: aug_cntrl(6)
-    REAL(real_8), INTENT(IN)     :: wanncwwei(:)
 
     INTEGER                                  :: ierr, is, isub, iv, &
                                                 jv, nhh,k
@@ -401,7 +400,7 @@ CONTAINS
                 DO jv=iv,nlps_com%ngh(is)
                    nhh=nhh+1
                    DO k=1, 6
-                      IF ((wanncwwei(k) > 0 .OR. wanncwwei(k) < 0) .AND. aug_cntrl(k)) THEN
+                      IF (aug_cntrl(k)) THEN
                          qg_dipole(k,nhh)=qg(aug_ind(k),nhh)
                       ENDIF
                    ENDDO
