@@ -202,7 +202,7 @@ CONTAINS
        EXIT_ON_ERROR
     END IF
 
-    DEALLOCATE( this%array)
+    DEALLOCATE( this%array, STAT=ierr)
     IF ( ierr /= 0 ) THEN
        WRITE( OUTPUT_UNIT, '(A)' ) "Can not deallocate node"
        EXIT_ON_ERROR
@@ -372,7 +372,7 @@ CONTAINS
 #if defined(_DEBUG)
     WRITE( OUTPUT_UNIT, '(A,2I17)' ) "check start guard, start, end", start, end
 #endif
- DO i = start, end
+    DO i = start, end
        IF( .NOT. this( i ) == guard_start )THEN
           ierr1 = -1
        END IF
