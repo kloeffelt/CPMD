@@ -175,11 +175,11 @@ CONTAINS
              IF (cntl%tfdist) CALL mp_sum(ddia,imagp*maxsys%nax*nstate,parai%allgrp)
              IF (NGWK_local.GT.0) THEN
                 IF (tkpts%tkpnt) THEN
-                   CALL zgemm("N","N",NGWK_local,nstate,ions0%na(is),zone,&
+                   CALL cpmd_zgemm("N","N",NGWK_local,nstate,ions0%na(is),zone,&
                         eigkr(ibeg_c0,isa0+1,ikind),nkpt%ngwk,ddki(1,1,1),&
                         maxsys%nax,zzero,auxc,nkpt%ngwk)
                 ELSE
-                   CALL dgemm("N","N",2*NGW_local,nstate,ions0%na(is),1._real_8,&
+                   CALL cpmd_dgemm("N","N",2*NGW_local,nstate,ions0%na(is),1._real_8,&
                         eigr(ibeg_c0,isa0+1,1),2*ncpw%ngw,ddia(1,1),maxsys%nax,0._real_8,&
                         auxc,2*ncpw%ngw)
                 ENDIF
@@ -271,11 +271,11 @@ CONTAINS
              IF (NGWK_local.GT.0) THEN
                 ! vw here we can build only the submatrix
                 IF (tkpts%tkpnt) THEN
-                   CALL zgemm("N","N",NGWK_local,nstate,ions0%na(is),zone,&
+                   CALL cpmd_zgemm("N","N",NGWK_local,nstate,ions0%na(is),zone,&
                         eigkr(ibeg_c0,isa0+1,ikind),nkpt%ngwk,ddki(1,1,1),&
                         maxsys%nax,zzero,auxc,nkpt%ngwk)
                 ELSE
-                   CALL dgemm("N","N",2*NGW_local,nstate,ions0%na(is),1._real_8,&
+                   CALL cpmd_dgemm("N","N",2*NGW_local,nstate,ions0%na(is),1._real_8,&
                         eigr(ibeg_c0,isa0+1,1),2*ncpw%ngw,ddia(1,1),maxsys%nax,0._real_8,&
                         auxc,2*ncpw%ngw)
                 ENDIF
@@ -334,11 +334,11 @@ CONTAINS
              ENDIF
              IF (NGWK_local.GT.0) THEN
                 IF (tkpts%tkpnt) THEN
-                   CALL zgemm('N','N',NGWK_local,nstate,ions0%na(is),zone,&
+                   CALL cpmd_zgemm('N','N',NGWK_local,nstate,ions0%na(is),zone,&
                         eigkr(ibeg_c0,isa0+1,ikind),nkpt%ngwk,ddia,maxsys%nax,&
                         zzero,auxc,nkpt%ngwk)
                 ELSE
-                   CALL dgemm('N','N',2*NGW_local,nstate,ions0%na(is),1._real_8,&
+                   CALL cpmd_dgemm('N','N',2*NGW_local,nstate,ions0%na(is),1._real_8,&
                         eigr(ibeg_c0,isa0+1,1),2*ncpw%ngw,ddia,maxsys%nax,0.0_real_8,&
                         auxc,2*ncpw%ngw)
                 ENDIF
@@ -755,7 +755,7 @@ CONTAINS
     call build_beta(na,eigr,twnl(:,:,:,1),eiscr,t,ncpw%ngw,1,int(il_eiscr(1)))
     !$omp end parallel
     
-    CALL dgemm("N","N",2*ncpw%ngw,nstate,int(il_dai(1)),1._real_8,&
+    CALL cpmd_dgemm("N","N",2*ncpw%ngw,nstate,int(il_dai(1)),1._real_8,&
          eiscr,2*ncpw%ngw,dai(1,1),int(il_dai(1)),1._real_8,&
          c2,2*ncpw%ngw)
 

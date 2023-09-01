@@ -252,7 +252,7 @@ CONTAINS
           CALL build_beta(na_grp(:,:,grp),eigr,twnl(:,:,:,1),eiscr,t,ncpw%ngw,ibeg,ngw_local)
           !$omp end parallel
           IF(ld_grp(grp).GT.0)THEN
-             CALL DGEMM('N','N',2*ngw_local,nstate,ld_grp(grp)&
+             CALL cpmd_dgemm('N','N',2*ngw_local,nstate,ld_grp(grp)&
                   ,1._real_8,eiscr(1,1),2*ngw_local&
                   ,dai(1,1,grp+1),il_dai(1),1.0_real_8,c2(ibeg,1),2*ncpw%ngw)
           END IF
@@ -276,7 +276,7 @@ CONTAINS
                   ngw_local)
              !$omp end parallel
              IF(ld_grp(grp).GT.0)THEN
-                CALL DGEMM('N','N',2*ngw_local,nstate,ld_grp(grp)&
+                CALL cpmd_dgemm('N','N',2*ngw_local,nstate,ld_grp(grp)&
                      ,1._real_8,eiscr(1,1),2*ngw_local&
                      ,dai(1,1,grp+1),il_dai(1),1.0_real_8,c2(ibeg,1),2*ncpw%ngw)
              END IF
@@ -448,7 +448,7 @@ CONTAINS
              ENDDO
              CALL mp_sum(ddia,nstate*maxsys%nax,parai%cp_grp)
              IF (ncpw%ngw.GT.0)&
-                  CALL dgemm("N","N",2*ncpw%ngw,nstate,ions0%na(is),1._real_8,&
+                  CALL cpmd_dgemm("N","N",2*ncpw%ngw,nstate,ions0%na(is),1._real_8,&
                   eigr(1,isa0+1,1),2*ncpw%ngw,ddia(1,1),maxsys%nax,0._real_8,auxc,2*ncpw%ngw)
              ct=(0.0_real_8,-1.0_real_8)**nghtol(iv,is)
              !$omp parallel do private(IG,I,FFI,CTM)
@@ -476,7 +476,7 @@ CONTAINS
              END DO
              CALL mp_sum(ddia,nstate*maxsys%nax,parai%cp_grp)
              IF (ncpw%ngw.GT.0)&
-                  CALL dgemm('N','N',2*ncpw%ngw,nstate,ions0%na(is),1._real_8,&
+                  CALL cpmd_dgemm('N','N',2*ncpw%ngw,nstate,ions0%na(is),1._real_8,&
                   eigr(1,isa0+1,1),2*ncpw%ngw,ddia,maxsys%nax,0.0_real_8,auxc,2*ncpw%ngw)
              ct=(0.0_real_8,-1.0_real_8)**nghtol(iv,is)*wsg(is,iv)
              !$omp parallel do private(IG,I,FFI,CTM)

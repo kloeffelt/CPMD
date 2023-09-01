@@ -644,7 +644,7 @@ CONTAINS
 
     if(block_size.gt.0)then
 
-       CALL dgemm('n','n',2*block_size,nhh*num_rho,na_is &
+       CALL cpmd_dgemm('n','n',2*block_size,nhh*num_rho,na_is &
             ,1.0_real_8,EIGRB_local(block_start,1),2*size(EIGRB_local,1) &
             ,DIA,na_is,0.0_real_8,CTMP,2*size(ctmp,1))
 

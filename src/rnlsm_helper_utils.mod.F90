@@ -189,7 +189,7 @@ CONTAINS
        ELSE
           zfac=zone
        END IF
-       CALL ZGEMM('C','N',ld_dai,nstate,  ld_eiscr,zfac,eiscr,  ld_eiscr,c0(startg,1),  &
+       CALL cpmd_zgemm('C','N',ld_dai,nstate,  ld_eiscr,zfac,eiscr,  ld_eiscr,c0(startg,1),  &
               ld_c0, zzero,    dai,ld_dai)
     ELSE
        IF(deriv)THEN
@@ -197,7 +197,7 @@ CONTAINS
        ELSE
           tfac=2._real_8
        END IF
-       CALL DGEMM('T','N',ld_dai,nstate,2*ld_eiscr,tfac,eiscr,2*ld_eiscr,c0(startg,1),  &
+       CALL cpmd_dgemm('T','N',ld_dai,nstate,2*ld_eiscr,tfac,eiscr,2*ld_eiscr,c0(startg,1),  &
             2*ld_c0, 0._real_8,dai,ld_dai)
     ENDIF
   END SUBROUTINE proj_beta

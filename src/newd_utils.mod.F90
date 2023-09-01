@@ -397,7 +397,7 @@ CONTAINS
           IF(geq0.AND.istart.EQ.1.AND.my_start.EQ.istart) THEN
              CALL cpmd_dger(ia_sum,len_qg1*nhh,-1.0_real_8,&
                   eigrb(1,isa0+1),2*ncpw%nhg, &
-                  qg1,2*my_size,&
+                  qg1(:,methread),2*my_size,&
                   fnlt(:,methread),ia_sum)
           END IF
        END IF
