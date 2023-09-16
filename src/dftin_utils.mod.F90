@@ -62,8 +62,8 @@ MODULE dftin_utils
   USE zeroing_utils,                   ONLY: zeroing
   USE mts_utils,                       ONLY: mts
   !
-  USE ace_hfx,                         ONLY: HFX_SCDM_STATUS, &
-                                             SCDM_CUTOFF  !SM
+  USE ace_hfx,                         ONLY: HFX_SCDM_STATUS, NEW_SCDM, &
+                                             SCDM_CUTOFF, de_cutoff, n_loop  !SM
 
 #include "sizeof.h"
 
@@ -289,7 +289,10 @@ CONTAINS
        !
 !----------------------------------------------------------
        HFX_SCDM_STATUS=.FALSE. !SM
+       NEW_SCDM=.FALSE. !SM
        SCDM_CUTOFF=1.0e-8_real_8
+       de_cutoff=1.0e-8_real_8
+       n_loop = 1
 !----------------------------------------------------------
        !
        need_dft = .true.
@@ -673,13 +676,16 @@ CONTAINS
 !------------------------------------------------------------------------
 !            SM
              ELSEIF (keyword_contains(line,'HFX_SCDM')) THEN
-                READ(iunit,*,iostat=ierr) SCDM_CUTOFF
+                READ(iunit,*,iostat=ierr) SCDM_CUTOFF !, de_cutoff, n_loop
                 IF (ierr /= 0) THEN
-                   error_message        = 'COULD NOT READ SCDM_CUTOFF'
+                   error_message        = 'COULD NOT READ SCDM_CUTOFF / DE_CUTOFF/ n_loop'
                    something_went_wrong = .true.
                    go_on_reading        = .false.
                 ENDIF
                 HFX_SCDM_STATUS=.true.
+!------------------------------------------------------------------------
+             ELSEIF (keyword_contains(line,'HFX_NEW_SCDM')) THEN
+                NEW_SCDM = .true.
 !------------------------------------------------------------------------
                 ! Combined range separation GGA & HFX
              ELSEIF(keyword_contains(line,'RANGE',and='SEPARATION') .OR. &
@@ -2233,6 +2239,8 @@ __LINE__,__FILE__)
             WRITE(output_unit,'(A)') '!                        SAGARMOY MANDAL                        !'
             WRITE(output_unit,'(A)') '!                     IIT KANPUR, INDIA(2019)                   !'
             WRITE(output_unit,'(A)')'!===============================================================!'
+            WRITE(output_unit,'(A,T65,L1)') ' USE NEW HFX SCDM ', NEW_SCDM
+            WRITE(output_unit,'(A)')'!===============================================================!'
           ENDIF
 !-------------------------------------------------------------------------------
           !
@@ -2639,7 +2647,10 @@ __LINE__,__FILE__)
        !
        ! SM
        CALL mp_bcast(HFX_SCDM_STATUS,parai%io_source,parai%cp_grp)
+       CALL mp_bcast(NEW_SCDM,parai%io_source,parai%cp_grp)
        CALL mp_bcast_byte(SCDM_CUTOFF,size_in_bytes_of(SCDM_CUTOFF),parai%io_source,parai%cp_grp)
+       CALL mp_bcast_byte(DE_CUTOFF,size_in_bytes_of(DE_CUTOFF),parai%io_source,parai%cp_grp)
+       CALL mp_bcast_byte(n_loop,size_in_bytes_of(n_loop),parai%io_source,parai%cp_grp)
        !
     END SUBROUTINE broadcast_dftin
     ! ==--------------------------------------------------------------==

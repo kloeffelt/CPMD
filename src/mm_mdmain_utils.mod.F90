@@ -161,6 +161,7 @@ MODULE mm_mdmain_utils
   USE wrgeo_utils,                     ONLY: wrgeof
   USE wv30_utils,                      ONLY: zhwwf
   USE zeroing_utils,                   ONLY: zeroing
+  USE sinr_utils  !ritama
 
   IMPLICIT NONE
 
@@ -1195,7 +1196,11 @@ CONTAINS
     ENDDO
     qmdof=REAL(ndof,kind=real_8)-qmcnstr
     IF (qmdof.GT.0.1_real_8) THEN
-       tempqm=ekinqm*factem*2._real_8/qmdof
+       IF(cntl%tsinr)THEN !SINR
+         tempqm=ekinqm*factem*2._real_8/(qmdof*lbylp1)
+       ELSE
+         tempqm=ekinqm*factem*2._real_8/qmdof
+       ENDIF
     ELSE
        tempqm=0.0_real_8
     ENDIF
@@ -1219,15 +1224,28 @@ CONTAINS
     ! account for uncounted constraints in case we have no solvent
     IF (glib.LT.(qmdof+mmdof)) mmdof=glib-qmdof
     IF (mmdof.GT.0.1_real_8) THEN
-       tempmm=ekinmm*factem*2._real_8/mmdof
+       IF(cntl%tsinr)THEN !SINR
+         tempmm=ekinmm*factem*2._real_8/(mmdof*lbylp1)
+       ELSE
+         tempmm=ekinmm*factem*2._real_8/mmdof
+       ENDIF
     ELSE
        tempmm=0.0_real_8
     ENDIF
-
-    ekinp=tempp/factem/2.0_real_8*glib
+! SINR thermostat
+    IF(cntl%tsinr)THEN
+      ekinp=tempp/factem/2.0_real_8*glib
+    ELSE
+      ekinp=tempp/factem/2.0_real_8*glib
+    ENDIF
+!
     ekincl=ekinp-ekinqm-ekinmm
     IF (glib.GT.(qmdof+mmdof)) THEN
-       tempcl=ekincl*factem*2._real_8/(glib-qmdof-mmdof)
+       IF(cntl%tsinr)THEN   !SINR
+         tempcl=ekincl*factem*2._real_8/((glib-qmdof-mmdof)*lbylp1)
+       ELSE
+         tempcl=ekincl*factem*2._real_8/(glib-qmdof-mmdof)
+       ENDIF
     ELSE
        tempcl=0.0_real_8
     ENDIF

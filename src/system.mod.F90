@@ -452,6 +452,7 @@ MODULE system
      LOGICAL :: tnosee = .FALSE.
      LOGICAL :: tnosep = .FALSE.
      LOGICAL :: tnoses  = .FALSE.
+     LOGICAL :: tsinr  = .FALSE. !ritama
      LOGICAL :: timing = .FALSE.
      LOGICAL :: ksener = .FALSE.
      LOGICAL :: orbrot = .FALSE.
@@ -645,6 +646,7 @@ MODULE system
      INTEGER :: nchs = HUGE(0)
      INTEGER :: ncalls0 = HUGE(0)
      INTEGER :: nit0 = HUGE(0)
+     INTEGER :: lsinr = HUGE(0) !ritama
      INTEGER :: kssta = HUGE(0) !vw not initialized at all
      INTEGER :: nkssta = HUGE(0)
      INTEGER :: imovie = HUGE(0)
@@ -782,6 +784,9 @@ MODULE system
      REAL(real_8) :: gceps = HUGE(0.0_real_8) !vw not initialized at all
      REAL(real_8) :: wnose0 = HUGE(0.0_real_8) !vw not initialized at all
      REAL(real_8) :: wnosp0 = HUGE(0.0_real_8) !vw not initialized at all
+     REAL(real_8) :: tausinr = HUGE(0.0_real_8) !ritama
+     REAL(real_8) :: gammasinr = HUGE(0.0_real_8) !ritama
+     REAL(real_8) :: tempsinr = HUGE(0.0_real_8) !ritama
      REAL(real_8) :: epsdav = HUGE(0.0_real_8)
      REAL(real_8) :: amprp = HUGE(0.0_real_8)
      REAL(real_8) :: fdiff = HUGE(0.0_real_8)

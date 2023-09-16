@@ -123,6 +123,9 @@ MODULE control_utils
                                              rmixsd,&
                                              tolx_inr
 
+  USE ace_hfx,                       ONLY: LANG_DYN,&
+                                GAMMA,T_BATH !SAGAR HACK
+
   IMPLICIT NONE
 
   PRIVATE
@@ -536,6 +539,8 @@ CONTAINS
        error_message        = ' '
        !
        ! Defaults that are not in control_def, part II
+       !
+       LANG_DYN=.FALSE.  !SAGAR HACK
        !
        mirror        = .FALSE.
        tsrho         = .FALSE.
@@ -1203,6 +1208,11 @@ CONTAINS
                 READ(iunit,'(A)',iostat=ierr) line
                 first=1
                 CALL readsi(line,first,last,cnti%iprng,erread)
+!-------------------------------------------------------------------------------
+             ELSEIF ( keyword_contains(line,'LANGEVIN_DYNAMICS') ) THEN  !SAGAR HACK
+                READ(iunit,*,iostat=ierr)GAMMA,T_BATH
+                LANG_DYN=.TRUE.
+!-------------------------------------------------------------------------------
              ELSEIF ( keyword_contains(line,'LANGEVIN') ) THEN
                 IF ( keyword_contains(line,'MOVECM',alias='MOVECOM')) glepar%gle_com=0
                 IF ( keyword_contains(line,'CENTROIDOFF')) tglepc=.FALSE.
@@ -2869,6 +2879,42 @@ CONTAINS
                    something_went_wrong = .true.
                    go_on_reading        = .false.
                 ENDIF
+
+!!---------------------------------RITAMA-----------------------------------------!!
+             ELSEIF ( keyword_contains(line,'SINR') ) THEN
+                cntl%tsinr=.TRUE. 
+                previous_line = line
+                READ(iunit,'(A)',iostat=ierr) line
+                first=1
+                CALL readsr(line,first,last,cntr%tausinr,   erread)
+                IF (erread) THEN
+                   error_message        = "ERROR WHILE READING VALUE TAU OF SINR"
+                   something_went_wrong = .true.
+                   go_on_reading        = .false.
+                ENDIF
+                first=last
+                CALL readsr(line,first,last,cntr%gammasinr,   erread)
+                IF (erread) THEN
+                   error_message        = "ERROR WHILE READING VALUE GAMMA OF SINR"
+                   something_went_wrong = .true.
+                   go_on_reading        = .false.
+                ENDIF
+                first=last
+                CALL readsr(line,first,last,cntr%tempsinr,   erread)
+                IF (erread) THEN
+                   error_message        = "ERROR WHILE READING VALUE OF TEMP FOR SINR"
+                   something_went_wrong = .true.
+                   go_on_reading        = .false.
+                ENDIF
+                first=last
+                CALL readsi(line,first,last,cnti%lsinr,   erread)
+                IF (erread) THEN
+                   error_message        = "ERROR WHILE READING VALUE OF L OF SINR"
+                   something_went_wrong = .true.
+                   go_on_reading        = .false.
+                ENDIF
+
+!!---------------------------------RITAMA-----------------------------------------!!
              ELSEIF ( keyword_contains(line,'USE_IN_STREAM') ) THEN
                 cntl%is_in_stream=.TRUE.
              ELSEIF ( keyword_contains(line,'USE_OUT_STREAM') ) THEN
@@ -3460,7 +3506,7 @@ CONTAINS
              ELSEIF ( keyword_contains(line,'RHOOUT') ) THEN
                 ! Store density
                 rout1%rhoout=.TRUE.
-                IF ( keyword_contains(line,'SAMPLE') ) THEN
+                IF ( keyword_contains(line,'SAMPLE',cut_at='=') ) THEN
                    first = index_of_delimiter(line,'SAMPLE','=')
                    CALL readsi(line,first,last,rout1%nrhoout,erread)
                    IF (erread) THEN
