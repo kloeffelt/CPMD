@@ -14,7 +14,9 @@ MODULE nlforce_utils
   USE ions,                            ONLY: ions0,&
                                              ions1
   USE kinds,                           ONLY: real_8,&
-                                             int_8
+                                             int_8,&
+                                             int_4
+  USE kpts,                            ONLY: tkpts
   USE mp_interface,                    ONLY: mp_sum
   USE nlps,                            ONLY: imagp,&
                                              nghtol,&
@@ -79,11 +81,11 @@ CONTAINS
     INTEGER                                  :: i, ispin, offset_fnl, offset_dai, isa0, &
                                                 is, ia_sum, start_isa, ia_fnl, isub, ierr, &
                                                 ld_grp(0:parai%cp_nogrp-1), grp, nthreads, &
-                                                ibeg, ngw_local, methread, nested_threads
+                                                ibeg, ngw_local, methread, nested_threads, igeq0
     INTEGER, ALLOCATABLE                     :: na_grp(:,:,:), na(:,:), na_fnl(:,:)
     INTEGER(int_8)                           :: il_eiscr(2), il_dai(3), il_t(1)
     REAL(real_8)                             :: ffi
-
+    LOGICAL                                  :: geq0_l
 #ifdef _USE_SCRATCHLIBRARY
     COMPLEX(real_8),POINTER __CONTIGUOUS &
                        , ASYNCHRONOUS        :: eiscr(:,:)
@@ -131,7 +133,12 @@ CONTAINS
        ngw_local=ncpw%ngw
        ibeg=1
     ELSE
-       CALL cp_grp_get_sizes(ngw_l=ngw_local,first_g=ibeg)
+       CALL cp_grp_get_sizes(ngw_l=ngw_local,first_g=ibeg,geq0_l=geq0_l)
+    END IF
+    IF(tkpts%tkpnt)THEN
+       igeq0=ncpw%ngw+1
+    ELSE
+       igeq0=1
     END IF
     IF (pslo_com%tivan) THEN
        ! ==--------------------------------------------------------==
@@ -235,7 +242,7 @@ CONTAINS
        !$ methread = omp_get_thread_num()
        IF(methread.EQ.0.AND.parai%cp_nogrp.GT.1)THEN
           !get data from other cp_grp other threads build local beta and perform dgemms
-          CALL my_concat_inplace(dai,il_dai(1)*nstate,parai%cp_inter_grp)
+          CALL my_concat_inplace(dai,INT(il_dai(1),kind=int_4)*nstate,parai%cp_inter_grp)
        END IF
        IF(methread.EQ.1.OR.nthreads.EQ.1)THEN
           !$ methread = omp_get_thread_num()
@@ -248,13 +255,12 @@ CONTAINS
 #endif
           !$ END IF
           grp=parai%cp_inter_me
-          !$omp parallel num_threads(nested_threads)
-          CALL build_beta(na_grp(:,:,grp),eigr,twnl(:,:,:,1),eiscr,t,ncpw%ngw,ibeg,ngw_local)
-          !$omp end parallel
+          CALL build_beta(na_grp(:,:,grp),eigr,twnl(:,:,:,1),eiscr,t,ncpw%ngw,ibeg,&
+                  ngw_local,INT(il_eiscr(2),kind=int_4),igeq0,geq0_l,tkpts%tkpnt)
           IF(ld_grp(grp).GT.0)THEN
              CALL cpmd_dgemm('N','N',2*ngw_local,nstate,ld_grp(grp)&
                   ,1._real_8,eiscr(1,1),2*ngw_local&
-                  ,dai(1,1,grp+1),il_dai(1),1.0_real_8,c2(ibeg,1),2*ncpw%ngw)
+                  ,dai(1,1,grp+1),INT(il_dai(1),kind=int_4),1.0_real_8,c2(ibeg,1),2*ncpw%ngw)
           END IF
 
           !$ IF (methread.EQ.1) THEN
@@ -271,14 +277,12 @@ CONTAINS
        IF(parai%cp_nogrp.GT.1)THEN
           DO grp=0,parai%cp_nogrp-1
              IF(grp.EQ.parai%cp_inter_me)CYCLE
-             !$omp parallel num_threads(parai%ncpus)
              CALL build_beta(na_grp(:,:,grp),eigr,twnl(:,:,:,1),eiscr,t,ncpw%ngw,ibeg,&
-                  ngw_local)
-             !$omp end parallel
+                  ngw_local,INT(il_eiscr(2),kind=int_4),igeq0,geq0_l,tkpts%tkpnt)
              IF(ld_grp(grp).GT.0)THEN
                 CALL cpmd_dgemm('N','N',2*ngw_local,nstate,ld_grp(grp)&
                      ,1._real_8,eiscr(1,1),2*ngw_local&
-                     ,dai(1,1,grp+1),il_dai(1),1.0_real_8,c2(ibeg,1),2*ncpw%ngw)
+                     ,dai(1,1,grp+1),INT(il_dai(1),kind=int_4),1.0_real_8,c2(ibeg,1),2*ncpw%ngw)
              END IF
           END DO
        END IF

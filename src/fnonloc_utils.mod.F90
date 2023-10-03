@@ -11,9 +11,11 @@ MODULE fnonloc_utils
   USE elct,                            ONLY: crge
   USE ener,                            ONLY: ener_d
   USE error_handling,                  ONLY: stopgm
+  USE geq0mod,                         ONLY: geq0
   USE ions,                            ONLY: ions0,&
                                              ions1
   USE kinds,                           ONLY: real_8,&
+                                             int_4,&
                                              int_8
   USE kpnt,                            ONLY: eigkr
   USE kpts,                            ONLY: tkpts
@@ -664,7 +666,7 @@ CONTAINS
     CHARACTER(*), PARAMETER                  :: procedureN = 'fnonloc_hfx'
     INTEGER                                  :: i, ierr, is, isa0, isub, &
                                                 ispin, offset_dai, &
-                                                na(2,ions1%nsp)
+                                                na(2,ions1%nsp), igeq0
     REAL(real_8)                             :: weight
     INTEGER(int_8)                           :: il_dai(2), il_eiscr(2), &
                                                 il_t(1)
@@ -727,7 +729,12 @@ CONTAINS
 #endif
     IF (ierr /= 0) CALL stopgm(procedureN, 'Cannot allocate t',&
          __LINE__,__FILE__)
-      
+    IF(tkpts%tkpnt)THEN
+       igeq0=ncpw%ngw+1
+    ELSE
+       igeq0=1
+    END IF
+
     !$omp parallel private (i,weight,ispin,offset_dai,isa0,is)
     !$omp do
     DO i=1,nstate
@@ -751,12 +758,11 @@ CONTAINS
     END DO
     !$omp end do nowait
     !$omp end parallel
-    !$omp parallel
-    call build_beta(na,eigr,twnl(:,:,:,1),eiscr,t,ncpw%ngw,1,int(il_eiscr(1)))
-    !$omp end parallel
+    call build_beta(na,eigr,twnl(:,:,:,1),eiscr,t,ncpw%ngw,1,INT(il_eiscr(1),kind=int_4),&
+         INT(il_eiscr(2),int_4),igeq0,geq0,tkpts%tkpnt)
     
-    CALL cpmd_dgemm("N","N",2*ncpw%ngw,nstate,int(il_dai(1)),1._real_8,&
-         eiscr,2*ncpw%ngw,dai(1,1),int(il_dai(1)),1._real_8,&
+    CALL cpmd_dgemm("N","N",2*ncpw%ngw,nstate,INT(il_dai(1),kind=int_4),1._real_8,&
+         eiscr,2*ncpw%ngw,dai(1,1),INT(il_dai(1),kind=int_4),1._real_8,&
          c2,2*ncpw%ngw)
 
 #ifdef _USE_SCRATCHLIBRARY
