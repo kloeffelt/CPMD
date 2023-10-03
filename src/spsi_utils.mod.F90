@@ -10,7 +10,8 @@ MODULE spsi_utils
   USE ions,                            ONLY: ions0,&
                                              ions1
   USE kinds,                           ONLY: real_8,&
-                                             int_8
+                                             int_8,&
+                                             int_4
   USE nlps,                            ONLY: nghtol,&
                                              nlps_com,&
                                              imagp
@@ -205,13 +206,12 @@ CONTAINS
           !$ END IF
 
           grp=parai%cp_inter_me
-          !$omp parallel num_threads(nested_threads)
-          CALL build_beta(na_grp(:,:,grp),eigr,twnl(:,:,:,1),eiscr,t,ncpw%ngw,ibeg,ngw_local)
-          !$omp end parallel
+          CALL build_beta(na_grp(:,:,grp),eigr,twnl(:,:,:,1),eiscr,t,ncpw%ngw,ibeg,&
+               ngw_local)
           IF(ld_grp(grp).GT.0)THEN
              CALL DGEMM('N','N',2*ngw_local,nstate,ld_grp(grp)&
                   ,1._real_8,eiscr(1,1),2*ngw_local&
-                  ,dai(1,1,grp+1),il_dai(1),1.0_real_8,sc0(ibeg,1),2*ncpw%ngw)
+                  ,dai(1,1,grp+1),INT(il_dai(1),kind=int_4),1.0_real_8,sc0(ibeg,1),2*ncpw%ngw)
           END IF
           
           !$ IF (methread.EQ.1) THEN
@@ -228,14 +228,12 @@ CONTAINS
        IF(parai%cp_nogrp.GT.1)THEN
           DO grp=0,parai%cp_nogrp-1
              IF(grp.EQ.parai%cp_inter_me)CYCLE
-             !$omp parallel num_threads(parai%ncpus)
              CALL build_beta(na_grp(:,:,grp),eigr,twnl(:,:,:,1),eiscr,t,ncpw%ngw,ibeg,&
                   ngw_local)
-             !$omp end parallel
              IF(ld_grp(grp).GT.0)THEN
                 CALL DGEMM('N','N',2*ngw_local,nstate,ld_grp(grp)&
                      ,1._real_8,eiscr(1,1),2*ngw_local&
-                     ,dai(1,1,grp+1),il_dai(1),1.0_real_8,sc0(ibeg,1),2*ncpw%ngw)
+                     ,dai(1,1,grp+1),INT(il_dai(1),kind=int_4),1.0_real_8,sc0(ibeg,1),2*ncpw%ngw)
              END IF
           END DO
        END IF

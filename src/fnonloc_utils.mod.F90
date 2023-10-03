@@ -14,6 +14,7 @@ MODULE fnonloc_utils
   USE ions,                            ONLY: ions0,&
                                              ions1
   USE kinds,                           ONLY: real_8,&
+                                             int_4,&
                                              int_8
   USE kpnt,                            ONLY: eigkr
   USE kpts,                            ONLY: tkpts
@@ -751,12 +752,10 @@ CONTAINS
     END DO
     !$omp end do nowait
     !$omp end parallel
-    !$omp parallel
-    call build_beta(na,eigr,twnl(:,:,:,1),eiscr,t,ncpw%ngw,1,int(il_eiscr(1)))
-    !$omp end parallel
+    call build_beta(na,eigr,twnl(:,:,:,1),eiscr,t,ncpw%ngw,1,INT(il_eiscr(1),kind=int_4))
     
-    CALL cpmd_dgemm("N","N",2*ncpw%ngw,nstate,int(il_dai(1)),1._real_8,&
-         eiscr,2*ncpw%ngw,dai(1,1),int(il_dai(1)),1._real_8,&
+    CALL cpmd_dgemm("N","N",2*ncpw%ngw,nstate,INT(il_dai(1),kind=int_4),1._real_8,&
+         eiscr,2*ncpw%ngw,dai(1,1),INT(il_dai(1),kind=int_4),1._real_8,&
          c2,2*ncpw%ngw)
 
 #ifdef _USE_SCRATCHLIBRARY

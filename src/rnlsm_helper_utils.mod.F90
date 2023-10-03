@@ -163,26 +163,12 @@ CONTAINS
                                                 zzero = (0._real_8,0._real_8)
     COMPLEX(real_8)                          :: zfac
     REAL(real_8)                             :: tfac
-    !$omp parallel
+
     IF(deriv)THEN
-       CALL build_beta_deriv(na,eigkr,gktemp,twnl(:,:,:),eiscr,t,ld_eiscr,startg,&
-            ld_c0)
+       CALL build_beta(na,eigkr,twnl(:,:,:),eiscr,t,ld_eiscr,startg,ld_c0,ld_dai,igeq0,geq0,tkpnt,gktemp)
     ELSE
-       CALL build_beta(na,eigkr,twnl(:,:,:),eiscr,t,ld_eiscr,startg,ld_c0)
+       CALL build_beta(na,eigkr,twnl(:,:,:),eiscr,t,ld_eiscr,startg,ld_c0,ld_dai,igeq0,geq0,tkpnt)
     END IF
-    IF(geq0)THEN
-       !$omp barrier
-       IF(tkpnt)THEN
-          !$omp workshare
-          eiscr(igeq0,1:ld_dai)=zzero
-          !$omp end workshare nowait
-       ELSE
-          !$omp workshare
-          eiscr(igeq0,1:ld_dai)=eiscr(1,1:ld_dai)*0.5_real_8
-          !$omp end workshare nowait
-       END IF
-    END IF
-    !$omp end parallel
     IF(TKPNT) THEN       
        IF(deriv)THEN 
           zfac=parm%tpiba*zone
