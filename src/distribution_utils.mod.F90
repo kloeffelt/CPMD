@@ -36,6 +36,8 @@ CONTAINS
     IF (PRESENT(nblock)) THEN
        IF (nblock*num .GE. entity) THEN
           xentity=REAL(nblock,kind=real_8)
+       ELSE
+          xentity=REAL(entity,kind=real_8)
        END IF
     ELSE
        xentity=REAL(entity,kind=real_8)
@@ -117,6 +119,8 @@ CONTAINS
     IF (PRESENT(nblock)) THEN
        IF (nblock*num .GE. entity) THEN
           xentity=REAL(nblock,kind=real_8)
+       ELSE
+          xentity=REAL(entity,kind=real_8)
        END IF
     ELSE
        xentity=REAL(entity,kind=real_8)

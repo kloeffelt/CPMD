@@ -174,7 +174,7 @@ CONTAINS
        CALL prep_smallmem_rhov(nstates_local,ig_start,nhg_loc,na,deltar_ptr,fnl_packed)
     ENDIF
 
-    IF(.NOT.do_hfx.OR..NOT.do_dipole)THEN
+    IF(.NOT.do_hfx.AND..NOT.do_dipole)THEN
        IF (parai%cp_nogrp.GT.1) THEN
           CALL TISET(procedureN//'_grpsb',isub1)
           CALL cp_grp_redist_array(deltar(:,1),ncpw%nhg)
