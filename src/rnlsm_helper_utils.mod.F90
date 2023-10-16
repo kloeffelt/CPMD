@@ -1,8 +1,7 @@
 #include "cpmd_global.h"
 
 MODULE rnlsm_helper
-  USE beta_utils,                      ONLY: build_beta,&
-                                             build_beta_deriv
+  USE beta_utils,                      ONLY: build_beta
   USE distribution_utils,              ONLY: dist_atoms
   USE error_handling,                  ONLY: stopgm
   USE ions,                            ONLY: ions1
